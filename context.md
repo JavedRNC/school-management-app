@@ -2,7 +2,7 @@
 
 ## Project
 School Hub: school mgmt app. Roles: Principal, Teacher, Student. Owner: Javed (GitHub JavedRNC).
-Repo: JavedRNC/school-management-app (Javed must grant Claude GitHub App access to it before first push)
+Repo: JavedRNC/school-management-app (branch main; Claude has push access)
 
 ## Stack
 - backend/: FastAPI, SQLAlchemy 2, SQLite dev / Postgres prod (DATABASE_URL), PyJWT, bcrypt. Tests: `pytest -q` (5 pass)
@@ -26,7 +26,7 @@ Claude codes in cloud → push GitHub → Android Termux pull loop → `npx expo
 - Verified: tsc clean, `expo export --platform android` bundles
 
 ## Status
-- [ ] Push to GitHub (blocked on access)
+- [x] Pushed to GitHub main (2026-11-08)
 - [ ] Javed: deploy backend to Render, set Termux, test on phone
 - [ ] Not yet visually tested on a device
 
