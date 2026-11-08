@@ -18,13 +18,14 @@ Rules: keep deps Expo-Go compatible (no custom native modules); keep project in 
 - Principal: classes/sections, assign teacher→class+subject, timetable, school announcements, attendance overview
 - Teacher: mark daily attendance, enter exam marks, post homework/class notices, view timetable
 - Student: view attendance %, marks/report card, timetable, homework/notices
-- Principal dashboard (requested): overview cards, attendance (today/trend/absentees/unmarked classes), academics (avg by class+subject, exam trend, top/bottom, pass rate), teacher activity, at-risk students (low attendance+marks)
+- Principal dashboard MVP (Claude chose, Javed delegated): overview cards; attendance today by class, 30-day trend, <75% list, unmarked classes; academics avg by class+subject, top/bottom 5, pass rate; at-risk (att<75% or avg<40%)
+- Dashboard later: exam-to-exam trend, teacher activity
 - Later: parents, fees, push notifications, leave requests, exam schedule, chat
 
 ## Status
 - [x] GitHub connected; context.md created
 - [x] Repo created by Javed; Claude GitHub App lacks access to it (needs repo added in app config) — not pushed yet
-- [ ] Javed approves MVP + analytics list
+- [x] MVP scope approved (Claude picks details)
 - [ ] Backend scaffold
 - [ ] Mobile scaffold
 - [ ] Termux setup guide
