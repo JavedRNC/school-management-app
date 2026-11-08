@@ -3,11 +3,11 @@ import { RoleTabs } from '@/components/RoleTabs';
 export default function StudentLayout() {
   return (
     <RoleTabs role="student" tabs={[
-      { name: 'index', title: 'Home', icon: 'home' },
-      { name: 'marks', title: 'Marks', icon: 'ribbon' },
-      { name: 'timetable', title: 'Timetable', icon: 'calendar' },
-      { name: 'homework', title: 'Homework', icon: 'book' },
-      { name: 'profile', title: 'Profile', icon: 'person-circle' },
+      { name: 'index', title: 'Home', icon: 'home-variant-outline', iconActive: 'home-variant' },
+      { name: 'marks', title: 'Results', icon: 'trophy-outline', iconActive: 'trophy' },
+      { name: 'timetable', title: 'Timetable', icon: 'calendar-clock-outline', iconActive: 'calendar-clock' },
+      { name: 'homework', title: 'Homework', icon: 'book-open-outline', iconActive: 'book-open-variant' },
+      { name: 'profile', title: 'Me', icon: 'account-circle-outline', iconActive: 'account-circle' },
     ]} />
   );
 }

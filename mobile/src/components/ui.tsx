@@ -1,187 +1,312 @@
-import { ReactNode } from 'react';
+import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
+import { LinearGradient } from 'expo-linear-gradient';
+import { ComponentProps, ReactNode, useEffect, useRef, useState } from 'react';
 import {
-  ActivityIndicator, Pressable, RefreshControl, ScrollView, StyleSheet, Text, TextInput, TextInputProps, View,
-  ViewStyle,
+  Animated, Easing, KeyboardAvoidingView, Modal, Platform, Pressable, RefreshControl, ScrollView, StyleSheet,
+  View, ViewStyle,
 } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { Avatar, Button, Card, Chip, Text, TouchableRipple } from 'react-native-paper';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
-import { colors, radius, space } from '@/lib/theme';
+import { haptic } from '@/lib/feedback';
+import { initials, radius, space, Tone, toneColors, useAppTheme } from '@/lib/theme';
 
-export function Screen({
-  children, onRefresh, refreshing = false, scroll = true, padded = true,
-}: { children: ReactNode; onRefresh?: () => void; refreshing?: boolean; scroll?: boolean; padded?: boolean }) {
-  const inner = padded ? { padding: space.lg, paddingBottom: space.xl * 2 } : undefined;
+export type IconName = ComponentProps<typeof MaterialCommunityIcons>['name'];
+export const Icon = MaterialCommunityIcons;
+
+// ---------------------------------------------------------------- motion
+/** Fade + slide up on mount. `index` staggers siblings. */
+export function FadeIn({ children, index = 0, style }: { children: ReactNode; index?: number; style?: ViewStyle }) {
+  const v = useRef(new Animated.Value(0)).current;
+  useEffect(() => {
+    Animated.timing(v, { toValue: 1, duration: 380, delay: Math.min(index, 10) * 55, easing: Easing.out(Easing.cubic), useNativeDriver: true }).start();
+  }, [v, index]);
   return (
-    <SafeAreaView style={styles.screen} edges={['top']}>
-      {scroll ? (
-        <ScrollView
-          contentContainerStyle={inner}
-          keyboardShouldPersistTaps="handled"
-          refreshControl={onRefresh ? <RefreshControl refreshing={refreshing} onRefresh={onRefresh} /> : undefined}
-        >
-          {children}
-        </ScrollView>
-      ) : (
-        <View style={[{ flex: 1 }, inner]}>{children}</View>
-      )}
-    </SafeAreaView>
-  );
-}
-
-export function Header({ title, subtitle, right }: { title: string; subtitle?: string; right?: ReactNode }) {
-  return (
-    <View style={[styles.row, { marginBottom: space.lg, justifyContent: 'space-between' }]}>
-      <View style={{ flex: 1 }}>
-        <Text style={styles.h1}>{title}</Text>
-        {subtitle ? <Text style={styles.muted}>{subtitle}</Text> : null}
-      </View>
-      {right}
-    </View>
-  );
-}
-
-export function Card({ children, style, title, right }: { children: ReactNode; style?: ViewStyle; title?: string; right?: ReactNode }) {
-  return (
-    <View style={[styles.card, style]}>
-      {title ? (
-        <View style={[styles.row, { justifyContent: 'space-between', marginBottom: space.md }]}>
-          <Text style={styles.h3}>{title}</Text>
-          {right}
-        </View>
-      ) : null}
+    <Animated.View style={[style, { opacity: v, transform: [{ translateY: v.interpolate({ inputRange: [0, 1], outputRange: [14, 0] }) }] }]}>
       {children}
-    </View>
+    </Animated.View>
   );
 }
 
-export function Button({
-  title, onPress, variant = 'primary', disabled, loading, small, style,
-}: {
-  title: string; onPress: () => void; variant?: 'primary' | 'secondary' | 'danger' | 'ghost';
-  disabled?: boolean; loading?: boolean; small?: boolean; style?: ViewStyle;
+/** Number that counts up to `value`. */
+export function CountUp({ value, decimals = 0, suffix = '', style, variant = 'headlineMedium' }: {
+  value: number; decimals?: number; suffix?: string; style?: object;
+  variant?: ComponentProps<typeof Text>['variant'];
 }) {
-  const bg = { primary: colors.primary, secondary: colors.primarySoft, danger: colors.badSoft, ghost: 'transparent' }[variant];
-  const fg = { primary: '#fff', secondary: colors.primary, danger: colors.bad, ghost: colors.primary }[variant];
+  const v = useRef(new Animated.Value(0)).current;
+  const [shown, setShown] = useState(0);
+  useEffect(() => {
+    const id = v.addListener(({ value: x }) => setShown(x));
+    Animated.timing(v, { toValue: value, duration: 900, easing: Easing.out(Easing.cubic), useNativeDriver: false }).start();
+    return () => v.removeListener(id);
+  }, [v, value]);
+  return <Text variant={variant} style={[{ fontWeight: '800' }, style]}>{shown.toFixed(decimals)}{suffix}</Text>;
+}
+
+/** Scale-down press feedback wrapper. */
+export function PressScale({ children, onPress, style, disabled }: { children: ReactNode; onPress?: () => void; style?: ViewStyle; disabled?: boolean }) {
+  const s = useRef(new Animated.Value(1)).current;
+  const to = (x: number) => Animated.spring(s, { toValue: x, useNativeDriver: true, speed: 40, bounciness: 6 }).start();
   return (
-    <Pressable
-      onPress={onPress}
-      disabled={disabled || loading}
-      style={({ pressed }) => [
-        styles.btn, small && styles.btnSmall, { backgroundColor: bg, opacity: disabled ? 0.5 : pressed ? 0.8 : 1 }, style,
-      ]}
-    >
-      {loading ? <ActivityIndicator color={fg} /> : <Text style={[styles.btnText, { color: fg }, small && { fontSize: 13 }]}>{title}</Text>}
+    <Pressable disabled={disabled || !onPress} onPressIn={() => to(0.96)} onPressOut={() => to(1)}
+      onPress={() => { haptic.tap(); onPress?.(); }} style={style}>
+      <Animated.View style={{ flexGrow: 1, transform: [{ scale: s }] }}>{children}</Animated.View>
     </Pressable>
   );
 }
 
-export function Field({ label, ...props }: TextInputProps & { label: string }) {
+// ---------------------------------------------------------------- layout
+export function Screen({ children, onRefresh, refreshing = false, header, padded = true, footerSpace = 96 }: {
+  children: ReactNode; onRefresh?: () => void; refreshing?: boolean; header?: ReactNode; padded?: boolean; footerSpace?: number;
+}) {
+  const t = useAppTheme();
+  const insets = useSafeAreaInsets();
   return (
-    <View style={{ marginBottom: space.md }}>
-      <Text style={styles.label}>{label}</Text>
-      <TextInput placeholderTextColor={colors.muted} style={styles.input} {...props} />
+    <KeyboardAvoidingView style={{ flex: 1, backgroundColor: t.colors.background }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
+      <ScrollView
+        contentContainerStyle={{ paddingBottom: footerSpace, paddingTop: header ? 0 : insets.top }}
+        keyboardShouldPersistTaps="handled"
+        refreshControl={onRefresh ? (
+          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} colors={[t.colors.primary]} tintColor={t.custom.amber} progressViewOffset={insets.top} />
+        ) : undefined}
+      >
+        {header}
+        <View style={padded ? { paddingHorizontal: space.lg, paddingTop: header ? 0 : space.md } : undefined}>{children}</View>
+      </ScrollView>
+    </KeyboardAvoidingView>
+  );
+}
+
+/** Gradient hero header; children float over its bottom edge. */
+export function Hero({ title, subtitle, eyebrow, right, children, compact }: {
+  title: string; subtitle?: string; eyebrow?: string; right?: ReactNode; children?: ReactNode; compact?: boolean;
+}) {
+  const t = useAppTheme();
+  const insets = useSafeAreaInsets();
+  return (
+    <View style={{ marginBottom: children ? 0 : space.lg }}>
+      <LinearGradient colors={[t.custom.heroStart, t.custom.heroEnd]} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }}
+        style={{ paddingTop: insets.top + space.md, paddingHorizontal: space.lg, paddingBottom: children ? 56 : compact ? space.lg : space.xl,
+          borderBottomLeftRadius: radius.xxl, borderBottomRightRadius: radius.xxl, overflow: 'hidden' }}>
+        <View style={[styles.circle, { width: 220, height: 220, right: -60, top: -70, backgroundColor: 'rgba(255,255,255,0.07)' }]} />
+        <View style={[styles.circle, { width: 120, height: 120, right: 70, top: 40, backgroundColor: 'rgba(245,166,35,0.16)' }]} />
+        <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+          <View style={{ flex: 1 }}>
+            {eyebrow ? <Text variant="labelLarge" style={{ color: 'rgba(255,255,255,0.75)' }}>{eyebrow}</Text> : null}
+            <Text variant={compact ? 'headlineSmall' : 'headlineMedium'} style={{ color: '#fff', fontWeight: '800' }}>{title}</Text>
+            {subtitle ? <Text variant="bodyMedium" style={{ color: 'rgba(255,255,255,0.82)', marginTop: 2 }}>{subtitle}</Text> : null}
+          </View>
+          {right}
+        </View>
+      </LinearGradient>
+      {children ? <View style={{ marginTop: -40, paddingHorizontal: space.lg }}>{children}</View> : null}
     </View>
   );
 }
 
-export function Chips<T extends string | number>({
-  options, value, onChange, label,
-}: { options: { label: string; value: T }[]; value: T | null | undefined; onChange: (v: T) => void; label?: string }) {
+export function UserAvatar({ name, size = 44, light }: { name: string; size?: number; light?: boolean }) {
+  const t = useAppTheme();
   return (
-    <View style={{ marginBottom: space.md }}>
-      {label ? <Text style={styles.label}>{label}</Text> : null}
-      <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: space.sm }}>
-        {options.map((o) => {
-          const on = o.value === value;
-          return (
-            <Pressable key={String(o.value)} onPress={() => onChange(o.value)}
-              style={[styles.chip, on && { backgroundColor: colors.primary, borderColor: colors.primary }]}>
-              <Text style={[styles.chipText, on && { color: '#fff' }]}>{o.label}</Text>
-            </Pressable>
-          );
-        })}
+    <Avatar.Text size={size} label={initials(name)}
+      style={{ backgroundColor: light ? 'rgba(255,255,255,0.18)' : t.colors.primaryContainer }}
+      color={light ? '#fff' : t.colors.onPrimaryContainer} labelStyle={{ fontWeight: '700', fontSize: size * 0.38 }} />
+  );
+}
+
+export function SectionTitle({ title, action, onAction, style }: { title: string; action?: string; onAction?: () => void; style?: ViewStyle }) {
+  const t = useAppTheme();
+  return (
+    <View style={[{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginTop: space.lg, marginBottom: space.sm }, style]}>
+      <Text variant="titleMedium" style={{ fontWeight: '700', color: t.colors.onBackground }}>{title}</Text>
+      {action ? <Button compact onPress={onAction}>{action}</Button> : null}
+    </View>
+  );
+}
+
+export function Panel({ children, title, subtitle, icon, right, style, onPress, tone }: {
+  children?: ReactNode; title?: string; subtitle?: string; icon?: IconName; right?: ReactNode; style?: ViewStyle;
+  onPress?: () => void; tone?: Tone;
+}) {
+  const t = useAppTheme();
+  const tc = tone ? toneColors(t, tone) : null;
+  return (
+    <Card mode="elevated" elevation={1} onPress={onPress}
+      style={[{ marginBottom: space.md, borderRadius: radius.xl, backgroundColor: tc ? tc.bg : t.colors.elevation.level1 }, style]}>
+      <View style={{ padding: space.lg }}>
+        {title ? (
+          <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: children ? space.md : 0, gap: space.md }}>
+            {icon ? <IconBadge icon={icon} tone={tone ?? 'primary'} /> : null}
+            <View style={{ flex: 1 }}>
+              <Text variant="titleMedium" style={{ fontWeight: '700', color: tc?.on ?? t.colors.onSurface }}>{title}</Text>
+              {subtitle ? <Text variant="bodySmall" style={{ color: tc?.on ?? t.colors.onSurfaceVariant, opacity: 0.85 }}>{subtitle}</Text> : null}
+            </View>
+            {right}
+          </View>
+        ) : null}
+        {children}
+      </View>
+    </Card>
+  );
+}
+
+export function IconBadge({ icon, tone = 'primary', size = 40 }: { icon: IconName; tone?: Tone; size?: number }) {
+  const t = useAppTheme();
+  const c = toneColors(t, tone);
+  return (
+    <View style={{ width: size, height: size, borderRadius: size / 3, backgroundColor: tone === 'primary' ? t.colors.primaryContainer : c.bg, alignItems: 'center', justifyContent: 'center' }}>
+      <Icon name={icon} size={size * 0.55} color={tone === 'primary' ? t.colors.primary : c.fg} />
+    </View>
+  );
+}
+
+/** Tappable stat tile with count-up. */
+export function StatTile({ icon, label, value, suffix, decimals, tone = 'primary', onPress, hint }: {
+  icon: IconName; label: string; value: number | null; suffix?: string; decimals?: number; tone?: Tone; onPress?: () => void; hint?: string;
+}) {
+  const t = useAppTheme();
+  return (
+    <PressScale onPress={onPress} style={{ flex: 1 }}>
+      <View style={{ backgroundColor: t.colors.elevation.level2, borderRadius: radius.xl, padding: space.md, minHeight: 112,
+        shadowColor: '#000', shadowOpacity: 0.06, shadowRadius: 10, shadowOffset: { width: 0, height: 4 }, elevation: 2 }}>
+        <IconBadge icon={icon} tone={tone} size={34} />
+        {value == null ? <Text variant="headlineMedium" style={{ fontWeight: '800', marginTop: space.sm }}>—</Text>
+          : <CountUp value={value} suffix={suffix} decimals={decimals} style={{ marginTop: space.sm, color: t.colors.onSurface }} />}
+        <Text variant="labelMedium" style={{ color: t.colors.onSurfaceVariant }} numberOfLines={1}>{label}</Text>
+        {hint ? <Text variant="labelSmall" style={{ color: t.colors.outline }} numberOfLines={1}>{hint}</Text> : null}
+      </View>
+    </PressScale>
+  );
+}
+
+export function ToneChip({ text, tone = 'neutral', icon, compact = true }: { text: string; tone?: Tone; icon?: IconName; compact?: boolean }) {
+  const t = useAppTheme();
+  const c = toneColors(t, tone);
+  return (
+    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4, backgroundColor: c.bg, borderRadius: radius.pill,
+      paddingHorizontal: compact ? 10 : 12, paddingVertical: compact ? 3 : 6, alignSelf: 'flex-start' }}>
+      {icon ? <Icon name={icon} size={13} color={c.fg} /> : null}
+      <Text variant="labelMedium" style={{ color: c.fg, fontWeight: '700' }}>{text}</Text>
+    </View>
+  );
+}
+
+/** Horizontal, scrollable single-select filter chips. */
+export function FilterChips<T extends string | number>({ options, value, onChange, label, style }: {
+  options: { label: string; value: T; icon?: IconName }[]; value: T | null | undefined; onChange: (v: T) => void; label?: string; style?: ViewStyle;
+}) {
+  const t = useAppTheme();
+  return (
+    <View style={[{ marginBottom: space.md }, style]}>
+      {label ? <Text variant="labelLarge" style={{ color: t.colors.onSurfaceVariant, marginBottom: 6 }}>{label}</Text> : null}
+      <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: space.sm, paddingRight: space.lg }}>
+        {options.map((o) => (
+          <Chip key={String(o.value)} selected={o.value === value} showSelectedCheck={false} icon={o.icon}
+            mode={o.value === value ? 'flat' : 'outlined'}
+            style={o.value === value ? { backgroundColor: t.colors.secondaryContainer } : { backgroundColor: 'transparent' }}
+            textStyle={{ fontWeight: o.value === value ? '700' : '500' }}
+            onPress={() => { haptic.tap(); onChange(o.value); }}>
+            {o.label}
+          </Chip>
+        ))}
       </ScrollView>
     </View>
   );
 }
 
-export function Loading() {
-  return <View style={{ padding: space.xl * 2 }}><ActivityIndicator size="large" color={colors.primary} /></View>;
-}
-
-export function ErrorBox({ message, onRetry }: { message: string; onRetry?: () => void }) {
+export function Row({ title, subtitle, left, right, onPress, divider = true }: {
+  title: string; subtitle?: string; left?: ReactNode; right?: ReactNode; onPress?: () => void; divider?: boolean;
+}) {
+  const t = useAppTheme();
   return (
-    <View style={[styles.card, { backgroundColor: colors.badSoft }]}>
-      <Text style={{ color: colors.bad, marginBottom: onRetry ? space.sm : 0 }}>{message}</Text>
-      {onRetry ? <Button title="Try again" variant="danger" small onPress={onRetry} /> : null}
-    </View>
-  );
-}
-
-export function Empty({ text }: { text: string }) {
-  return <Text style={[styles.muted, { textAlign: 'center', padding: space.xl }]}>{text}</Text>;
-}
-
-export function Stat({ label, value, color, hint }: { label: string; value: string; color?: string; hint?: string }) {
-  return (
-    <View style={styles.stat}>
-      <Text style={[styles.statValue, color ? { color } : null]}>{value}</Text>
-      <Text style={styles.statLabel}>{label}</Text>
-      {hint ? <Text style={[styles.muted, { fontSize: 11 }]}>{hint}</Text> : null}
-    </View>
-  );
-}
-
-export function Pill({ text, color = colors.primary, bg = colors.primarySoft }: { text: string; color?: string; bg?: string }) {
-  return (
-    <View style={{ backgroundColor: bg, borderRadius: radius.pill, paddingHorizontal: 10, paddingVertical: 3, alignSelf: 'flex-start' }}>
-      <Text style={{ color, fontSize: 12, fontWeight: '600' }}>{text}</Text>
-    </View>
-  );
-}
-
-export function ListRow({ title, subtitle, right, onPress }: { title: string; subtitle?: string; right?: ReactNode; onPress?: () => void }) {
-  return (
-    <Pressable onPress={onPress} disabled={!onPress} style={({ pressed }) => [styles.listRow, pressed && { opacity: 0.7 }]}>
-      <View style={{ flex: 1 }}>
-        <Text style={styles.body}>{title}</Text>
-        {subtitle ? <Text style={[styles.muted, { fontSize: 13 }]}>{subtitle}</Text> : null}
+    <TouchableRipple onPress={onPress ? () => { haptic.tap(); onPress(); } : undefined} borderless={false}
+      style={{ marginHorizontal: -space.lg, paddingHorizontal: space.lg }}>
+      <View style={{ flexDirection: 'row', alignItems: 'center', paddingVertical: space.md, gap: space.md,
+        borderBottomWidth: divider ? StyleSheet.hairlineWidth : 0, borderBottomColor: t.colors.outlineVariant }}>
+        {left}
+        <View style={{ flex: 1 }}>
+          <Text variant="bodyLarge" style={{ color: t.colors.onSurface, fontWeight: '500' }} numberOfLines={1}>{title}</Text>
+          {subtitle ? <Text variant="bodySmall" style={{ color: t.colors.onSurfaceVariant }} numberOfLines={2}>{subtitle}</Text> : null}
+        </View>
+        {right}
+        {onPress && !right ? <Icon name="chevron-right" size={20} color={t.colors.outline} /> : null}
       </View>
-      {right}
-    </Pressable>
+    </TouchableRipple>
+  );
+}
+
+// ---------------------------------------------------------------- states
+export function Skeleton({ height = 16, width = '100%', style, radiusPx = 8 }: { height?: number; width?: number | `${number}%`; style?: ViewStyle; radiusPx?: number }) {
+  const t = useAppTheme();
+  const v = useRef(new Animated.Value(0.4)).current;
+  useEffect(() => {
+    const loop = Animated.loop(Animated.sequence([
+      Animated.timing(v, { toValue: 1, duration: 700, useNativeDriver: true }),
+      Animated.timing(v, { toValue: 0.4, duration: 700, useNativeDriver: true }),
+    ]));
+    loop.start();
+    return () => loop.stop();
+  }, [v]);
+  return <Animated.View style={[{ height, width, borderRadius: radiusPx, backgroundColor: t.colors.surfaceVariant, opacity: v }, style]} />;
+}
+
+export function LoadingCards({ count = 3 }: { count?: number }) {
+  return (
+    <View style={{ gap: space.md }}>
+      {Array.from({ length: count }, (_, i) => (
+        <View key={i} style={{ gap: space.sm }}>
+          <Skeleton height={i === 0 ? 120 : 84} radiusPx={radius.xl} />
+        </View>
+      ))}
+    </View>
+  );
+}
+
+export function EmptyState({ icon = 'inbox-outline', title, text, action, onAction }: {
+  icon?: IconName; title: string; text?: string; action?: string; onAction?: () => void;
+}) {
+  const t = useAppTheme();
+  return (
+    <FadeIn style={{ alignItems: 'center', paddingVertical: space.xxl, paddingHorizontal: space.lg }}>
+      <View style={{ width: 72, height: 72, borderRadius: 36, backgroundColor: t.colors.secondaryContainer, alignItems: 'center', justifyContent: 'center', marginBottom: space.md }}>
+        <Icon name={icon} size={36} color={t.colors.onSecondaryContainer} />
+      </View>
+      <Text variant="titleMedium" style={{ fontWeight: '700', textAlign: 'center', color: t.colors.onSurface }}>{title}</Text>
+      {text ? <Text variant="bodyMedium" style={{ color: t.colors.onSurfaceVariant, textAlign: 'center', marginTop: 4 }}>{text}</Text> : null}
+      {action ? <Button mode="contained-tonal" onPress={onAction} style={{ marginTop: space.md }}>{action}</Button> : null}
+    </FadeIn>
+  );
+}
+
+export function ErrorState({ message, onRetry }: { message: string; onRetry?: () => void }) {
+  const t = useAppTheme();
+  return (
+    <Panel tone="danger" icon="wifi-off" title="Something went wrong" subtitle={message}>
+      {onRetry ? <Button mode="contained" buttonColor={t.custom.danger} textColor={t.colors.onPrimary} icon="refresh" onPress={onRetry}>Try again</Button> : null}
+    </Panel>
+  );
+}
+
+// ---------------------------------------------------------------- sheets
+/** Material-style bottom sheet. */
+export function Sheet({ visible, onDismiss, title, children }: { visible: boolean; onDismiss: () => void; title?: string; children: ReactNode }) {
+  const t = useAppTheme();
+  const insets = useSafeAreaInsets();
+  return (
+    <Modal visible={visible} transparent animationType="slide" onRequestClose={onDismiss} statusBarTranslucent>
+      <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} style={{ flex: 1 }}>
+        <Pressable style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.38)' }} onPress={onDismiss} />
+        <View style={{ backgroundColor: t.colors.elevation.level1, borderTopLeftRadius: radius.xxl, borderTopRightRadius: radius.xxl,
+          paddingHorizontal: space.lg, paddingBottom: insets.bottom + space.lg, maxHeight: '88%' }}>
+          <View style={{ alignSelf: 'center', width: 32, height: 4, borderRadius: 2, backgroundColor: t.colors.outline, marginVertical: space.md, opacity: 0.6 }} />
+          {title ? <Text variant="titleLarge" style={{ fontWeight: '700', marginBottom: space.md, color: t.colors.onSurface }}>{title}</Text> : null}
+          <ScrollView keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false}>{children}</ScrollView>
+        </View>
+      </KeyboardAvoidingView>
+    </Modal>
   );
 }
 
 export const styles = StyleSheet.create({
-  screen: { flex: 1, backgroundColor: colors.bg },
+  circle: { position: 'absolute', borderRadius: 999 },
   row: { flexDirection: 'row', alignItems: 'center' },
-  h1: { fontSize: 24, fontWeight: '700', color: colors.text },
-  h2: { fontSize: 19, fontWeight: '700', color: colors.text },
-  h3: { fontSize: 16, fontWeight: '700', color: colors.text },
-  body: { fontSize: 15, color: colors.text },
-  muted: { fontSize: 14, color: colors.muted },
-  label: { fontSize: 13, fontWeight: '600', color: colors.muted, marginBottom: 6 },
-  card: {
-    backgroundColor: colors.card, borderRadius: radius.lg, padding: space.lg, marginBottom: space.md,
-    borderWidth: 1, borderColor: colors.border,
-  },
-  btn: { borderRadius: radius.md, paddingVertical: 13, paddingHorizontal: space.lg, alignItems: 'center', justifyContent: 'center' },
-  btnSmall: { paddingVertical: 8, paddingHorizontal: space.md },
-  btnText: { fontSize: 15, fontWeight: '700' },
-  input: {
-    backgroundColor: '#fff', borderWidth: 1, borderColor: colors.border, borderRadius: radius.md,
-    paddingHorizontal: space.md, paddingVertical: 11, fontSize: 15, color: colors.text,
-  },
-  chip: {
-    borderWidth: 1, borderColor: colors.border, backgroundColor: '#fff', borderRadius: radius.pill,
-    paddingHorizontal: 14, paddingVertical: 7,
-  },
-  chipText: { fontSize: 14, color: colors.text, fontWeight: '500' },
-  stat: { flex: 1, backgroundColor: colors.card, borderRadius: radius.lg, padding: space.md, borderWidth: 1, borderColor: colors.border },
-  statValue: { fontSize: 24, fontWeight: '800', color: colors.text },
-  statLabel: { fontSize: 12, color: colors.muted, marginTop: 2, fontWeight: '600' },
-  listRow: {
-    flexDirection: 'row', alignItems: 'center', paddingVertical: space.md, borderBottomWidth: StyleSheet.hairlineWidth,
-    borderBottomColor: colors.border, gap: space.sm,
-  },
 });

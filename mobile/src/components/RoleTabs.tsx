@@ -1,35 +1,49 @@
-import Ionicons from '@expo/vector-icons/Ionicons';
 import { Tabs } from 'expo-router/js-tabs';
-import { ComponentProps } from 'react';
+import { BottomNavigation } from 'react-native-paper';
 
-import { colors } from '@/lib/theme';
+import { haptic } from '@/lib/feedback';
+import { useAppTheme } from '@/lib/theme';
 import type { Role } from '@/lib/types';
 
 import { RoleGuard } from './RoleGuard';
+import { Icon, IconName } from './ui';
 
-type Icon = ComponentProps<typeof Ionicons>['name'];
+type TabDef = { name: string; title: string; icon: IconName; iconActive: IconName };
 
-/** Bottom tabs for a role. Screens not listed are hidden from the tab bar. */
-export function RoleTabs({ role, tabs, hidden = [] }: {
-  role: Role; tabs: { name: string; title: string; icon: Icon }[]; hidden?: string[];
-}) {
+/** Material 3 navigation bar for a role's tabs. */
+export function RoleTabs({ role, tabs }: { role: Role; tabs: TabDef[] }) {
+  const t = useAppTheme();
+  const byName = Object.fromEntries(tabs.map((x) => [x.name, x]));
   return (
     <RoleGuard role={role}>
       <Tabs
-        screenOptions={{
-          headerShown: false,
-          tabBarActiveTintColor: colors.primary,
-          tabBarInactiveTintColor: colors.muted,
-          tabBarLabelStyle: { fontSize: 11, fontWeight: '600' },
-        }}
+        screenOptions={{ headerShown: false, animation: 'shift' }}
+        tabBar={({ emitter, navigateToTab, state, descriptors, insets }) => (
+          <BottomNavigation.Bar
+            navigationState={state}
+            safeAreaInsets={insets}
+            style={{ backgroundColor: t.colors.elevation.level2 }}
+            activeIndicatorStyle={{ backgroundColor: t.colors.secondaryContainer }}
+            onTabPress={({ route, preventDefault }) => {
+              const event = emitter.emit({ type: 'tabPress', target: route.key, canPreventDefault: true });
+              if (event.defaultPrevented) preventDefault();
+              else {
+                haptic.tap();
+                navigateToTab(route.key);
+              }
+            }}
+            renderIcon={({ route, focused, color }) => {
+              const def = byName[route.name];
+              return def ? <Icon name={focused ? def.iconActive : def.icon} size={24} color={color} /> : null;
+            }}
+            getLabelText={({ route }) => {
+              const o = descriptors[route.key]?.options;
+              return (typeof o?.title === 'string' ? o.title : undefined) ?? byName[route.name]?.title ?? route.name;
+            }}
+          />
+        )}
       >
-        {tabs.map((t) => (
-          <Tabs.Screen key={t.name} name={t.name} options={{
-            title: t.title,
-            tabBarIcon: ({ color, size }) => <Ionicons name={t.icon} size={size} color={String(color)} />,
-          }} />
-        ))}
-        {hidden.map((n) => <Tabs.Screen key={n} name={n} options={{ href: null }} />)}
+        {tabs.map((x) => <Tabs.Screen key={x.name} name={x.name} options={{ title: x.title }} />)}
       </Tabs>
     </RoleGuard>
   );

@@ -1,46 +1,83 @@
 import { router } from 'expo-router';
-import { Text, View } from 'react-native';
+import { View } from 'react-native';
+import { Button, Text } from 'react-native-paper';
 
-import { TimetableView } from '@/components/TimetableView';
-import { Button, Card, ErrorBox, Header, ListRow, Loading, Pill, Screen, styles } from '@/components/ui';
+import { subjectIcon, TimetableView } from '@/components/TimetableView';
+import { ErrorState, FadeIn, Hero, Icon, LoadingCards, Panel, PressScale, Screen, SectionTitle, UserAvatar } from '@/components/ui';
 import { api } from '@/lib/api';
 import { useAuth } from '@/lib/auth';
-import { colors, space } from '@/lib/theme';
+import { greeting, radius, space, useAppTheme } from '@/lib/theme';
 import type { Assignment, SchoolClass, Slot } from '@/lib/types';
 import { useLoad } from '@/lib/useLoad';
 
 export default function TeacherHome() {
+  const t = useAppTheme();
   const { user } = useAuth();
   const { data, error, reload, refresh, refreshing } = useLoad(async () => {
-    const [slots, classes, assignments] = await Promise.all([
-      api<Slot[]>('/timetable'), api<SchoolClass[]>('/classes'), api<Assignment[]>('/assignments'),
-    ]);
+    const [slots, classes, assignments] = await Promise.all([api<Slot[]>('/timetable'), api<SchoolClass[]>('/classes'), api<Assignment[]>('/assignments')]);
     return { slots, classes, assignments };
   });
   const myClass = data?.classes.find((c) => c.class_teacher_id === user?.id);
+  const todayIdx = (new Date().getDay() + 6) % 7;
+  const todayCount = data?.slots.filter((s) => s.day === todayIdx).length ?? 0;
 
   return (
-    <Screen onRefresh={refresh} refreshing={refreshing}>
-      <Header title={`Hello, ${user?.name.split(' ')[0] ?? ''}`} subtitle={new Date().toDateString()} />
-      {error ? <ErrorBox message={error} onRetry={reload} /> : null}
-      {!data ? <Loading /> : (
-        <>
+    <Screen onRefresh={refresh} refreshing={refreshing}
+      header={
+        <Hero eyebrow={greeting()} title={user?.name.split(' ')[0] ?? ''}
+          subtitle={data ? (todayIdx > 5 ? 'No classes today — enjoy Sunday!' : `You have ${todayCount} period${todayCount === 1 ? '' : 's'} today`) : ' '}
+          right={user ? <UserAvatar name={user.name} light size={48} /> : null}>
           {myClass ? (
-            <Card>
-              <Text style={styles.muted}>Class teacher of</Text>
-              <Text style={[styles.h2, { marginBottom: space.md }]}>{myClass.name} · {myClass.student_count} students</Text>
-              <Button title="Take today's attendance" onPress={() => router.push('/teacher/attendance')} />
-            </Card>
-          ) : null}
-          <Card title="My subjects">
-            {data.assignments.map((a) => (
-              <ListRow key={a.id} title={a.subject_name} right={<Pill text={`Class ${a.class_name}`} color={colors.muted} bg={colors.bg} />} />
-            ))}
-          </Card>
-          <Text style={[styles.h2, { marginVertical: space.sm }]}>My timetable</Text>
-          <View>
-            <TimetableView slots={data.slots} show="class" />
-          </View>
+            <FadeIn>
+              <Panel style={{ marginBottom: 0 }}>
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: space.md }}>
+                  <View style={{ width: 56, height: 56, borderRadius: 18, backgroundColor: t.colors.secondaryContainer, alignItems: 'center', justifyContent: 'center' }}>
+                    <Text variant="titleLarge" style={{ fontWeight: '800', color: t.colors.onSecondaryContainer }}>{myClass.name}</Text>
+                  </View>
+                  <View style={{ flex: 1 }}>
+                    <Text variant="labelLarge" style={{ color: t.colors.onSurfaceVariant }}>Your class</Text>
+                    <Text variant="titleMedium" style={{ fontWeight: '800', color: t.colors.onSurface }}>{myClass.student_count} students</Text>
+                  </View>
+                  <Button mode="contained" icon="clipboard-check-outline" onPress={() => router.push('/teacher/attendance')}>Attendance</Button>
+                </View>
+              </Panel>
+            </FadeIn>
+          ) : <View style={{ height: 40 }} />}
+        </Hero>
+      }>
+      {error ? <ErrorState message={error} onRetry={reload} /> : null}
+      {!data ? <View style={{ marginTop: space.lg }}><LoadingCards /></View> : (
+        <>
+          <SectionTitle title="Quick actions" />
+          <FadeIn index={1}>
+            <View style={{ flexDirection: 'row', gap: space.sm }}>
+              {[
+                { icon: 'clipboard-check-outline', label: 'Attendance', to: '/teacher/attendance', bg: t.colors.primaryContainer, fg: t.colors.onPrimaryContainer },
+                { icon: 'pencil-box-multiple-outline', label: 'Enter marks', to: '/teacher/marks', bg: t.colors.secondaryContainer, fg: t.colors.onSecondaryContainer },
+                { icon: 'book-plus-outline', label: 'Homework', to: '/teacher/posts', bg: t.colors.tertiaryContainer, fg: t.colors.onTertiaryContainer },
+              ].map((a) => (
+                <PressScale key={a.label} style={{ flex: 1 }} onPress={() => router.push(a.to as '/teacher/marks')}>
+                  <View style={{ backgroundColor: a.bg, borderRadius: radius.xl, paddingVertical: space.lg, alignItems: 'center', gap: 6 }}>
+                    <Icon name={a.icon as 'book-plus-outline'} size={28} color={a.fg} />
+                    <Text variant="labelLarge" style={{ color: a.fg, fontWeight: '700' }}>{a.label}</Text>
+                  </View>
+                </PressScale>
+              ))}
+            </View>
+          </FadeIn>
+          <SectionTitle title="My subjects" />
+          <FadeIn index={2}>
+            <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: space.sm }}>
+              {data.assignments.map((a) => (
+                <View key={a.id} style={{ flexDirection: 'row', alignItems: 'center', gap: 6, backgroundColor: t.colors.elevation.level2, borderRadius: radius.pill, paddingHorizontal: 12, paddingVertical: 8 }}>
+                  <Icon name={subjectIcon(a.subject_name)} size={16} color={t.colors.primary} />
+                  <Text variant="labelLarge" style={{ color: t.colors.onSurface }}>{a.subject_name} · {a.class_name}</Text>
+                </View>
+              ))}
+            </View>
+          </FadeIn>
+          <SectionTitle title="My timetable" />
+          <TimetableView slots={data.slots} show="class" />
         </>
       )}
     </Screen>
