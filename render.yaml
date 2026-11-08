@@ -7,6 +7,7 @@ services:
     runtime: python
     rootDir: backend
     plan: free
+    region: ohio          # same region as the Neon database (us-east-2) for fast queries
     buildCommand: pip install -r requirements.txt
     startCommand: uvicorn app.main:app --host 0.0.0.0 --port $PORT
     healthCheckPath: /
