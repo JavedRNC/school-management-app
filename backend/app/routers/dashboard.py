@@ -43,8 +43,8 @@ def dashboard(exam_id: int | None = None, db: Session = Depends(get_db)):
         by_class_today[a.class_id][1] += 1
         by_class_today[a.class_id][0] += a.present
     attendance_today = [
-        {"class_id": cid, "class_name": name, "present": by_class_today[cid][0], "total": roster[cid],
-         "percent": _pct(*by_class_today[cid]) if cid in by_class_today else None}
+        {"class_id": cid, "class_name": name, "present": by_class_today[cid][0] if cid in by_class_today else 0,
+         "total": roster[cid], "percent": _pct(*by_class_today[cid]) if cid in by_class_today else None}
         for cid, name in classes.items()
     ]
     unmarked = [{"class_id": r["class_id"], "class_name": r["class_name"]}

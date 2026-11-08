@@ -36,6 +36,7 @@ def test_dashboard(client):
     d = client.get("/dashboard", headers=h).json()
     assert d["overview"]["students"] == 24 and d["overview"]["classes"] == 3
     assert d["unmarked_classes"] == [{"class_id": 3, "class_name": "9-A"}]
+    assert d["overview"]["classes_marked"] == 2
     assert d["academics"]["exam"]["name"] == "Half Yearly"
     assert len(d["attendance_trend"]) >= 20
     assert all(r["attendance_percent"] is not None for r in d["at_risk"])

@@ -1,37 +1,37 @@
 # context.md — session recovery (keep terse; update every 2–3 tasks or after major work)
 
 ## Project
-School management app. Roles: Principal, Teacher, Student. Owner: Javed (GitHub JavedRNC).
-Repo: JavedRNC/school-management-app
+School Hub: school mgmt app. Roles: Principal, Teacher, Student. Owner: Javed (GitHub JavedRNC).
+Repo: JavedRNC/school-management-app (Javed must grant Claude GitHub App access to it before first push)
 
 ## Stack
-- mobile/: React Native (Expo), Android first; iOS via Expo Go works too
-- backend/: Python FastAPI + SQLAlchemy, SQLite dev → Postgres prod, JWT auth
-- Deploy (planned): backend on free host (Render) from GitHub
+- backend/: FastAPI, SQLAlchemy 2, SQLite dev / Postgres prod (DATABASE_URL), PyJWT, bcrypt. Tests: `pytest -q` (5 pass)
+- mobile/: Expo SDK 58, RN 0.88, Expo Router in src/app, TS strict, react-native-svg charts (hand-drawn), @expo/vector-icons
+- Deploy: render.yaml (Render free). App server URL editable on login screen (AsyncStorage)
+
+## Gotchas
+- `npx expo install` blocked by sandbox proxy → install versions from `expo/bundledNativeModules.json` via npm
+- Tabs import: `expo-router/js-tabs`; Stack/Redirect from `expo-router`; role routes = folders principal/ teacher/ student/ (not groups)
+- Dates: server uses SCHOOL_TZ (Asia/Kolkata); Sunday = holiday → dashboard uses last_school_day()
+- Keep deps Expo-Go compatible (no custom native modules)
 
 ## Dev flow (no PC — phones only)
-Claude codes in cloud → pushes to GitHub → Android Termux auto `git pull` loop → `npx expo start` → Expo Go hot-reloads.
-Rules: keep deps Expo-Go compatible (no custom native modules); keep project in Termux home; small frequent commits.
+Claude codes in cloud → push GitHub → Android Termux pull loop → `npx expo start --offline` → Expo Go. Guide: docs/termux.md
 
-## MVP scope (proposed, awaiting Javed's OK)
-- Auth: login by role; Principal creates teacher/student accounts
-- Principal: classes/sections, assign teacher→class+subject, timetable, school announcements, attendance overview
-- Teacher: mark daily attendance, enter exam marks, post homework/class notices, view timetable
-- Student: view attendance %, marks/report card, timetable, homework/notices
-- Principal dashboard MVP (Claude chose, Javed delegated): overview cards; attendance today by class, 30-day trend, <75% list, unmarked classes; academics avg by class+subject, top/bottom 5, pass rate; at-risk (att<75% or avg<40%)
-- Dashboard later: exam-to-exam trend, teacher activity
-- Later: parents, fees, push notifications, leave requests, exam schedule, chat
+## Built (v0.1)
+- API: /auth (login, me, password); /classes /subjects /users /assignments /timetable /exams (principal CRUD); /attendance, /marks (teacher, access-checked); /me/attendance /me/marks (student); /posts (notice|homework); /dashboard
+- Dashboard: overview, attendance today by class + unmarked, 30-day trend, <75% list, academics per exam (avg by class/subject, pass rate ≥33%, top/bottom 5), at-risk (att<75 or marks<40)
+- Seed demo (pw demo123): principal@, anita@ rakesh@ sunita@ imran@ priya@ (teachers), 24 students (aarav@...), classes 8-A 8-B 9-A
+- App screens: login(+demo buttons, server setting); principal: dashboard, people(+add), classes(subject teachers, timetable editor, setup: classes/subjects/exams), notices, profile; teacher: today, attendance, marks, posts, profile; student: home(attendance ring+notices), marks, timetable, homework, profile
+- Verified: tsc clean, `expo export --platform android` bundles
 
 ## Status
-- [x] GitHub connected; context.md created
-- [x] Repo created by Javed; Claude GitHub App lacks access to it (needs repo added in app config) — not pushed yet
-- [x] MVP scope approved (Claude picks details)
-- [ ] Backend scaffold
-- [ ] Mobile scaffold
-- [ ] Termux setup guide
+- [ ] Push to GitHub (blocked on access)
+- [ ] Javed: deploy backend to Render, set Termux, test on phone
+- [ ] Not yet visually tested on a device
+
+## Next ideas
+Exam-to-exam trend, teacher activity, parents, fees, push notifications, leave requests.
 
 ## Decisions log
-- 2026-11-08: Web app idea dropped → Android RN + Python. No PC; Termux on Android for live preview.
-
-## Next
-Get MVP approval → scaffold backend + mobile → Termux guide.
+- 2026-11-08: Android RN (Expo) + Python FastAPI. Phones only → Termux live preview. Claude chose MVP + dashboard metrics.
