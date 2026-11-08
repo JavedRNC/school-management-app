@@ -1,8 +1,12 @@
 import os
 import tempfile
 
-_db = tempfile.NamedTemporaryFile(suffix=".db", delete=False).name
-os.environ["DATABASE_URL"] = f"sqlite:///{_db}"
+# Default: throwaway SQLite. Set TEST_DATABASE_URL to run against Postgres (DB is reset).
+if os.getenv("TEST_DATABASE_URL"):
+    os.environ["DATABASE_URL"] = os.environ["TEST_DATABASE_URL"]
+else:
+    _db = tempfile.NamedTemporaryFile(suffix=".db", delete=False).name
+    os.environ["DATABASE_URL"] = f"sqlite:///{_db}"
 os.environ["SEED_DEMO"] = "1"
 
 import pytest  # noqa: E402
@@ -14,6 +18,9 @@ from app.util import last_school_day as today  # noqa: E402
 
 @pytest.fixture(scope="module")
 def client():
+    from app.db import Base, engine
+
+    Base.metadata.drop_all(engine)
     with TestClient(app) as c:
         yield c
 

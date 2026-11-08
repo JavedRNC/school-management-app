@@ -7,7 +7,7 @@ Repo: JavedRNC/school-management-app (branch main; Claude has push access)
 ## Stack
 - backend/: FastAPI, SQLAlchemy 2, SQLite dev / Postgres prod (DATABASE_URL), PyJWT, bcrypt. Tests: `pytest -q` (5 pass)
 - mobile/: Expo SDK 58, RN 0.88, Expo Router in src/app, TS strict, react-native-paper (Material 3), expo-haptics, expo-linear-gradient, react-native-svg charts (hand-drawn, animated), MaterialCommunityIcons
-- Deploy: render.yaml (Render free). App server URL editable on login screen (AsyncStorage)
+- Deploy: DB = Neon free Postgres (DATABASE_URL, sync:false in render.yaml); API = Render free via render.yaml. db.py uses pool_pre_ping+recycle for Neon suspend. Tests also pass on Postgres 16 (TEST_DATABASE_URL). App server URL editable on login screen
 
 ## Gotchas
 - `npx expo install` blocked by sandbox proxy → install versions from `expo/bundledNativeModules.json` via npm
@@ -40,4 +40,5 @@ Claude codes in cloud → push GitHub → Android Termux pull loop → `npx expo
 Exam-to-exam trend, teacher activity, parents, fees, push notifications, leave requests.
 
 ## Decisions log
+- 2026-11-08: DB hosting = Neon free Postgres (Render free PG expires in 30 days; Render disk not persistent).
 - 2026-11-08: Android RN (Expo) + Python FastAPI. Phones only → Termux live preview. Claude chose MVP + dashboard metrics.

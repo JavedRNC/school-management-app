@@ -33,7 +33,17 @@ pytest -q                                                   # tests
 ```
 Env vars: `DATABASE_URL` (default SQLite), `JWT_SECRET`, `SCHOOL_TZ` (default Asia/Kolkata), `SEED_DEMO`.
 
-**Deploy free on Render:** render.com → New → Blueprint → pick this repo → it reads `render.yaml`. Copy the service URL into the app's login screen under *Server settings*. (Free tier sleeps when idle — first request can take ~1 min. SQLite there resets on redeploy; add a Render Postgres and set `DATABASE_URL` to keep data.)
+## Deploy (free): Neon database + Render API
+Everything below works from a phone browser.
+
+1. **Database — Neon** (free Postgres, doesn't expire): sign up at neon.com → *Create project* (region: Singapore/Mumbai if offered) → copy the **connection string** (`postgresql://…?sslmode=require`).
+2. **API — Render:** render.com → *New* → *Blueprint* → pick this repo. Render reads `render.yaml` and asks for `DATABASE_URL` → paste the Neon string → *Apply*.
+3. On first start the API creates all tables and loads demo data. Open `https://<your-service>.onrender.com/docs` to check it's live.
+4. In the app's login screen → *Server settings* → paste the Render URL.
+
+Notes: the free Render server sleeps after ~15 min idle (first request can take up to a minute); Neon suspends after 5 min idle (adds a second or two). Before using real school data, set `SEED_DEMO=0` and use fresh accounts. Without `DATABASE_URL` the API falls back to a local SQLite file, which is fine for testing but is wiped on Render redeploys.
+
+Tests run on SQLite by default; to test against Postgres: `TEST_DATABASE_URL=postgresql://… pytest -q` (resets that database).
 
 ## Run the app
 ```bash
