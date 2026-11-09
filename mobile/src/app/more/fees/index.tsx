@@ -48,7 +48,7 @@ function Dashboard({ canEdit }: { canEdit: boolean }) {
                     <Text variant="labelLarge" style={{ color: t.colors.onSurfaceVariant }}>Collected in {d.period_label}</Text>
                     <View style={{ flexDirection: 'row', alignItems: 'baseline' }}>
                       <Text variant="headlineSmall" style={{ fontWeight: '800', color: t.colors.primary }}>₹</Text>
-                      <CountUp value={d.collected_month} style={{ color: t.colors.primary }} />
+                      <CountUp value={d.collected_month} format={(n) => inr(Math.round(n))} style={{ color: t.colors.primary }} />
                     </View>
                     <Text variant="bodySmall" style={{ color: t.colors.onSurfaceVariant }}>
                       {d.expected_month ? `${inr(d.settled_month)} of ${inr(d.expected_month)} billed this month` : 'Nothing billed this month yet'}
@@ -80,7 +80,7 @@ function Dashboard({ canEdit }: { canEdit: boolean }) {
 
           <FadeIn index={1}>
             <View style={{ flexDirection: 'row', gap: space.sm, marginBottom: space.sm }}>
-              <StatTile icon="cash-check" label="Collected today" value={d.collected_today} tone="success"
+              <StatTile icon="cash-check" label="Collected today" value={d.collected_today} format={(n) => inr(Math.round(n))} tone="success"
                 hint={`${d.receipts_today} receipt${d.receipts_today === 1 ? '' : 's'}`} onPress={() => router.push('/more/fees/payments?range=today' as never)} />
               <StatTile icon="account-alert-outline" label="Defaulters" value={d.defaulters} tone="danger"
                 hint={`${inrShort(d.overdue)} overdue`} onPress={() => router.push('/more/fees/students?status=overdue' as never)} />

@@ -30,8 +30,8 @@ export function FadeIn({ children, index = 0, style }: { children: ReactNode; in
 }
 
 /** Number that counts up to `value`. */
-export function CountUp({ value, decimals = 0, suffix = '', style, variant = 'headlineMedium' }: {
-  value: number; decimals?: number; suffix?: string; style?: object;
+export function CountUp({ value, decimals = 0, suffix = '', style, variant = 'headlineMedium', format }: {
+  value: number; decimals?: number; suffix?: string; style?: object; format?: (n: number) => string;
   variant?: ComponentProps<typeof Text>['variant'];
 }) {
   const v = useRef(new Animated.Value(0)).current;
@@ -41,7 +41,7 @@ export function CountUp({ value, decimals = 0, suffix = '', style, variant = 'he
     Animated.timing(v, { toValue: value, duration: 900, easing: Easing.out(Easing.cubic), useNativeDriver: false }).start();
     return () => v.removeListener(id);
   }, [v, value]);
-  return <Text variant={variant} style={[{ fontWeight: '800' }, style]}>{shown.toFixed(decimals)}{suffix}</Text>;
+  return <Text variant={variant} style={[{ fontWeight: '800' }, style]}>{format ? format(shown) : shown.toFixed(decimals)}{suffix}</Text>;
 }
 
 /** Scale-down press feedback wrapper. */
@@ -169,8 +169,9 @@ export function IconBadge({ icon, tone = 'primary', size = 40 }: { icon: IconNam
 }
 
 /** Tappable stat tile with count-up. */
-export function StatTile({ icon, label, value, suffix, decimals, tone = 'primary', onPress, hint }: {
+export function StatTile({ icon, label, value, suffix, decimals, tone = 'primary', onPress, hint, format }: {
   icon: IconName; label: string; value: number | null; suffix?: string; decimals?: number; tone?: Tone; onPress?: () => void; hint?: string;
+  format?: (n: number) => string;
 }) {
   const t = useAppTheme();
   return (
@@ -179,7 +180,7 @@ export function StatTile({ icon, label, value, suffix, decimals, tone = 'primary
         shadowColor: '#000', shadowOpacity: 0.06, shadowRadius: 10, shadowOffset: { width: 0, height: 4 }, elevation: 2 }}>
         <IconBadge icon={icon} tone={tone} size={34} />
         {value == null ? <Text variant="headlineMedium" style={{ fontWeight: '800', marginTop: space.sm }}>—</Text>
-          : <CountUp value={value} suffix={suffix} decimals={decimals} style={{ marginTop: space.sm, color: t.colors.onSurface }} />}
+          : <CountUp value={value} suffix={suffix} decimals={decimals} format={format} style={{ marginTop: space.sm, color: t.colors.onSurface }} />}
         <Text variant="labelMedium" style={{ color: t.colors.onSurfaceVariant }} numberOfLines={1}>{label}</Text>
         {hint ? <Text variant="labelSmall" style={{ color: t.colors.outline }} numberOfLines={1}>{hint}</Text> : null}
       </View>

@@ -76,7 +76,7 @@ export function RecordPaymentSheet({ visible, onDismiss, studentId, studentName,
           <Checkbox.Item key={i.id} status={on ? 'checked' : 'unchecked'} mode="android" position="leading"
             onPress={() => setSel((s) => (on ? s.filter((x) => x !== i.id) : [...s, i.id]))}
             label={`${i.title}\n${inr(i.balance)}${i.paid ? ` left of ${inr(i.amount)}` : ''} · due ${fmtDate(i.due_date)}`}
-            labelStyle={{ color: i.status === 'overdue' ? t.custom.danger : t.colors.onSurface, fontSize: 14 }}
+            labelStyle={{ color: i.status === 'overdue' ? t.custom.danger : t.colors.onSurface, fontSize: 14, textAlign: 'left' }}
             style={{ paddingVertical: 2, paddingHorizontal: 0 }} />
         );
       })}

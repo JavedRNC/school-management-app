@@ -65,7 +65,7 @@ function MyFees() {
               <Text variant="labelLarge" style={{ color: t.colors.onSurfaceVariant }}>Outstanding</Text>
               <View style={{ flexDirection: 'row', alignItems: 'baseline', gap: 2 }}>
                 <Text style={{ fontSize: 30, fontWeight: '900', color: late ? t.custom.danger : t.colors.onSurface }}>₹</Text>
-                <CountUp value={totals.outstanding} variant="displaySmall" style={{ fontWeight: '900', color: late ? t.custom.danger : t.colors.onSurface }} />
+                <CountUp value={totals.outstanding} format={(n) => Math.round(n).toLocaleString('en-IN')} variant="displaySmall" style={{ fontWeight: '900', color: late ? t.custom.danger : t.colors.onSurface }} />
               </View>
               <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: space.sm, marginTop: space.sm }}>
                 {late ? <ToneChip text={`${inr(totals.overdue)} overdue`} tone="danger" icon="alert-circle-outline" /> : null}
