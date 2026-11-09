@@ -1,16 +1,17 @@
-import { router } from 'expo-router';
+import { Redirect, router } from 'expo-router';
 import { useState } from 'react';
 import { LayoutAnimation, View } from 'react-native';
 import { Button, SegmentedButtons, Text } from 'react-native-paper';
 
 import { ColumnChart, ProgressRows, Ring, TrendChart } from '@/components/charts';
 import { fmtDate } from '@/components/PostList';
+import { StatusBanner } from '@/components/StatusBanner';
 import {
   EmptyState, ErrorState, FadeIn, FilterChips, Hero, IconBadge, LoadingCards, Panel, Row, SectionTitle, Sheet, StatTile,
   ToneChip, UserAvatar,
 } from '@/components/ui';
 import { api } from '@/lib/api';
-import { useAuth } from '@/lib/auth';
+import { useAuth, useCan } from '@/lib/auth';
 import { haptic } from '@/lib/feedback';
 import { greeting, pctTone, space, useAppTheme } from '@/lib/theme';
 import type { Dashboard, StudentStat } from '@/lib/types';
@@ -18,6 +19,18 @@ import { useLoad } from '@/lib/useLoad';
 import { Screen } from '@/components/ui';
 
 export default function PrincipalDashboard() {
+  const canInsights = useCan('insights', 'view');
+  const canPeople = useCan('people', 'view');
+  const canClasses = useCan('classes', 'view');
+  const canNotices = useCan('notices', 'view');
+  if (!canInsights) {
+    const to = canPeople ? '/principal/people' : canClasses ? '/principal/classes' : canNotices ? '/principal/notices' : '/principal/profile';
+    return <Redirect href={to} />;
+  }
+  return <Insights />;
+}
+
+function Insights() {
   const { user } = useAuth();
   const [examId, setExamId] = useState<number | null>(null);
   const { data, error, loading, refreshing, refresh, reload } = useLoad(
@@ -32,7 +45,9 @@ export default function PrincipalDashboard() {
           {data ? <TodayCard d={data} /> : <View style={{ height: 40 }} />}
         </Hero>
       }>
-      {loading && !data ? <View style={{ marginTop: space.lg }}><LoadingCards count={4} /></View> : null}
+      <View style={{ height: space.lg }} />
+      <StatusBanner closed />
+      {loading && !data ? <LoadingCards count={4} /> : null}
       {error ? <ErrorState message={error} onRetry={reload} /> : null}
       {data ? <Body d={data} examId={examId} setExamId={setExamId} /> : null}
     </Screen>
@@ -49,13 +64,18 @@ function TodayCard({ d }: { d: Dashboard }) {
           {o.attendance_today_percent != null ? <Ring value={o.attendance_today_percent} label="present" low={d.thresholds.low_attendance} />
             : <IconBadge icon="clipboard-text-clock-outline" size={72} tone="warning" />}
           <View style={{ flex: 1 }}>
-            <Text variant="titleMedium" style={{ fontWeight: '800', color: t.colors.onSurface }}>Today's attendance</Text>
+            <Text variant="titleMedium" style={{ fontWeight: '800', color: t.colors.onSurface }}>
+              {d.today_is_school_day ? "Today's attendance" : `Last school day · ${fmtDate(d.date)}`}
+            </Text>
             <Text variant="bodySmall" style={{ color: t.colors.onSurfaceVariant, marginBottom: space.sm }}>
-              {o.classes_marked} of {o.classes_total} classes marked
+              {d.today_is_school_day ? '' : `Today: ${d.closed_reason || 'no school'} · `}{o.classes_marked} of {o.classes_total} classes marked
             </Text>
             {d.unmarked_classes.length ? (
               <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 6 }}>
-                {d.unmarked_classes.map((c) => <ToneChip key={c.class_id} text={`${c.class_name} pending`} tone="warning" icon="clock-alert-outline" />)}
+                {d.unmarked_classes.map((c) => (
+                  <ToneChip key={c.class_id} tone="warning" icon="clock-alert-outline"
+                    text={`${c.class_name} · ${c.class_teacher ?? 'no class teacher'}`} />
+                ))}
               </View>
             ) : <ToneChip text="All classes marked" tone="success" icon="check-circle" />}
           </View>
@@ -84,6 +104,9 @@ function Body({ d, examId, setExamId }: { d: Dashboard; examId: number | null; s
         <View style={{ flexDirection: 'row', gap: space.sm }}>
           <StatTile icon="account-school-outline" label="Students" value={o.students} onPress={() => router.push('/principal/people')} />
           <StatTile icon="human-male-board" label="Teachers" value={o.teachers} tone="warning" onPress={() => router.push('/principal/people')} />
+        </View>
+        <View style={{ flexDirection: 'row', gap: space.sm, marginTop: space.sm }}>
+          <StatTile icon="human-male-female-child" label="Parents" value={o.parents ?? 0} tone="primary" onPress={() => router.push('/principal/people')} />
           <StatTile icon="google-classroom" label="Classes" value={o.classes} tone="success" onPress={() => router.push('/principal/classes')} />
         </View>
       </FadeIn>
