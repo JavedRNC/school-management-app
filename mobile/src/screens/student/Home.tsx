@@ -6,6 +6,7 @@ import { DayDots, Ring } from '@/components/charts';
 import { BannerCarousel } from '@/components/BannerCarousel';
 import { MyBusCard } from '@/components/BusCard';
 import { ChildSwitcher } from '@/components/ChildSwitcher';
+import { FeeDueCard } from '@/components/fees/FeeDueCard';
 import { LeaveSummaryCard } from '@/components/leaves/LeaveSummaryCard';
 import { PendingPollsCard } from '@/components/PollsCard';
 import { PostList } from '@/components/PostList';
@@ -104,6 +105,7 @@ export default function HomeScreen() {
           <View style={{ height: space.md }} />
           <BannerCarousel style={{ marginBottom: space.md }} />
           <PendingPollsCard />
+          <FeeDueCard />
           {isParent ? <LeaveSummaryCard /> : null}
           <MyBusCard studentId={studentId} />
           <UpcomingCard items={data.upcoming} />

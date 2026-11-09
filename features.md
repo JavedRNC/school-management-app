@@ -26,10 +26,10 @@ _Last updated: 9 Nov 2026 — **Phase 2 built** (banners, leaves, consent forms 
 | F7 | Richer, easier UI (cards, shadows, glows) | ✅ partly · 📝 polish | M | ongoing |
 | F15 | **Announcement banner** with images | ✅ Done (image via https link; upload needs storage) | M | 2 |
 | F8 | Teacher leave requests & Principal approval | ✅ Done | M | 2 |
-| F9 | Transport management | ✅ Done (transport fee in Phase 3) | L | 2 |
-| F10 | **Monthly fees**, fee receipts & ledger | 📝 | L | 3 |
-| F14 | **Roll out extra fees** (activity/exam/maintenance) to school, classes or students | 📝 | M | 3 |
-| F11 | Fee submission (payments) | 📝 | L | 3–4 |
+| F9 | Transport management | ✅ Done (transport fee per route in Phase 3) | L | 2 |
+| F10 | **Monthly fees**, fee receipts & ledger | ✅ Done (Phase 3) | L | 3 |
+| F14 | **Roll out extra fees** (activity/exam/maintenance) to school, classes or students | ✅ Done (Phase 3) | M | 3 |
+| F11 | Fee submission (payments) | ✅ A + B done · C (gateway) later | L | 3–4 |
 | F17 | **APK builds via GitHub Actions** | 📝 | S | any time |
 | F24 | **Roles: Vice Principal / Coordinator** (limited powers) | ✅ Done | M | 1 |
 | F25 | **Privacy & data access** (Admin sees only allowed data) | ✅ Done | M | 1 |
@@ -188,7 +188,8 @@ Shown at the top of the home screen **as soon as the user opens the app**.
 
 ## 💰 Phase 3–4 — Fees
 
-### F10 · Monthly fees, ledger & receipts 📝 `L`
+### F10 · Monthly fees, ledger & receipts ✅ `L`
+> Built: per-class amounts, transport per route, due day, auto-bill current month, ledger, concessions/waive, one-off charges, receipts (GVPS/2026-27/0001 style, PDF share), cancel with reason, reports, defaulters with call/WhatsApp. Not yet: late fine rule, school logo, verify-QR on receipt.
 **Setup**
 - **Monthly fee: one amount for every student** — set once (optionally per class, with a "same for all classes" shortcut), plus optional transport fee per route, due day (e.g. 10th), late fine rule 💡.
 - Per-student concession/discount — ⏸️ not needed now (can add later).
@@ -208,7 +209,7 @@ Shown at the top of the home screen **as soon as the user opens the app**.
 
 **Reports**: collected today/this month, by class, by mode; **defaulters list** (students with dues); fee widgets on the Principal dashboard.
 
-### F14 · Roll out extra fees 📝 `M`
+### F14 · Roll out extra fees ✅ `M`
 For one-off or occasional charges: Examination fee, Activity fee, Maintenance fee, Annual day, Trip, etc.
 
 - Principal creates a fee: **name, amount, due date**, optional note.
@@ -217,7 +218,7 @@ For one-off or occasional charges: Examination fee, Activity fee, Maintenance fe
 - The fee is added to each chosen student's ledger and shown to parents/students; a toast + notification 💡 announces it.
 - Can be **archived** (if rolled out by mistake) — removes it from unpaid ledgers, keeps an audit trail.
 
-### F11 · Fee submission (payments) 📝 `L`
+### F11 · Fee submission (payments) ✅ A + B · C later `L`
 Once paid → receipt created and ledger updated automatically.
 
 | Option | How it works | Pros | Cons |

@@ -7,6 +7,7 @@ import { ColumnChart, ProgressRows, Ring, TrendChart } from '@/components/charts
 import { fmtDate } from '@/components/PostList';
 import { BannerCarousel } from '@/components/BannerCarousel';
 import { CheckInCard } from '@/components/CheckInCard';
+import { FeeSummaryCard } from '@/components/fees/FeeSummaryCard';
 import { LeaveSummaryCard } from '@/components/leaves/LeaveSummaryCard';
 import { OpsGrid } from '@/components/OpsGrid';
 import { PendingPollsCard } from '@/components/PollsCard';
@@ -54,6 +55,7 @@ function Insights() {
       <StatusBanner closed />
       <BannerCarousel style={{ marginBottom: space.md }} />
       <CheckInCard />
+      <FeeSummaryCard />
       <LeaveSummaryCard />
       <PendingPollsCard />
       <OpsGrid />

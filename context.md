@@ -56,10 +56,15 @@ Multi-school with school code login (no email/OTP; principal issues temp passwor
 - App: more/{leaves,banners,polls,poll/[id],staff-attendance,transport}, admin-banners/; components BannerCarousel, PollsCard (PendingPollsCard), CheckInCard (expo-location), BusCard (MyBusCard), leaves/LeaveSummaryCard, OpsGrid (useOps → Me hub links + home grid), comms/*, staff/*, transport/*.
 - expo-location added (package.json + app.json plugin) → phone needs `npm install` once.
 
+## Phase 3 (built 9 Nov) — fees
+- Backend: models FeeConfig (school_id PK; monthly_amount, class_amounts{cid:amt}, route_amounts{rid:amt}, due_day, start_month, auto_generate, upi_id/name, receipt_prefix/note, generated_months), FeeBatch (extra fee rollout, Archivable), FeeItem (kind monthly|transport|extra|fine; unique student+kind+period; period YYYY-MM / b<batch> / x<ms>; is_active=false = waived/voided), FeePayment (status confirmed|pending|rejected|cancelled; receipt_no set on confirm; submitted_by = parent UPI claim), FeeAllocation, ReceiptCounter (per school + academic year Apr–Mar). Only confirmed payments count; cancel never edits.
+- routers/fees.py (module fees, area fees: VP view, coord none): config, generate (idempotent; lazy ensure_current bills this month once), batches (preview/create/withdraw voids unpaid), students (?status), students/{id} ledger, items (add/concession), payments (record/list/cancel), receipts/{id} (staff or own parent/student), me + me/claim (UPI UTR), claims (+confirm/reject), summary. amount_in_words (Indian). Schema v4 additive. seed_fees_demo() idempotent (₹1500, 9-A ₹1800, routes ₹600/₹800, UPI greenvalley@sbi, prefix GVPS, 3 months, defaulters, 1 pending claim, Annual day ₹300). Tests: tests/test_fees.py (7) → 28 total.
+- App: lib/fees.ts (inr, upiLink…), types Fee*; more/fees/{index,students,student/[id],claims,payments,setup,extra,receipt/[id],my}; components/fees/* (receiptHtml via expo-print + expo-sharing, PaySheet with react-native-qrcode-svg, FeeDueCard, FeeSummaryCard). New deps → phone `npm install` once.
+
 ## Status / to-do
 - [ ] Javed: reset Neon password (was shared in chat) and update DATABASE_URL on Render.
 - [ ] Before real use: SEED_DEMO=0, fresh accounts.
-- Next ideas: exam-to-exam trend, teacher activity, parents, fees, push notifications, leave requests.
+- Next: F21 ID cards, F23 admissions, F17 APK builds, F16 update popup; need Javed's accounts: image storage, EAS, payment gateway (F11-C).
 
 ## Decisions log
 - 2026-11-08: Android RN (Expo) + Python FastAPI; phones only → Termux live preview. Claude chose MVP + dashboard metrics.
