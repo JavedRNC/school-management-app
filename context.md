@@ -1,54 +1,53 @@
 # context.md — session recovery (keep terse; update every 2–3 tasks or after major work)
 
 ## Project
-School Hub: school mgmt app. Roles: Principal, Teacher, Student. Owner: Javed (GitHub JavedRNC).
-Repo: JavedRNC/school-management-app (branch main; Claude has push access)
-
-## Stack
-- backend/: FastAPI, SQLAlchemy 2, SQLite dev / Postgres prod (DATABASE_URL), PyJWT, bcrypt. Tests: `pytest -q` (5 pass)
-- mobile/: Expo SDK 58, RN 0.88, Expo Router in src/app, TS strict, react-native-paper (Material 3), expo-haptics, expo-linear-gradient, react-native-svg charts (hand-drawn, animated), MaterialCommunityIcons
-- Deploy: DB = Neon free Postgres (DATABASE_URL, sync:false in render.yaml); API = Render free via render.yaml. db.py uses pool_pre_ping+recycle for Neon suspend. Tests also pass on Postgres 16 (TEST_DATABASE_URL). App server URL editable on login screen
-
-## Gotchas
-- `npx expo install` blocked by sandbox proxy → install versions from `expo/bundledNativeModules.json` via npm
-- Tabs import: `expo-router/js-tabs`; Stack/Redirect from `expo-router`; role routes = folders principal/ teacher/ student/ (not groups)
-- Dates: server uses SCHOOL_TZ (Asia/Kolkata); Sunday = holiday → dashboard uses last_school_day()
-- Keep deps Expo-Go compatible (no custom native modules)
-
-## Dev flow (no PC — phones only)
-Claude codes in cloud → push GitHub (Render auto-deploys API) → Android Termux pull loop (`git fetch && git reset --hard origin/main`; Expo rewrites tsconfig locally so plain pull can conflict) → `npx expo start --offline` → Expo Go. Guide: docs/termux.md
-
-## UI v0.2 (Material 3 redesign, Javed chose deep blue + amber)
-- Theme: src/lib/theme.ts (light+dark auto, `custom` semantic colours, pctTone/toneColors/gradeOf). Feedback: src/lib/feedback.tsx (haptics + Snackbar toast w/ Undo)
-- Kit: src/components/ui.tsx (Hero gradient header, Panel, StatTile count-up, FadeIn stagger, PressScale, FilterChips, Row, Sheet bottom-sheet, Skeleton, EmptyState); charts.tsx (Ring, ProgressRows, scrubbable TrendChart, tappable ColumnChart, DayDots)
-- Nav: RoleTabs = Paper BottomNavigation.Bar via Tabs tabBar (uses emitter/navigateToTab props)
-- Preview trick: install react-native-web --no-save --legacy-peer-deps, `expo export --platform web`, serve + playwright (/usr/bin/google-chrome) screenshots; run `npm install` after to restore
-
-## Built (v0.1)
-- API: /auth (login, me, password); /classes /subjects /users /assignments /timetable /exams (principal CRUD); /attendance, /marks (teacher, access-checked); /me/attendance /me/marks (student); /posts (notice|homework); /dashboard
-- Dashboard: overview, attendance today by class + unmarked, 30-day trend, <75% list, academics per exam (avg by class/subject, pass rate ≥33%, top/bottom 5), at-risk (att<75 or marks<40)
-- Seed demo (pw demo123): principal@, anita@ rakesh@ sunita@ imran@ priya@ (teachers), 24 students (aarav@...), classes 8-A 8-B 9-A
-- App screens: login(+demo buttons, server setting); principal: dashboard, people(+add), classes(subject teachers, timetable editor, setup: classes/subjects/exams), notices, profile; teacher: today, attendance, marks, posts, profile; student: home(attendance ring+notices), marks, timetable, homework, profile
-- Verified: tsc clean, `expo export --platform android` bundles
+School Hub: school mgmt app. Roles: Principal, Teacher, Student. Owner: Javed (GitHub JavedRNC, works from Android phone, no PC).
+Repo: JavedRNC/school-management-app — PUBLIC, branch main, Claude has push access.
 
 ## Live
-- API: https://school-api-7y80.onrender.com (Render free, Ohio; manual Web Service, not Blueprint — Blueprint asked for payment). DB: Neon us-east-2. App default apiUrl set in mobile/app.json
-- Claude's sandbox can't reach onrender.com (allowlist) → Javed verifies live endpoints
+- API: https://school-api-7y80.onrender.com (Render free Web Service, Ohio, auto-deploys on push to main). Settings: root `backend`, start `uvicorn app.main:app --host 0.0.0.0 --port $PORT`, env DATABASE_URL/JWT_SECRET/SCHOOL_TZ. Blueprint asked for payment → manual Web Service used.
+- DB: Neon free Postgres, us-east-2. Demo data seeded (SEED_DEMO defaults to 1; set 0 before real use).
+- App: Expo Go on Javed's Android via Termux (`npx expo start --offline`, Expo Go → exp://127.0.0.1:8081). Default apiUrl in mobile/app.json = live API.
+- Claude's sandbox can't reach onrender.com → Javed verifies live endpoints.
 
-## Changes log
-- 2026-11-09: DELETE /classes/{id} (409 if active students; cascades timetable/assignments/attendance/class posts). Setup tab: tap class chip → rename/delete sheet + confirm dialog
+## Stack
+- backend/: FastAPI, SQLAlchemy 2, Postgres (SQLite fallback/tests), PyJWT, bcrypt. Tests: `pytest -q` (8 pass; also on PG via TEST_DATABASE_URL). db.py pool_pre_ping+recycle for Neon suspend.
+- mobile/: Expo SDK 58, RN 0.88, Expo Router (src/app), TS strict, react-native-paper MD3 (deep blue + amber, auto dark), expo-haptics, expo-linear-gradient, react-native-svg charts, MaterialCommunityIcons.
 
-- 2026-11-09: Principal full CRUD. API: PUT/DELETE /users (soft delete=active false, list ?active=false, restore via PUT active), PUT/DELETE /subjects (+/usage; cascades assignments/timetable/marks, posts untagged), PUT/DELETE /exams (mark_count; max can't drop below top score; delete cascades marks), PUT /posts, class_teacher_id null allowed (validated). UI: People edit/remove/restore sheet + Removed tab; Classes: unassign teachers, Attendance/Marks register shortcuts → /records/* (shared src/screens/*, StackedContext shows back arrow); Setup subject/exam editors; post edit (pencil)
+## Code map (mobile)
+- src/lib: theme.ts (tokens, pctTone/toneColors/gradeOf), feedback.tsx (haptics, Snackbar toast w/ Undo), api.ts, auth.tsx, useLoad.ts, types.ts
+- src/components: ui.tsx (Hero, Panel, StatTile, FadeIn, PressScale, FilterChips, Row, Sheet, Skeleton, EmptyState, StackedContext→back arrow), charts.tsx, RoleTabs.tsx (Paper nav bar), TimetableView, PostList/PostComposer (create+edit), ProfileView
+- src/screens: AttendanceScreen, MarksScreen (shared by teacher tabs + /records/* for principal; accept ?class_id)
+- src/app: login, principal/{index,people,classes,notices,profile}, teacher/{index,attendance,marks,posts,profile}, student/{index,marks,timetable,homework,profile}, records/{attendance,marks}
 
-## Status
-- [x] Pushed to GitHub main (2026-11-08)
-- [x] Backend deployed (2026-11-09)
-- [ ] Javed: Termux setup, test app on phone; reset Neon password (was shared in chat)
-- [x] UI verified via web screenshots (light+dark); not yet on a real device
+## Features
+- Principal: Insights dashboard (attendance today/trend/<75%, academics by class/subject, pass rate, top/bottom, at-risk); full CRUD — people (edit, reset pw, remove/restore), classes (rename/delete), subjects & exams (edit/delete with impact shown), teacher assignments (assign/unassign), timetable, notices/homework (create/edit/delete), attendance & marks registers per class.
+- Teacher: today + timetable, attendance toggles, marks entry with live grades, homework/notices (own edit/delete).
+- Student: attendance ring + day dots, results (grades, vs last exam), timetable, homework, notices.
+- Demo logins (pw demo123): principal@school.com, anita@ (teacher), aarav@ (student).
 
-## Next ideas
-Exam-to-exam trend, teacher activity, parents, fees, push notifications, leave requests.
+## Delete policy (current)
+- Soft: users (active=false; Removed tab restores; history kept).
+- Hard (permanent, confirm dialog shows impact): class (blocked if students; cascades timetable/assignments/attendance/class posts), subject (cascades assignments/timetable/marks; posts untagged), exam (cascades marks), post, timetable slot, assignment.
+- OPEN: Claude proposed soft delete + Archive/Recycle bin for classes/subjects/exams/posts — awaiting Javed's decision.
+
+## Gotchas
+- `npx expo install` blocked by sandbox proxy → use versions from `expo/bundledNativeModules.json` via npm.
+- Tabs from `expo-router/js-tabs`; custom tabBar uses emitter/navigateToTab.
+- Sunday = holiday → dashboard uses last_school_day(); SCHOOL_TZ Asia/Kolkata.
+- Expo Go only: no custom native modules.
+- Termux: React Native DevTools "arm64" error on start is harmless. Expo rewrites tsconfig locally → update loop uses `git fetch && git reset --hard origin/main`.
+- UI preview: `npm i --no-save --legacy-peer-deps react-native-web@~0.21.4`, point apiUrl to local API temporarily, `expo export --platform web`, serve + playwright (/usr/bin/google-chrome); then `npm install` and restore app.json.
+
+## Status / to-do
+- [ ] Javed: reset Neon password (was shared in chat) and update DATABASE_URL on Render.
+- [ ] Decide soft-delete/archive for classes/subjects/exams/posts.
+- [ ] Before real use: SEED_DEMO=0, fresh accounts.
+- Next ideas: exam-to-exam trend, teacher activity, parents, fees, push notifications, leave requests.
 
 ## Decisions log
-- 2026-11-08: DB hosting = Neon free Postgres (Render free PG expires in 30 days; Render disk not persistent).
-- 2026-11-08: Android RN (Expo) + Python FastAPI. Phones only → Termux live preview. Claude chose MVP + dashboard metrics.
+- 2026-11-08: Android RN (Expo) + Python FastAPI; phones only → Termux live preview. Claude chose MVP + dashboard metrics.
+- 2026-11-08: Material 3 redesign, deep blue + amber.
+- 2026-11-08: DB = Neon free Postgres (Render free PG expires in 30 days; Render disk not persistent).
+- 2026-11-09: API on Render free (Ohio). Repo made public (for Termux clone).
+- 2026-11-09: Principal full CRUD; users soft-deleted, others hard-deleted (pending archive decision).
