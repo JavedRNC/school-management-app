@@ -2,6 +2,11 @@ import { router } from 'expo-router';
 import { View } from 'react-native';
 import { Button, Text } from 'react-native-paper';
 
+import { BannerCarousel } from '@/components/BannerCarousel';
+import { CheckInCard } from '@/components/CheckInCard';
+import { LeaveSummaryCard } from '@/components/leaves/LeaveSummaryCard';
+import { OpsGrid } from '@/components/OpsGrid';
+import { PendingPollsCard } from '@/components/PollsCard';
 import { StatusBanner } from '@/components/StatusBanner';
 import { subjectIcon, TimetableView } from '@/components/TimetableView';
 import { ErrorState, FadeIn, Hero, Icon, LoadingCards, Panel, PressScale, Screen, SectionTitle, UserAvatar } from '@/components/ui';
@@ -49,6 +54,10 @@ export default function TeacherHome() {
       }>
       <View style={{ height: space.lg }} />
       <StatusBanner closed />
+      <BannerCarousel style={{ marginBottom: space.md }} />
+      <CheckInCard />
+      <LeaveSummaryCard />
+      <PendingPollsCard />
       {error ? <ErrorState message={error} onRetry={reload} /> : null}
       {!data ? <LoadingCards /> : (
         <>
@@ -81,6 +90,7 @@ export default function TeacherHome() {
               ))}
             </View>
           </FadeIn>
+          <OpsGrid title="More" />
           <SectionTitle title="My subjects" />
           <FadeIn index={2}>
             <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: space.sm }}>

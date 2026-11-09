@@ -9,17 +9,27 @@ import { haptic, useToast } from '@/lib/feedback';
 import { radius, space, useAppTheme } from '@/lib/theme';
 import type { User } from '@/lib/types';
 
+import { useOps } from './OpsGrid';
 import { StatusBanner } from './StatusBanner';
 import { FadeIn, Hero, IconName, Panel, Screen, Sheet, UserAvatar } from './ui';
 
 type Link = { title: string; desc: string; icon: IconName; to: string };
 
 /** "Me" hub: profile card, school status, links to settings/calendar/etc., password and logout. */
+const OP_DESC: Record<string, string> = {
+  leaves: 'Apply, approve and track leave',
+  staff: 'GPS check-in, daily board, reports',
+  transport: 'Buses, routes, stops and riders',
+  polls: 'Consent forms and polls',
+  banners: 'Home-screen announcements',
+};
+
 export function ProfileView({ extra }: { extra?: string }) {
   const t = useAppTheme();
   const toast = useToast();
   const { user, school, logout, setUser } = useAuth();
   const canSettings = useCan('settings', 'view');
+  const ops = useOps();
   const [pwOpen, setPwOpen] = useState(false);
   const [confirmOut, setConfirmOut] = useState(false);
   const [oldPw, setOld] = useState('');
@@ -47,6 +57,7 @@ export function ProfileView({ extra }: { extra?: string }) {
   const links: Link[] = [];
   if (school) {
     links.push({ title: 'School calendar', desc: 'Holidays, vacations & events', icon: 'calendar-month-outline', to: '/more/calendar' });
+    for (const o of ops) links.push({ title: o.label, desc: OP_DESC[o.key] ?? '', icon: o.icon, to: o.path });
     if (canSettings) {
       links.push({ title: 'School settings', desc: 'Profile & working days', icon: 'cog-outline', to: '/more/settings' });
       links.push({ title: 'Archive', desc: 'Restore archived items', icon: 'archive-outline', to: '/more/archive' });

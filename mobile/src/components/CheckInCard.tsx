@@ -87,7 +87,7 @@ function CheckInBody({ onChange }: { onChange?: () => void }) {
     off: { icon: 'beach', tone: 'neutral', title: 'No school today', text: data?.today.reason || 'Enjoy your day off' },
     leave: { icon: 'airplane-takeoff', tone: 'primary', title: "You're on leave today", text: 'No check-in needed' },
     unset: { icon: 'map-marker-off-outline', tone: 'warning', title: 'Check-in not ready', text: "The principal hasn't set the school location yet" },
-    in: { icon: 'map-marker-radius-outline', tone: 'primary', title: 'Good morning! Check in at school', text: `Works within ${data?.settings.radius_m ?? 150} m of the school gate` },
+    in: { icon: 'map-marker-radius-outline', tone: 'primary', title: 'Check in at school', text: `Works within ${data?.settings.radius_m ?? 150} m of the school gate` },
     out: { icon: 'clock-check-outline', tone: 'success', title: `Checked in ${fmtTime(rec?.check_in_at)}`, text: 'Remember to check out before you leave' },
     done: { icon: 'check-decagram', tone: 'success', title: 'Done for today', text: `${fmtTime(rec?.check_in_at)} – ${fmtTime(rec?.check_out_at)}` },
   };

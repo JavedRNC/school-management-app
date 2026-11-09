@@ -28,7 +28,7 @@ An iPhone on the same Wi-Fi can open `exp://<android-wifi-ip>:8081` (find the IP
 ```bash
 cd ~/school-management-app && while true; do git fetch -q && git reset -q --hard origin/main; sleep 20; done
 ```
-If `package.json` changes, stop session 1 (Ctrl+C), run `npm install`, start again.
+If `package.json` changes (Claude will tell you), stop session 1 (Ctrl+C), run `cd ~/school-management-app/mobile && npm install`, then start again with `npx expo start --offline`.
 
 ## Backend
 The app needs the API URL. Easiest: deploy `backend/` on Render (see README) and put that URL in the login screen → *Server settings*.

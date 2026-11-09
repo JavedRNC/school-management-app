@@ -3,7 +3,11 @@ import { View } from 'react-native';
 import { Text } from 'react-native-paper';
 
 import { DayDots, Ring } from '@/components/charts';
+import { BannerCarousel } from '@/components/BannerCarousel';
+import { MyBusCard } from '@/components/BusCard';
 import { ChildSwitcher } from '@/components/ChildSwitcher';
+import { LeaveSummaryCard } from '@/components/leaves/LeaveSummaryCard';
+import { PendingPollsCard } from '@/components/PollsCard';
 import { PostList } from '@/components/PostList';
 import { subjectIcon } from '@/components/TimetableView';
 import { ErrorState, FadeIn, Hero, Icon, LoadingCards, Panel, PressScale, Screen, SectionTitle, ToneChip, UserAvatar } from '@/components/ui';
@@ -97,6 +101,11 @@ export default function HomeScreen() {
             </View>
           </FadeIn>
 
+          <View style={{ height: space.md }} />
+          <BannerCarousel style={{ marginBottom: space.md }} />
+          <PendingPollsCard />
+          {isParent ? <LeaveSummaryCard /> : null}
+          <MyBusCard studentId={studentId} />
           <UpcomingCard items={data.upcoming} />
 
           <SectionTitle title="Today's classes" action="Full timetable" onAction={() => router.push(`${base}/timetable` as never)} />

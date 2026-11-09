@@ -6,7 +6,7 @@
 > **Status:** 📝 Requested · 💡 Suggested by Claude · 🚧 In progress · ✅ Done · ⏸️ On hold
 > **Size:** S (hours) · M (a day) · L (several days)
 
-_Last updated: 9 Nov 2026 — **Phase 1 built** (multi-school, admin, roles, privacy, subscriptions, parents, archive, calendar, working days, attendance rules)_
+_Last updated: 9 Nov 2026 — **Phase 2 built** (banners, leaves, consent forms & polls, GPS staff attendance, transport); **Phase 1 built** (multi-school, admin, roles, privacy, subscriptions, parents, archive, calendar, working days, attendance rules)_
 
 ---
 
@@ -24,9 +24,9 @@ _Last updated: 9 Nov 2026 — **Phase 1 built** (multi-school, admin, roles, pri
 | F5 | Attendance: class teacher **compulsory**, others optional | ✅ Done | S | 1 |
 | F6 | Toasts on all important actions | ✅ mostly · 📝 audit | S | 1 |
 | F7 | Richer, easier UI (cards, shadows, glows) | ✅ partly · 📝 polish | M | ongoing |
-| F15 | **Announcement banner** with images | 📝 | M | 2 |
-| F8 | Teacher leave requests & Principal approval | 📝 | M | 2 |
-| F9 | Transport management | 📝 | L | 2 |
+| F15 | **Announcement banner** with images | ✅ Done (image via https link; upload needs storage) | M | 2 |
+| F8 | Teacher leave requests & Principal approval | ✅ Done | M | 2 |
+| F9 | Transport management | ✅ Done (transport fee in Phase 3) | L | 2 |
 | F10 | **Monthly fees**, fee receipts & ledger | 📝 | L | 3 |
 | F14 | **Roll out extra fees** (activity/exam/maintenance) to school, classes or students | 📝 | M | 3 |
 | F11 | Fee submission (payments) | 📝 | L | 3–4 |
@@ -34,9 +34,9 @@ _Last updated: 9 Nov 2026 — **Phase 1 built** (multi-school, admin, roles, pri
 | F24 | **Roles: Vice Principal / Coordinator** (limited powers) | ✅ Done | M | 1 |
 | F25 | **Privacy & data access** (Admin sees only allowed data) | ✅ Done | M | 1 |
 | F26 | **School subscriptions** (modular plans, free/sponsored schools, manual config) | ✅ Done (billing via Admin; online payment later) | L | 1–2 |
-| F19 | **Student leave by parent** | 📝 | S | 2 |
-| F20 | **Consent forms & polls** | 📝 | S | 2 |
-| F22 | **Staff attendance (GPS geofence)** | 📝 | M | 2 |
+| F19 | **Student leave by parent** | ✅ Done | S | 2 |
+| F20 | **Consent forms & polls** | ✅ Done | S | 2 |
+| F22 | **Staff attendance (GPS geofence)** | ✅ Done (selfie needs storage) | M | 2 |
 | F21 | **Digital ID card** (photo + QR) | 📝 | M | 3 |
 | F23 | **Admissions & enquiries** | 📝 | M | 3 |
 | F27 | **Photo gallery** | 📝 | M | 3 |
@@ -443,7 +443,8 @@ Schools pay for **the modules they use**. Admin controls everything manually, in
 
 ## 🧪 Phase 1 notes
 - Plan prices start at ₹0 — set real prices in **Admin → Plans**.
-- Modules other than Core and Extra roles show **"Coming soon"** until their screens are built (Phase 2+).
+- Modules still marked **"Coming soon"**: Fees, Online payments, ID cards, Admissions, Gallery.
+- Phase 2: banner images use an https link; photo upload, selfies at check-in and the gallery wait for image storage (Cloudinary/R2 account).
 - Dates are typed (YYYY-MM-DD) with quick buttons; a calendar date picker can come later.
 
 ## ❓ Open questions for Javed

@@ -51,6 +51,11 @@ Multi-school with school code login (no email/OTP; principal issues temp passwor
 - Demo: DEMO01 (principal, vp, coord, T001–T005, 2026001–2026024, parents 98765000xx; 9876500001 has 2 kids), DEMO02 (Sun–Thu, Basic plan), ADMIN/admin/admin123 (must change).
 - Git: work happens on main; phase1-wip branch was used while building (merged).
 
+## Phase 2 (built 9 Nov)
+- Backend: models SchoolPrefs (leave_quotas, geo_lat/lng, geo_radius_m, late_after — separate table, no ALTER), LeaveRequest, Banner (school_id NULL = platform), Poll/PollResponse (consent per child via student_id), StaffAttendance, Vehicle/Route/Stop/StudentTransport. Routers: leaves.py, comms.py (banners + poll_router), staff_attendance.py, transport.py. New areas: leaves, staff_attendance, transport. Schema v3 additive; seed_phase2_demo() idempotent for DEMO01 (location 23.3441,85.3096). Tests: tests/test_phase2.py (7) + test_api.py (14).
+- App: more/{leaves,banners,polls,poll/[id],staff-attendance,transport}, admin-banners/; components BannerCarousel, PollsCard (PendingPollsCard), CheckInCard (expo-location), BusCard (MyBusCard), leaves/LeaveSummaryCard, OpsGrid (useOps → Me hub links + home grid), comms/*, staff/*, transport/*.
+- expo-location added (package.json + app.json plugin) → phone needs `npm install` once.
+
 ## Status / to-do
 - [ ] Javed: reset Neon password (was shared in chat) and update DATABASE_URL on Render.
 - [ ] Before real use: SEED_DEMO=0, fresh accounts.

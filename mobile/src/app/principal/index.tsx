@@ -5,6 +5,11 @@ import { Button, SegmentedButtons, Text } from 'react-native-paper';
 
 import { ColumnChart, ProgressRows, Ring, TrendChart } from '@/components/charts';
 import { fmtDate } from '@/components/PostList';
+import { BannerCarousel } from '@/components/BannerCarousel';
+import { CheckInCard } from '@/components/CheckInCard';
+import { LeaveSummaryCard } from '@/components/leaves/LeaveSummaryCard';
+import { OpsGrid } from '@/components/OpsGrid';
+import { PendingPollsCard } from '@/components/PollsCard';
 import { StatusBanner } from '@/components/StatusBanner';
 import {
   EmptyState, ErrorState, FadeIn, FilterChips, Hero, IconBadge, LoadingCards, Panel, Row, SectionTitle, Sheet, StatTile,
@@ -47,6 +52,11 @@ function Insights() {
       }>
       <View style={{ height: space.lg }} />
       <StatusBanner closed />
+      <BannerCarousel style={{ marginBottom: space.md }} />
+      <CheckInCard />
+      <LeaveSummaryCard />
+      <PendingPollsCard />
+      <OpsGrid />
       {loading && !data ? <LoadingCards count={4} /> : null}
       {error ? <ErrorState message={error} onRetry={reload} /> : null}
       {data ? <Body d={data} examId={examId} setExamId={setExamId} /> : null}

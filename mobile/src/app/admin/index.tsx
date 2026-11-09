@@ -4,7 +4,7 @@ import { Text } from 'react-native-paper';
 
 import { rupees, SchoolRow, STATUS_LABEL, STATUS_TONE } from '@/components/admin/common';
 import {
-  EmptyState, ErrorState, FadeIn, Hero, LoadingCards, Panel, Screen, SectionTitle, StatTile, ToneChip, UserAvatar,
+  EmptyState, ErrorState, FadeIn, Hero, Icon, LoadingCards, Panel, Screen, SectionTitle, StatTile, ToneChip, UserAvatar,
 } from '@/components/ui';
 import { api } from '@/lib/api';
 import { useAuth } from '@/lib/auth';
@@ -55,6 +55,8 @@ export default function AdminOverviewScreen() {
             </View>
           </FadeIn>
 
+          <Panel title="Platform banners" subtitle="Announcements shown in every school's app" icon="bullhorn-variant-outline"
+            onPress={() => router.push('/admin-banners' as never)} right={<Icon name="chevron-right" size={22} color={t.colors.outline} />} />
           <SectionTitle title="Schools by status" />
           <FadeIn index={2}>
             <Panel>

@@ -123,7 +123,7 @@ export default function PollResultsScreen() {
 
       <FadeIn index={2}>
         <View style={{ flexDirection: 'row', gap: space.sm, marginBottom: space.md }}>
-          <Button mode="contained-tonal" icon="share-variant" style={{ flex: 1 }} onPress={share}>Share list</Button>
+          <Button mode="contained-tonal" icon="share-variant" style={{ flex: 1 }} onPress={share} compact>Share</Button>
           {canEdit && data.open ? <Button mode="outlined" icon="lock-outline" style={{ flex: 1 }} onPress={() => setConfirm('close')}>Close</Button> : null}
           {canEdit ? <Button mode="outlined" icon="archive-arrow-down-outline" textColor={t.colors.error} onPress={() => setConfirm('archive')}>Archive</Button> : null}
         </View>

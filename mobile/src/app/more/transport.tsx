@@ -123,7 +123,7 @@ function ManageTransport() {
           <Hero title="Transport" subtitle={d ? `${d.vehicles.length} vehicles · ${d.routes.length} routes · ${d.riders} riders` : 'Buses, routes and riders'} compact>
             <View style={{ backgroundColor: t.colors.elevation.level2, borderRadius: 20, padding: 6, elevation: 3 }}>
               <SegmentedButtons value={tab} onValueChange={(v) => { haptic.tap(); setTab(v as Tab); }} density="small"
-                buttons={[{ value: 'overview', label: 'Overview' }, { value: 'vehicles', label: 'Vehicles' }, { value: 'routes', label: 'Routes' }, { value: 'students', label: 'Riders' }]} />
+                buttons={[{ value: 'overview', label: 'Home' }, { value: 'vehicles', label: 'Buses' }, { value: 'routes', label: 'Routes' }, { value: 'students', label: 'Riders' }]} />
             </View>
           </Hero>
         }>
