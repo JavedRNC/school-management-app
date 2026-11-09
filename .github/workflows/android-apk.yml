@@ -1,0 +1,85 @@
+# F17 · Builds an installable Android APK in the cloud (no computer, no Expo account needed).
+# Runs on every push to main that changes mobile/, or by hand (Actions → Android APK → Run workflow).
+# The APK is published on the "Latest app" release: https://github.com/<owner>/<repo>/releases/tag/latest-apk
+name: Android APK
+
+on:
+  push:
+    branches: [main]
+    paths: ["mobile/**", ".github/workflows/android-apk.yml"]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: android-apk
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    defaults:
+      run:
+        working-directory: mobile
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: mobile/package-lock.json
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 17
+
+      - uses: gradle/actions/setup-gradle@v4
+
+      - name: Install JS packages
+        run: npm ci
+
+      - name: Generate native Android project
+        run: npx expo prebuild --platform android --no-install
+        env:
+          CI: "1"
+
+      - name: Version, phone-only CPU types, more build memory
+        run: |
+          VERSION=$(node -p "require('./app.json').expo.version")
+          sed -i "s/versionCode 1$/versionCode ${GITHUB_RUN_NUMBER}/" android/app/build.gradle
+          sed -i "s/versionName \"[^\"]*\"/versionName \"${VERSION}.${GITHUB_RUN_NUMBER}\"/" android/app/build.gradle
+          sed -i "s/^reactNativeArchitectures=.*/reactNativeArchitectures=armeabi-v7a,arm64-v8a/" android/gradle.properties
+          sed -i "s/^org.gradle.jvmargs=.*/org.gradle.jvmargs=-Xmx4g -XX:MaxMetaspaceSize=1g/" android/gradle.properties
+          grep -n "versionCode\|versionName" android/app/build.gradle
+
+      - name: Build release APK
+        working-directory: mobile/android
+        run: ./gradlew assembleRelease --no-daemon
+
+      - name: Name the APK
+        run: |
+          mkdir -p ../dist
+          cp android/app/build/outputs/apk/release/app-release.apk ../dist/SchoolHub.apk
+          ls -lh ../dist
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: SchoolHub-apk-${{ github.run_number }}
+          path: dist/SchoolHub.apk
+          retention-days: 14
+
+      - name: Publish to the "latest-apk" release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: latest-apk
+          name: "School Hub — latest Android app"
+          make_latest: true
+          body: |
+            Build ${{ github.run_number }} from commit ${{ github.sha }}.
+            Download **SchoolHub.apk** below on your Android phone and open it to install (allow "Install unknown apps" for your browser once).
+            The app talks to https://school-api-7y80.onrender.com
+          files: dist/SchoolHub.apk
