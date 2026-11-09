@@ -17,14 +17,24 @@
         "monochromeImage": "./assets/android-icon-monochrome.png"
       },
       "predictiveBackGestureEnabled": false,
-      "package": "com.javedrnc.schoolhub"
+      "package": "com.javedrnc.schoolhub",
+      "permissions": [
+        "ACCESS_COARSE_LOCATION",
+        "ACCESS_FINE_LOCATION"
+      ]
     },
     "web": {
       "favicon": "./assets/favicon.png"
     },
     "scheme": "schoolhub",
     "plugins": [
-      "expo-router"
+      "expo-router",
+      [
+        "expo-location",
+        {
+          "locationWhenInUsePermission": "School Hub uses your location only when you check in or out, to confirm you're at school."
+        }
+      ]
     ],
     "experiments": {
       "typedRoutes": false

@@ -6,14 +6,17 @@ export const AREAS: { key: Area; label: string; desc: string }[] = [
   { key: 'classes', label: 'Classes, subjects & timetable', desc: 'Setup, subject teachers, periods' },
   { key: 'attendance', label: 'Attendance', desc: 'Daily attendance registers' },
   { key: 'exams', label: 'Exams & marks', desc: 'Exams and marks entry' },
-  { key: 'notices', label: 'Notices & homework', desc: 'Announcements and homework' },
+  { key: 'notices', label: 'Notices, banners & polls', desc: 'Announcements, homework, banners, consent forms' },
   { key: 'calendar', label: 'School calendar', desc: 'Holidays and events' },
+  { key: 'leaves', label: 'Leave requests', desc: 'Approve staff and student leave' },
+  { key: 'staff_attendance', label: 'Staff attendance', desc: 'Check-in board and reports' },
+  { key: 'transport', label: 'Transport', desc: 'Vehicles, routes and riders' },
   { key: 'settings', label: 'Settings, privacy & plan', desc: 'School settings, archive, audit' },
 ];
 
 export const DEFAULT_PERMS: Record<'vice_principal' | 'coordinator', Record<Area, Level>> = {
-  vice_principal: { insights: 'view', people: 'edit', classes: 'edit', attendance: 'edit', exams: 'edit', notices: 'edit', calendar: 'edit', settings: 'view' },
-  coordinator: { insights: 'view', people: 'view', classes: 'view', attendance: 'edit', exams: 'edit', notices: 'edit', calendar: 'view', settings: 'none' },
+  vice_principal: { insights: 'view', people: 'edit', classes: 'edit', attendance: 'edit', exams: 'edit', notices: 'edit', calendar: 'edit', settings: 'view', leaves: 'edit', staff_attendance: 'view', transport: 'edit' },
+  coordinator: { insights: 'view', people: 'view', classes: 'view', attendance: 'edit', exams: 'edit', notices: 'edit', calendar: 'view', settings: 'none', leaves: 'view', staff_attendance: 'none', transport: 'view' },
 };
 
 export type PersonRole = 'student' | 'teacher' | 'parent' | 'vice_principal' | 'coordinator';
