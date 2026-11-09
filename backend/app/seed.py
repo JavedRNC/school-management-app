@@ -279,3 +279,91 @@ def seed_phase2_demo() -> bool:
                                            in_distance_m=rnd.randint(5, 90), late=(hh, mm) > (8, 45)))
         db.commit()
         return True
+
+
+def seed_fees_demo() -> bool:
+    """Phase 3 demo fees for DEMO01 (idempotent): config, 3 billed months, payments, defaulters, a UPI claim, an extra fee."""
+    from .models import FeeBatch, FeeConfig, FeeItem, FeePayment, Route, SchoolClass
+    from .routers.fees import confirm_payment, due_date_for, generate_month, period_of
+
+    with SessionLocal() as db:
+        s = db.scalar(select(School).where(School.code == "DEMO01"))
+        if not s or db.get(FeeConfig, s.id):
+            return False
+        t0 = today()
+        users = {u.login_id: u for u in db.scalars(select(User).where(User.school_id == s.id))}
+        principal = users["principal"]
+        students = sorted([u for u in users.values() if u.role == Role.student], key=lambda u: u.login_id)
+        c9a = db.scalar(select(SchoolClass.id).where(SchoolClass.school_id == s.id, SchoolClass.name == "9-A"))
+        routes = list(db.scalars(select(Route.id).where(Route.school_id == s.id).order_by(Route.id)))
+        periods = []
+        y, m = t0.year, t0.month
+        for _ in range(3):
+            periods.insert(0, f"{y:04d}-{m:02d}")
+            y, m = (y, m - 1) if m > 1 else (y - 1, 12)
+        cfg = FeeConfig(school_id=s.id, monthly_amount=1500, class_amounts={str(c9a): 1800} if c9a else {},
+                        route_amounts={str(r): a for r, a in zip(routes, (600, 800))}, due_day=10, start_month=periods[0],
+                        auto_generate=True, upi_id="greenvalley@sbi", upi_name="Green Valley Public School",
+                        receipt_prefix="GVPS", receipt_note="Fees once paid are not refundable. This is a computer-generated receipt.",
+                        generated_months=[])
+        db.add(cfg)
+        db.flush()
+        for p in periods:
+            generate_month(db, s, p, principal)
+        batch = FeeBatch(school_id=s.id, title="Annual day fee", amount=300, due_date=t0 + timedelta(days=10),
+                         note="Costumes and stage", target="school", count=len(students), created_by=principal.id)
+        db.add(batch)
+        db.flush()
+        for st in students:
+            db.add(FeeItem(school_id=s.id, student_id=st.id, kind="extra", period=f"b{batch.id}", title=batch.title, amount=300,
+                           due_date=batch.due_date, batch_id=batch.id, created_by=principal.id))
+        db.flush()
+
+        def items_for(st, period):
+            return list(db.scalars(select(FeeItem).where(FeeItem.student_id == st.id, FeeItem.period == period)))
+
+        modes = ["cash", "upi", "cash", "cheque", "bank", "cash"]
+        for i, st in enumerate(students):
+            # defaulters: last 4 students pay nothing; 2 more skip the last-but-one month
+            paying = periods[:-1] if i < len(students) - 4 else []
+            if i in (3, 11):
+                paying = periods[:1]
+            for k, p in enumerate(paying):
+                its = items_for(st, p)
+                amt = sum(x.amount for x in its)
+                if not amt:
+                    continue
+                if i == 5 and k == len(paying) - 1:
+                    amt = 1000          # partial
+                mode = modes[(i + k) % len(modes)]
+                due = due_date_for(p, 10)
+                paid_on = min(due - timedelta(days=(i % 7)), t0)
+                pay = FeePayment(school_id=s.id, student_id=st.id, amount=amt, mode=mode, paid_on=paid_on, status="pending",
+                                 reference={"cash": "", "upi": f"6{st.id:05d}{k}20331", "cheque": f"00{i}{k}41",
+                                            "bank": f"NEFT{st.id}{k}"}.get(mode, ""))
+                db.add(pay)
+                db.flush()
+                confirm_payment(db, s, pay, principal, [x.id for x in its])
+            # a few have already paid this month too
+            if i < 6:
+                its = items_for(st, periods[-1])
+                amt = sum(x.amount for x in its)
+                if amt:
+                    pay = FeePayment(school_id=s.id, student_id=st.id, amount=amt, mode="cash" if i % 2 else "upi", status="pending",
+                                     paid_on=t0 - timedelta(days=i % 3), reference="" if i % 2 else f"63{st.id:06d}1188")
+                    db.add(pay)
+                    db.flush()
+                    confirm_payment(db, s, pay, principal, [x.id for x in its])
+        # one UPI claim waiting for the principal (from the 2-kid parent)
+        par = users.get("9876500001")
+        if par:
+            from .models import ParentLink
+            kid = db.scalar(select(ParentLink.student_id).where(ParentLink.parent_id == par.id).order_by(ParentLink.student_id))
+            its = items_for(db.get(User, kid), periods[-1])
+            if its and sum(x.amount for x in its):
+                db.add(FeePayment(school_id=s.id, student_id=kid, amount=sum(x.amount for x in its), mode="upi",
+                                  reference="634512987745", paid_on=t0, status="pending", submitted_by=par.id,
+                                  requested_item_ids=[x.id for x in its]))
+        db.commit()
+        _ = period_of
+        return True

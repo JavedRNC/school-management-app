@@ -375,4 +375,4 @@ def test_legacy_schema_is_reset(tmp_path):
             "print('school_id' in cols, c.execute('select value from meta').fetchone()[0])") % str(db)
     out = subprocess.run([sys.executable, "-c", code], capture_output=True, text=True,
                          env={**os.environ, "DATABASE_URL": f"sqlite:///{db}"}, cwd=os.path.dirname(os.path.dirname(__file__)))
-    assert out.stdout.strip() == "True 3", out.stderr
+    assert out.stdout.strip() == "True 4", out.stderr

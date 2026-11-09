@@ -13,6 +13,7 @@ AREAS = {
     "leaves": "Leave requests",
     "staff_attendance": "Staff attendance",
     "transport": "Transport",
+    "fees": "Fees, payments & receipts",
     "settings": "School settings, privacy & plan",
 }
 LEVELS = ("none", "view", "edit")
@@ -21,10 +22,10 @@ RANK = {"none": 0, "view": 1, "edit": 2}
 DEFAULT_PERMISSIONS: dict[Role, dict[str, str]] = {
     Role.vice_principal: {"insights": "view", "people": "edit", "classes": "edit", "attendance": "edit",
                           "exams": "edit", "notices": "edit", "calendar": "edit", "settings": "view",
-                          "leaves": "edit", "staff_attendance": "view", "transport": "edit"},
+                          "leaves": "edit", "staff_attendance": "view", "transport": "edit", "fees": "view"},
     Role.coordinator: {"insights": "view", "people": "view", "classes": "view", "attendance": "edit",
                        "exams": "edit", "notices": "edit", "calendar": "view", "settings": "none",
-                       "leaves": "view", "staff_attendance": "none", "transport": "view"},
+                       "leaves": "view", "staff_attendance": "none", "transport": "view", "fees": "none"},
 }
 
 
@@ -49,7 +50,7 @@ MODULES = {
     "core": "Core (logins, classes, timetable, attendance, marks, notices, calendar)",
     "communication": "Communication (image banners, consent forms & polls, notifications)",
     "leaves": "Leaves (teacher & student)",
-    "fees": "Fees & receipts",
+    "fees": "Fees, receipts & UPI payments",
     "payments": "Online payments",
     "transport": "Transport",
     "staff_attendance": "Staff attendance (GPS)",

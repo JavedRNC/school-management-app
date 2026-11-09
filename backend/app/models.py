@@ -398,3 +398,91 @@ class StudentTransport(Base):
     school_id: Mapped[int] = mapped_column(ForeignKey("schools.id"), index=True)
     route_id: Mapped[int] = mapped_column(ForeignKey("routes.id"), index=True)
     stop_id: Mapped[int | None] = mapped_column(ForeignKey("stops.id"), nullable=True)
+
+
+# ================================================================ Phase 3 — fees
+class FeeConfig(Base):
+    __tablename__ = "fee_config"
+    school_id: Mapped[int] = mapped_column(ForeignKey("schools.id"), primary_key=True)
+    monthly_amount: Mapped[float] = mapped_column(Float, default=0)
+    class_amounts: Mapped[dict] = mapped_column(JSON, default=dict)      # {"<class_id>": amount}
+    route_amounts: Mapped[dict] = mapped_column(JSON, default=dict)      # {"<route_id>": amount} transport per month
+    due_day: Mapped[int] = mapped_column(Integer, default=10)
+    start_month: Mapped[str | None] = mapped_column(String(7), nullable=True)   # first month to bill, YYYY-MM
+    auto_generate: Mapped[bool] = mapped_column(Boolean, default=True)
+    upi_id: Mapped[str] = mapped_column(String(80), default="")
+    upi_name: Mapped[str] = mapped_column(String(120), default="")
+    receipt_prefix: Mapped[str] = mapped_column(String(20), default="")
+    receipt_note: Mapped[str] = mapped_column(Text, default="")
+    generated_months: Mapped[list] = mapped_column(JSON, default=list)   # periods already auto-billed
+
+
+class FeeBatch(Archivable, Base):
+    """An extra fee rolled out to the school / classes / students (F14)."""
+    __tablename__ = "fee_batches"
+    id: Mapped[int] = mapped_column(primary_key=True)
+    school_id: Mapped[int] = mapped_column(ForeignKey("schools.id"), index=True)
+    title: Mapped[str] = mapped_column(String(120))
+    amount: Mapped[float] = mapped_column(Float)
+    due_date: Mapped[date | None] = mapped_column(Date, nullable=True)
+    note: Mapped[str] = mapped_column(Text, default="")
+    target: Mapped[str] = mapped_column(String(10))          # school | classes | students
+    class_ids: Mapped[list] = mapped_column(JSON, default=list)
+    student_ids: Mapped[list] = mapped_column(JSON, default=list)
+    exclude_ids: Mapped[list] = mapped_column(JSON, default=list)
+    count: Mapped[int] = mapped_column(Integer, default=0)
+    created_by: Mapped[int] = mapped_column(ForeignKey("users.id"))
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=utcnow)
+
+
+class FeeItem(Base):
+    """A charge on a student's ledger."""
+    __tablename__ = "fee_items"
+    __table_args__ = (UniqueConstraint("student_id", "kind", "period"),)
+    id: Mapped[int] = mapped_column(primary_key=True)
+    school_id: Mapped[int] = mapped_column(ForeignKey("schools.id"), index=True)
+    student_id: Mapped[int] = mapped_column(ForeignKey("users.id"), index=True)
+    kind: Mapped[str] = mapped_column(String(12))            # monthly | transport | extra | fine
+    period: Mapped[str] = mapped_column(String(20))          # YYYY-MM for monthly/transport; "b<batch>" / "f<n>" otherwise
+    title: Mapped[str] = mapped_column(String(160))
+    amount: Mapped[float] = mapped_column(Float)
+    due_date: Mapped[date | None] = mapped_column(Date, nullable=True, index=True)
+    batch_id: Mapped[int | None] = mapped_column(ForeignKey("fee_batches.id"), nullable=True, index=True)
+    is_active: Mapped[bool] = mapped_column(Boolean, default=True, index=True)   # False = waived/voided
+    created_by: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=utcnow)
+
+
+class FeePayment(Base):
+    __tablename__ = "fee_payments"
+    id: Mapped[int] = mapped_column(primary_key=True)
+    school_id: Mapped[int] = mapped_column(ForeignKey("schools.id"), index=True)
+    student_id: Mapped[int] = mapped_column(ForeignKey("users.id"), index=True)
+    receipt_no: Mapped[str | None] = mapped_column(String(40), nullable=True, index=True)
+    amount: Mapped[float] = mapped_column(Float)
+    mode: Mapped[str] = mapped_column(String(12))           # cash | upi | cheque | bank | online
+    reference: Mapped[str] = mapped_column(String(80), default="")
+    paid_on: Mapped[date] = mapped_column(Date, index=True)
+    status: Mapped[str] = mapped_column(String(12), default="confirmed", index=True)   # confirmed | pending | rejected | cancelled
+    note: Mapped[str] = mapped_column(Text, default="")
+    cancel_reason: Mapped[str] = mapped_column(Text, default="")
+    received_by: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    submitted_by: Mapped[int | None] = mapped_column(Integer, nullable=True)   # parent for UPI claims
+    requested_item_ids: Mapped[list] = mapped_column(JSON, default=list)
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=utcnow)
+    confirmed_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
+
+
+class FeeAllocation(Base):
+    __tablename__ = "fee_allocations"
+    id: Mapped[int] = mapped_column(primary_key=True)
+    payment_id: Mapped[int] = mapped_column(ForeignKey("fee_payments.id"), index=True)
+    item_id: Mapped[int] = mapped_column(ForeignKey("fee_items.id"), index=True)
+    amount: Mapped[float] = mapped_column(Float)
+
+
+class ReceiptCounter(Base):
+    __tablename__ = "receipt_counters"
+    school_id: Mapped[int] = mapped_column(ForeignKey("schools.id"), primary_key=True)
+    year: Mapped[str] = mapped_column(String(7), primary_key=True)    # 2026-27
+    last_no: Mapped[int] = mapped_column(Integer, default=0)
