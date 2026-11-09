@@ -29,6 +29,7 @@ _Last updated: 9 Nov 2026_
 | F10 | **Monthly fees**, fee receipts & ledger | 📝 | L | 3 |
 | F14 | **Roll out extra fees** (activity/exam/maintenance) to school, classes or students | 📝 | M | 3 |
 | F11 | Fee submission (payments) | 📝 | L | 3–4 |
+| F17 | **APK builds via GitHub Actions** | 📝 | S | any time |
 | F16 | **App update pop-up** (optional / mandatory) configured by Admin | 📝 | M | 4 (Admin page later) |
 
 ---
@@ -50,7 +51,8 @@ _Last updated: 9 Nov 2026_
 | Login IDs | Teacher = employee code · Student = admission number · Parent = mobile number · Principal = set by Admin. |
 | Monthly fee amount | **One amount for every student** (no per-student amounts). Built as a per-class amount with a "same for all classes" option; per-student discounts only if needed later. |
 | Banner images | Free image storage service (Cloudinary or similar). |
-| OTA updates | **Yes** — set up EAS Update so small changes reach phones without a new download. |
+| App builds | **GitHub Actions** builds the installable APK in the cloud (free, no Expo account). |
+| OTA updates | **Yes** — EAS Update (free plan; Expo account needed only when F16 is built). Can switch to self-hosted hot-updater later if needed. |
 
 ---
 
@@ -209,6 +211,15 @@ Admin controls which app versions are allowed.
 
 ---
 
+### F17 · APK builds via GitHub Actions 📝 `S`
+- A GitHub workflow builds a real, installable **Android APK** in the cloud — no computer and no Expo account needed.
+- Runs automatically on every push to `main` (or on demand with a button in GitHub → Actions).
+- Download the APK from the run's artifacts or a **GitHub Release** link, and install it on any Android phone.
+- Version number taken from `app.json`; release builds signed with a keystore stored safely in GitHub Secrets (needed for Play Store later).
+- Replaces the Termux + Expo Go setup for everyday users; Termux stays for live development.
+
+---
+
 ## 🏗️ Architecture decision — one app or separate apps?
 
 **Recommendation: ONE app, different interface per role** (what we already have). ✅
@@ -248,7 +259,7 @@ _None right now._ 🎉
 
 ## 🔑 Accounts Javed will need when we implement
 - **Cloudinary** (free) — for banner images (F15).
-- **Expo** account (free) — for EAS Update / app builds (F16).
+- **Expo** account (free) — only for EAS Update (F16). Builds use GitHub Actions instead.
 - Payment gateway (Razorpay etc.) — only for option C of F11, much later.
 
 _Nothing in this file is built until Javed says **"implement"**._
