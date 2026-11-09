@@ -17,6 +17,7 @@ type Link = { title: string; desc: string; icon: IconName; to: string };
 
 /** "Me" hub: profile card, school status, links to settings/calendar/etc., password and logout. */
 const OP_DESC: Record<string, string> = {
+  fees: 'Dues, payments and receipts',
   leaves: 'Apply, approve and track leave',
   staff: 'GPS check-in, daily board, reports',
   transport: 'Buses, routes, stops and riders',

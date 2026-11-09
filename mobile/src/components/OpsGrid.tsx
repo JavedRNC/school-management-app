@@ -9,7 +9,7 @@ import { FadeIn, Icon, IconName, PressScale, SectionTitle } from './ui';
 
 type Op = { key: string; label: string; icon: IconName; path: string; show: boolean };
 
-/** Phase 2 shortcuts (leaves, staff attendance, transport, polls, banners) — shown only when allowed. */
+/** Shortcuts (fees, leaves, staff attendance, transport, polls, banners) — shown only when allowed. */
 export function useOps(): Op[] {
   const { user } = useAuth();
   const staff = user?.role === 'teacher' || user?.role === 'vice_principal' || user?.role === 'coordinator';
@@ -17,12 +17,15 @@ export function useOps(): Op[] {
   const staffAtt = useModule('staff_attendance');
   const transport = useModule('transport');
   const comms = useModule('communication');
+  const fees = useModule('fees');
+  const canFees = useCan('fees', 'view');
   const canLeaves = useCan('leaves', 'view');
   const canStaffAtt = useCan('staff_attendance', 'view');
   const canTransport = useCan('transport', 'view');
   const canNotices = useCan('notices', 'view');
   const parentish = user?.role === 'parent' || user?.role === 'student';
   return [
+    { key: 'fees', label: 'Fees', icon: 'cash-multiple', path: parentish ? '/more/fees/my' : '/more/fees', show: fees && (canFees || parentish) },
     { key: 'leaves', label: 'Leaves', icon: 'calendar-account-outline', path: '/more/leaves', show: leaves && (canLeaves || staff || user?.role === 'parent') },
     { key: 'staff', label: 'Staff attendance', icon: 'map-marker-check-outline', path: '/more/staff-attendance', show: staffAtt && (staff || canStaffAtt) },
     { key: 'transport', label: 'Transport', icon: 'bus-school', path: '/more/transport', show: transport && (canTransport || parentish) },

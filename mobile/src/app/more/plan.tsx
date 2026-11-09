@@ -18,7 +18,7 @@ const fmt = (iso: string | null) => (iso ? new Date(iso + 'T00:00:00').toLocaleD
 
 /** Subscription plan, usage and modules (F26). */
 /** Modules that already have screens in the app (others are planned). */
-const BUILT = new Set(['core', 'extra_roles', 'communication', 'leaves', 'staff_attendance', 'transport']);
+const BUILT = new Set(['core', 'extra_roles', 'communication', 'leaves', 'staff_attendance', 'transport', 'fees']);
 
 export default function PlanScreen() {
   const t = useAppTheme();

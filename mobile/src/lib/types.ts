@@ -1,7 +1,7 @@
 export type Role = 'admin' | 'principal' | 'vice_principal' | 'coordinator' | 'teacher' | 'student' | 'parent';
 export type Level = 'none' | 'view' | 'edit';
 export type Area = 'insights' | 'people' | 'classes' | 'attendance' | 'exams' | 'notices' | 'calendar' | 'settings'
-  | 'leaves' | 'staff_attendance' | 'transport';
+  | 'leaves' | 'staff_attendance' | 'transport' | 'fees';
 
 export interface User {
   id: number;
@@ -500,3 +500,85 @@ export type MyBus = { assigned: false } | {
   attendant_phone: string | null;
   stops: { name: string; pickup_time: string; drop_time: string; mine: boolean }[];
 };
+
+// ================================================================ Phase 3 — fees
+export type FeeKind = 'monthly' | 'transport' | 'extra' | 'fine';
+export type FeeItemStatus = 'paid' | 'partial' | 'due' | 'overdue';
+export type PayMode = 'cash' | 'upi' | 'cheque' | 'bank' | 'online';
+export type PayStatus = 'confirmed' | 'pending' | 'rejected' | 'cancelled';
+
+export interface FeeItem {
+  id: number; kind: FeeKind; period: string; title: string; amount: number; paid: number; balance: number;
+  due_date: string | null; status: FeeItemStatus; batch_id: number | null;
+}
+
+export interface FeePayment {
+  id: number; receipt_no: string | null; student_id: number; student_name: string; admission_no: string; class_name: string;
+  amount: number; mode: PayMode; reference: string; paid_on: string; status: PayStatus; note: string; cancel_reason: string;
+  received_by_name: string; submitted_by_name: string; created_at: string;
+  outstanding?: number;   // only on /fees/claims
+}
+
+export interface FeeTotals { charged: number; paid: number; outstanding: number; overdue: number; next_due: string | null }
+
+/** GET /fees/students/{id} (staff) and GET /fees/me?student_id= (parent/student) */
+export interface FeeLedger {
+  student: { id: number; name: string; admission_no: string; class_id: number | null; class_name: string; roll_no: number | null; active: boolean };
+  totals: FeeTotals;
+  items: FeeItem[];
+  payments: FeePayment[];
+  parent?: { name: string; phone: string } | null;               // staff view
+  upi?: { enabled: boolean; upi_id: string; payee: string };      // parent/student view
+}
+
+/** GET /fees/students?class_id=&status=all|due|overdue|clear&q= */
+export interface FeeStudentRow {
+  id: number; name: string; admission_no: string; class_id: number | null; class_name: string; roll_no: number | null;
+  status: 'clear' | 'due' | 'overdue'; charged: number; paid: number; outstanding: number; overdue: number;
+  oldest_due: string | null; overdue_items: number; parent_name: string; parent_phone: string;
+}
+
+/** GET/PUT /fees/config */
+export interface FeeConfig {
+  monthly_amount: number; class_amounts: Record<string, number>; route_amounts: Record<string, number>;
+  due_day: number; start_month: string | null; auto_generate: boolean; upi_id: string; upi_name: string;
+  receipt_prefix: string; receipt_note: string; generated_months: string[];
+  classes: { id: number; name: string; students: number; amount: number; custom: boolean }[];
+  routes: { id: number; name: string; riders: number; amount: number }[];
+  transport_enabled: boolean; expected_monthly: number; current_period: string;
+}
+
+/** POST /fees/generate */
+export interface GenerateResult { period: string; label: string; new_items: number; new_amount: number; students: number; due_date: string }
+
+/** GET /fees/batches · POST /fees/batches */
+export interface FeeBatch {
+  id: number; title: string; amount: number; due_date: string | null; note: string; target: 'school' | 'classes' | 'students';
+  target_label: string; class_ids: number[]; count: number; paid_count: number; expected: number; collected: number;
+  outstanding: number; is_active: boolean; created_at: string;
+}
+export interface BatchPreview { count: number; total: number; by_class: { class_name: string; students: number }[]; sample: string[] }
+
+/** GET /fees/receipts/{id} · POST /fees/payments · POST /fees/claims/{id}/confirm */
+export interface FeeReceipt {
+  id: number; receipt_no: string; status: PayStatus; cancel_reason: string; amount: number; amount_words: string;
+  mode: PayMode; reference: string; paid_on: string; note: string; received_by_name: string; issued_at: string; academic_year: string;
+  school: { name: string; code: string; address: string; phone: string; board: string };
+  student: { id: number; name: string; admission_no: string; class_name: string; roll_no: number | null };
+  parent_name: string;
+  lines: { title: string; kind: FeeKind; period: string; charge: number; amount: number }[];
+  balance_after: number; footer: string;
+}
+
+/** GET /fees/payments?date_from=&date_to=&mode=&class_id=&status= */
+export interface PaymentReport { from: string; to: string; count: number; total: number; by_mode: Partial<Record<PayMode, number>>; rows: FeePayment[] }
+
+/** GET /fees/summary */
+export interface FeeSummary {
+  period: string; period_label: string; collected_today: number; receipts_today: number; collected_month: number;
+  by_mode: Partial<Record<PayMode, number>>; expected_month: number; settled_month: number; collection_pct: number | null;
+  outstanding: number; overdue: number; defaulters: number; students_with_dues: number; pending_claims: number;
+  trend: { date: string; amount: number }[];
+  by_class: { class_id: number | null; class_name: string; students: number; outstanding: number; overdue: number; defaulters: number; collected_month: number }[];
+  recent: FeePayment[]; configured: boolean; upi_enabled: boolean; billed_this_month: boolean;
+}
