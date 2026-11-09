@@ -3,7 +3,7 @@ from fastapi import HTTPException
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
-from .models import Assignment, ParentLink, Role, School, SchoolClass, Subject, User
+from .models import Assignment, ParentLink, Role, School, SchoolClass, SchoolPrefs, Subject, User
 from .perms import RANK, level_of
 
 
@@ -112,3 +112,12 @@ def name_maps(db: Session, school_id: int):
 
 def active_ids(db: Session, model, school_id: int) -> set[int]:
     return set(db.scalars(select(model.id).where(model.school_id == school_id, model.is_active.is_(True))))
+
+
+def get_prefs(db: Session, school_id: int) -> SchoolPrefs:
+    p = db.get(SchoolPrefs, school_id)
+    if not p:
+        p = SchoolPrefs(school_id=school_id, leave_quotas={"casual": 12, "sick": 10, "earned": 15})
+        db.add(p)
+        db.flush()
+    return p

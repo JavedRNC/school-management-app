@@ -1,7 +1,7 @@
 """Schema versioning.
 
 v1 = single-school demo (Nov 2026, before multi-school).
-v2 = multi-school (Phase 1). Upgrading from v1 resets the database: it only ever held demo data.
+v2 = multi-school (Phase 1). v3 = Phase 2 new tables (additive). Upgrading from v1 resets the database: it only ever held demo data.
 Future versions must migrate data in place (add steps below); never drop real data.
 """
 import logging
@@ -12,7 +12,7 @@ from sqlalchemy import MetaData, inspect, select
 from .db import Base, SessionLocal, engine
 from .models import Meta
 
-SCHEMA_VERSION = 2
+SCHEMA_VERSION = 3  # v3 = Phase 2 tables only (create_all adds them; no data change)
 log = logging.getLogger("migrate")
 
 

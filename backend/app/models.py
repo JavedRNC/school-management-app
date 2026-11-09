@@ -254,3 +254,147 @@ class Meta(Base):
     __tablename__ = "meta"
     key: Mapped[str] = mapped_column(String(40), primary_key=True)
     value: Mapped[str] = mapped_column(String(200))
+
+
+# ================================================================ Phase 2
+class SchoolPrefs(Base):
+    """Per-school settings added after v2 (kept in a separate table → no ALTER TABLE needed)."""
+    __tablename__ = "school_prefs"
+    school_id: Mapped[int] = mapped_column(ForeignKey("schools.id"), primary_key=True)
+    leave_quotas: Mapped[dict] = mapped_column(JSON, default=lambda: {"casual": 12, "sick": 10, "earned": 15})
+    geo_lat: Mapped[float | None] = mapped_column(Float, nullable=True)
+    geo_lng: Mapped[float | None] = mapped_column(Float, nullable=True)
+    geo_radius_m: Mapped[int] = mapped_column(Integer, default=150)
+    late_after: Mapped[str] = mapped_column(String(5), default="09:00")  # HH:MM school-local
+
+
+class LeaveRequest(Base):
+    """Staff leave (applicant = staff) or student leave (applicant = parent, user_id = student)."""
+    __tablename__ = "leave_requests"
+    id: Mapped[int] = mapped_column(primary_key=True)
+    school_id: Mapped[int] = mapped_column(ForeignKey("schools.id"), index=True)
+    kind: Mapped[str] = mapped_column(String(10))            # staff | student
+    user_id: Mapped[int] = mapped_column(ForeignKey("users.id"), index=True)
+    applied_by: Mapped[int] = mapped_column(ForeignKey("users.id"))
+    leave_type: Mapped[str] = mapped_column(String(20))      # casual|sick|earned|family|other
+    start_date: Mapped[date] = mapped_column(Date, index=True)
+    end_date: Mapped[date] = mapped_column(Date, index=True)
+    half_day: Mapped[bool] = mapped_column(Boolean, default=False)
+    reason: Mapped[str] = mapped_column(Text, default="")
+    status: Mapped[str] = mapped_column(String(12), default="pending", index=True)  # pending|approved|rejected|cancelled
+    decided_by: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    decided_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
+    comment: Mapped[str] = mapped_column(Text, default="")
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=utcnow)
+
+
+class Banner(Archivable, Base):
+    """Home-screen announcement. school_id NULL = platform-wide (by Admin)."""
+    __tablename__ = "banners"
+    id: Mapped[int] = mapped_column(primary_key=True)
+    school_id: Mapped[int | None] = mapped_column(ForeignKey("schools.id"), nullable=True, index=True)
+    title: Mapped[str] = mapped_column(String(120))
+    text: Mapped[str] = mapped_column(Text, default="")
+    image_url: Mapped[str] = mapped_column(String(500), default="")
+    color: Mapped[str] = mapped_column(String(20), default="primary")   # primary|amber|green|red|purple
+    roles: Mapped[list] = mapped_column(JSON, default=list)             # [] = everyone
+    class_ids: Mapped[list] = mapped_column(JSON, default=list)         # [] = all classes
+    start_date: Mapped[date | None] = mapped_column(Date, nullable=True)
+    end_date: Mapped[date | None] = mapped_column(Date, nullable=True)
+    popup: Mapped[bool] = mapped_column(Boolean, default=False)
+    sort: Mapped[int] = mapped_column(Integer, default=0)
+    created_by: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=utcnow)
+
+
+class Poll(Archivable, Base):
+    """Consent form (Yes/No per child) or poll."""
+    __tablename__ = "polls"
+    id: Mapped[int] = mapped_column(primary_key=True)
+    school_id: Mapped[int] = mapped_column(ForeignKey("schools.id"), index=True)
+    kind: Mapped[str] = mapped_column(String(10))       # consent | poll
+    title: Mapped[str] = mapped_column(String(200))
+    description: Mapped[str] = mapped_column(Text, default="")
+    options: Mapped[list] = mapped_column(JSON, default=list)
+    multi: Mapped[bool] = mapped_column(Boolean, default=False)
+    audience: Mapped[list] = mapped_column(JSON, default=lambda: ["parent"])   # parent|teacher|student
+    class_ids: Mapped[list] = mapped_column(JSON, default=list)
+    deadline: Mapped[date | None] = mapped_column(Date, nullable=True)
+    amount: Mapped[float | None] = mapped_column(Float, nullable=True)
+    closed: Mapped[bool] = mapped_column(Boolean, default=False)
+    created_by: Mapped[int] = mapped_column(ForeignKey("users.id"))
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=utcnow)
+
+
+class PollResponse(Base):
+    __tablename__ = "poll_responses"
+    __table_args__ = (UniqueConstraint("poll_id", "user_id", "student_id"),)
+    id: Mapped[int] = mapped_column(primary_key=True)
+    poll_id: Mapped[int] = mapped_column(ForeignKey("polls.id"), index=True)
+    user_id: Mapped[int] = mapped_column(ForeignKey("users.id"))
+    student_id: Mapped[int] = mapped_column(Integer, default=0)   # child for parent consent; 0 otherwise
+    choices: Mapped[list] = mapped_column(JSON, default=list)
+    comment: Mapped[str] = mapped_column(Text, default="")
+    at: Mapped[datetime] = mapped_column(DateTime, default=utcnow)
+
+
+class StaffAttendance(Base):
+    __tablename__ = "staff_attendance"
+    __table_args__ = (UniqueConstraint("user_id", "date"),)
+    id: Mapped[int] = mapped_column(primary_key=True)
+    school_id: Mapped[int] = mapped_column(ForeignKey("schools.id"), index=True)
+    user_id: Mapped[int] = mapped_column(ForeignKey("users.id"), index=True)
+    date: Mapped[date] = mapped_column(Date, index=True)
+    check_in_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
+    check_out_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
+    in_distance_m: Mapped[float | None] = mapped_column(Float, nullable=True)
+    out_distance_m: Mapped[float | None] = mapped_column(Float, nullable=True)
+    in_accuracy_m: Mapped[float | None] = mapped_column(Float, nullable=True)
+    late: Mapped[bool] = mapped_column(Boolean, default=False)
+    marked_by: Mapped[int | None] = mapped_column(Integer, nullable=True)   # set when a manager marks manually
+    note: Mapped[str] = mapped_column(String(200), default="")
+
+
+class Vehicle(Archivable, Base):
+    __tablename__ = "vehicles"
+    id: Mapped[int] = mapped_column(primary_key=True)
+    school_id: Mapped[int] = mapped_column(ForeignKey("schools.id"), index=True)
+    number: Mapped[str] = mapped_column(String(30))
+    kind: Mapped[str] = mapped_column(String(20), default="bus")
+    capacity: Mapped[int] = mapped_column(Integer, default=40)
+    insurance_until: Mapped[date | None] = mapped_column(Date, nullable=True)
+    fitness_until: Mapped[date | None] = mapped_column(Date, nullable=True)
+    driver_name: Mapped[str] = mapped_column(String(120), default="")
+    driver_phone: Mapped[str] = mapped_column(String(20), default="")
+    driver_licence: Mapped[str] = mapped_column(String(40), default="")
+    licence_until: Mapped[date | None] = mapped_column(Date, nullable=True)
+    attendant_name: Mapped[str] = mapped_column(String(120), default="")
+    attendant_phone: Mapped[str] = mapped_column(String(20), default="")
+
+
+class Route(Archivable, Base):
+    __tablename__ = "routes"
+    id: Mapped[int] = mapped_column(primary_key=True)
+    school_id: Mapped[int] = mapped_column(ForeignKey("schools.id"), index=True)
+    name: Mapped[str] = mapped_column(String(80))
+    vehicle_id: Mapped[int | None] = mapped_column(ForeignKey("vehicles.id"), nullable=True)
+
+
+class Stop(Base):
+    __tablename__ = "stops"
+    id: Mapped[int] = mapped_column(primary_key=True)
+    school_id: Mapped[int] = mapped_column(ForeignKey("schools.id"), index=True)
+    route_id: Mapped[int] = mapped_column(ForeignKey("routes.id"), index=True)
+    name: Mapped[str] = mapped_column(String(120))
+    seq: Mapped[int] = mapped_column(Integer, default=0)
+    pickup_time: Mapped[str] = mapped_column(String(5), default="")
+    drop_time: Mapped[str] = mapped_column(String(5), default="")
+    is_active: Mapped[bool] = mapped_column(Boolean, default=True)
+
+
+class StudentTransport(Base):
+    __tablename__ = "student_transport"
+    student_id: Mapped[int] = mapped_column(ForeignKey("users.id"), primary_key=True)
+    school_id: Mapped[int] = mapped_column(ForeignKey("schools.id"), index=True)
+    route_id: Mapped[int] = mapped_column(ForeignKey("routes.id"), index=True)
+    stop_id: Mapped[int | None] = mapped_column(ForeignKey("stops.id"), nullable=True)

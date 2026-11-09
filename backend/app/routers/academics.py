@@ -47,9 +47,12 @@ def class_attendance(class_id: int, day: date, user: User = Depends(staff), db: 
         users, _, _ = name_maps(db, user.school_id)
         last = max(rows, key=lambda a: a.marked_at or utcnow())
         marker = users.get(last.marked_by)
+    students = class_students(db, class_id)
+    from .leaves import approved_leave_dates
+    on_leave = approved_leave_dates(db, [s.id for s in students], day, day)
     return AttendanceSheet(date=day, is_school_day=ok, reason=reason, can_edit=can_edit, lock_reason=lock, marked_by=marker,
-                           rows=[AttendanceRow(student_id=s.id, name=s.name, roll_no=s.roll_no, present=marked.get(s.id))
-                                 for s in class_students(db, class_id)])
+                           rows=[AttendanceRow(student_id=s.id, name=s.name, roll_no=s.roll_no, present=marked.get(s.id),
+                                               on_leave=day in on_leave.get(s.id, set())) for s in students])
 
 
 @router.post("/attendance")
@@ -80,11 +83,17 @@ def mark_attendance(body: AttendanceIn, user: User = Depends(staff), db: Session
 
 
 def _student_attendance(db: Session, student: User) -> StudentAttendance:
+    """Absences on approved leave days are shown as 'leave' and don't count against the percentage."""
+    from .leaves import approved_leave_dates
+
     rows = list(db.scalars(select(Attendance).where(Attendance.student_id == student.id).order_by(Attendance.date.desc())))
-    present = sum(1 for r in rows if r.present)
-    return StudentAttendance(total_days=len(rows), present_days=present,
-                             percent=round(100 * present / len(rows), 1) if rows else 0.0,
-                             recent=[{"date": r.date.isoformat(), "present": r.present} for r in rows[:30]])
+    leave = approved_leave_dates(db, [student.id], rows[-1].date, rows[0].date).get(student.id, set()) if rows else set()
+    counted = [r for r in rows if r.present or r.date not in leave]
+    present = sum(1 for r in counted if r.present)
+    return StudentAttendance(total_days=len(counted), present_days=present,
+                             percent=round(100 * present / len(counted), 1) if counted else 0.0,
+                             recent=[{"date": r.date.isoformat(), "present": r.present, "leave": (not r.present) and r.date in leave}
+                                     for r in rows[:30]])
 
 
 @router.get("/me/attendance", response_model=StudentAttendance)

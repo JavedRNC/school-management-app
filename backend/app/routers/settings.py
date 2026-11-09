@@ -9,7 +9,7 @@ from sqlalchemy.orm import Session
 from ..auth import audit, require, require_area, school_user
 from ..db import get_db
 from ..deps import get_school, owned
-from ..models import AuditLog, Exam, Holiday, Post, Role, SchoolClass, Subject, User, utcnow
+from ..models import AuditLog, Banner, Exam, Holiday, Poll, Post, Role, Route, SchoolClass, Subject, User, Vehicle, utcnow
 from ..perms import AREAS, MODULES, level_of
 from ..schemas import AuditOut, HolidayIn, HolidayOut, SchoolSettingsIn
 from ..subscription import subscription_summary
@@ -87,7 +87,8 @@ def school_audit(admin_only_: bool = False, user: User = Depends(require_area("s
 
 
 # ---------------------------------------------------------------- archive (F12)
-ARCHIVE_KINDS = {"class": SchoolClass, "subject": Subject, "exam": Exam, "post": Post, "holiday": Holiday}
+ARCHIVE_KINDS = {"class": SchoolClass, "subject": Subject, "exam": Exam, "post": Post, "holiday": Holiday,
+                 "banner": Banner, "poll": Poll, "vehicle": Vehicle, "route": Route}
 
 
 @router.get("/archive")
@@ -95,7 +96,7 @@ def list_archive(user: User = Depends(require_area("settings", "view")), db: Ses
     out = []
     for kind, model in ARCHIVE_KINDS.items():
         for o in db.scalars(select(model).where(model.school_id == user.school_id, model.is_active.is_(False))):
-            label = getattr(o, "name", None) or getattr(o, "title", "")
+            label = getattr(o, "name", None) or getattr(o, "title", None) or getattr(o, "number", "")
             out.append({"kind": kind, "id": o.id, "label": label, "archived_at": o.archived_at})
     for u in db.scalars(select(User).where(User.school_id == user.school_id, User.active.is_(False))):
         out.append({"kind": "user", "id": u.id, "label": f"{u.name} · {u.role.value.replace('_', ' ')}", "archived_at": u.archived_at})
@@ -121,7 +122,7 @@ def restore(kind: str, obj_id: int, user: User = Depends(require_area("settings"
             raise HTTPException(404, "Unknown item type")
         o = owned(db, model, obj_id, user, kind.title(), include_archived=True)
         o.is_active, o.archived_at, o.archived_by = True, None, None
-        label = getattr(o, "name", None) or getattr(o, "title", "")
+        label = getattr(o, "name", None) or getattr(o, "title", None) or getattr(o, "number", "")
     try:
         audit(db, user, f"{kind}.restored", label)
         db.commit()
@@ -194,3 +195,29 @@ def add_national_holidays(year: int, user: User = Depends(require_area("calendar
     db.commit()
     return added
 
+
+
+# ---------------------------------------------------------------- leave quotas (F8)
+@router.get("/school/leave-quotas")
+def leave_quotas(user: User = Depends(school_user), db: Session = Depends(get_db)):
+    from ..deps import get_prefs
+    q = get_prefs(db, user.school_id).leave_quotas
+    db.commit()
+    return q
+
+
+@router.put("/school/leave-quotas")
+def set_leave_quotas(body: dict, user: User = Depends(require_area("settings", "edit")), db: Session = Depends(get_db)):
+    from ..deps import get_prefs
+    clean = {}
+    for k in ("casual", "sick", "earned"):
+        v = body.get(k)
+        if v is not None:
+            if not isinstance(v, (int, float)) or v < 0 or v > 365:
+                raise HTTPException(400, f"Invalid number for {k}")
+            clean[k] = v
+    p = get_prefs(db, user.school_id)
+    p.leave_quotas = {**(p.leave_quotas or {}), **clean}
+    audit(db, user, "settings.leave_quotas", str(p.leave_quotas))
+    db.commit()
+    return p.leave_quotas

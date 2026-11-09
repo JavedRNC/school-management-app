@@ -167,6 +167,7 @@ class AttendanceRow(BaseModel):
     name: str
     roll_no: int | None
     present: bool | None
+    on_leave: bool = False
 
 
 class AttendanceSheet(BaseModel):

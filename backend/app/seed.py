@@ -179,3 +179,103 @@ if __name__ == "__main__":
     migrate()
     ensure_platform()
     print("Seeded" if seed_demo_if_empty() else "DB not empty, skipped")
+
+
+def seed_phase2_demo() -> bool:
+    """Phase 2 demo data for DEMO01 (idempotent; runs on existing databases too)."""
+    from datetime import datetime, time, timezone
+
+    from .models import (Banner, LeaveRequest, Poll, PollResponse, Route, SchoolPrefs, StaffAttendance, Stop, StudentTransport,
+                         Vehicle)
+    from .util import SCHOOL_TZ
+
+    with SessionLocal() as db:
+        s = db.scalar(select(School).where(School.code == "DEMO01"))
+        if not s or db.scalar(select(Vehicle.id).where(Vehicle.school_id == s.id).limit(1)):
+            return False
+        t0 = today()
+        users = {u.login_id: u for u in db.scalars(select(User).where(User.school_id == s.id))}
+        students = sorted([u for u in users.values() if u.role == Role.student], key=lambda u: u.login_id)
+        principal = users["principal"]
+        prefs = db.get(SchoolPrefs, s.id) or SchoolPrefs(school_id=s.id)
+        prefs.leave_quotas = {"casual": 12, "sick": 10, "earned": 15}
+        prefs.geo_lat, prefs.geo_lng, prefs.geo_radius_m, prefs.late_after = 23.3441, 85.3096, 150, "08:45"
+        db.merge(prefs)
+
+        # transport
+        v1 = Vehicle(school_id=s.id, number="JH01 AB 1234", kind="bus", capacity=40, insurance_until=t0 + timedelta(days=20),
+                     fitness_until=t0 + timedelta(days=200), driver_name="Ramesh Yadav", driver_phone="9835011111",
+                     driver_licence="JH0120180012345", licence_until=t0 + timedelta(days=400), attendant_name="Sita Devi", attendant_phone="9835022222")
+        v2 = Vehicle(school_id=s.id, number="JH01 CD 5678", kind="van", capacity=12, insurance_until=t0 + timedelta(days=150),
+                     fitness_until=t0 + timedelta(days=90), driver_name="Mohd. Salim", driver_phone="9835033333")
+        db.add_all([v1, v2])
+        db.flush()
+        r1 = Route(school_id=s.id, name="Route 1 · Lalpur – Kanke Road", vehicle_id=v1.id)
+        r2 = Route(school_id=s.id, name="Route 2 · Hinoo – Doranda", vehicle_id=v2.id)
+        db.add_all([r1, r2])
+        db.flush()
+        stops1 = [Stop(school_id=s.id, route_id=r1.id, name=n, seq=i, pickup_time=p, drop_time=d) for i, (n, p, d) in enumerate(
+            [("Lalpur Chowk", "07:05", "14:40"), ("Karamtoli", "07:15", "14:30"), ("Morabadi Ground", "07:25", "14:20"), ("Kanke Road", "07:35", "14:10")])]
+        stops2 = [Stop(school_id=s.id, route_id=r2.id, name=n, seq=i, pickup_time=p, drop_time=d) for i, (n, p, d) in enumerate(
+            [("Hinoo Chowk", "07:10", "14:35"), ("Doranda Market", "07:20", "14:25")])]
+        db.add_all(stops1 + stops2)
+        db.flush()
+        for i, st in enumerate(students[:14]):
+            stop = stops1[i % 4] if i < 10 else stops2[i % 2]
+            db.add(StudentTransport(student_id=st.id, school_id=s.id, route_id=stop.route_id, stop_id=stop.id))
+
+        # banners
+        db.add_all([
+            Banner(school_id=s.id, title="Annual Sports Day 🏆", text="Join us on the school ground. Students come in house uniform.",
+                   color="amber", end_date=t0 + timedelta(days=12), popup=True, created_by=principal.id, sort=0),
+            Banner(school_id=s.id, title="Half-yearly results are out", text="Check the Results tab for report cards.",
+                   color="green", roles=["student", "parent"], end_date=t0 + timedelta(days=20), created_by=principal.id, sort=1),
+        ])
+
+        # consent form + poll
+        trip = Poll(school_id=s.id, kind="consent", title="Science museum trip", description="Class 8 trip to the State Science Centre. Bus leaves 8:30 AM, returns 2 PM.",
+                    options=["Yes", "No"], audience=["parent"], class_ids=[students[0].class_id], deadline=t0 + timedelta(days=5), amount=200,
+                    created_by=principal.id)
+        ptm = Poll(school_id=s.id, kind="poll", title="Preferred PTM time", options=["Saturday 10 AM", "Saturday 12 PM", "Sunday 11 AM"],
+                   audience=["parent", "teacher"], deadline=t0 + timedelta(days=7), created_by=principal.id)
+        db.add_all([trip, ptm])
+        db.flush()
+        from .models import ParentLink
+        links = list(db.scalars(select(ParentLink).where(ParentLink.school_id == s.id)))
+        for link in links[2:6]:
+            st = db.get(User, link.student_id)
+            if st and st.class_id == students[0].class_id:
+                db.add(PollResponse(poll_id=trip.id, user_id=link.parent_id, student_id=link.student_id, choices=[0]))
+        for link in links[3:9]:
+            db.add(PollResponse(poll_id=ptm.id, user_id=link.parent_id, student_id=0, choices=[link.parent_id % 3]))
+
+        # leaves
+        t2 = users.get("T002")
+        if t2:
+            db.add(LeaveRequest(school_id=s.id, kind="staff", user_id=t2.id, applied_by=t2.id, leave_type="casual",
+                                start_date=t0 + timedelta(days=3), end_date=t0 + timedelta(days=4), reason="Family function"))
+        t4 = users.get("T004")
+        if t4:
+            db.add(LeaveRequest(school_id=s.id, kind="staff", user_id=t4.id, applied_by=t4.id, leave_type="sick",
+                                start_date=t0 - timedelta(days=20), end_date=t0 - timedelta(days=19), reason="Fever",
+                                status="approved", decided_by=principal.id, decided_at=datetime.now(timezone.utc).replace(tzinfo=None)))
+        par = users.get("9876500003")
+        if par:
+            kid = db.scalar(select(ParentLink.student_id).where(ParentLink.parent_id == par.id))
+            db.add(LeaveRequest(school_id=s.id, kind="student", user_id=kid, applied_by=par.id, leave_type="sick",
+                                start_date=t0 + timedelta(days=1), end_date=t0 + timedelta(days=2), reason="Viral fever — doctor advised rest"))
+
+        # staff attendance for the last school days
+        import random
+        rnd = random.Random(7)
+        staff = [u for u in users.values() if u.role in (Role.teacher, Role.vice_principal, Role.coordinator)]
+        for d in school_days(db, s, t0 - timedelta(days=14), t0 - timedelta(days=1)):
+            for u in staff:
+                if rnd.random() < 0.9:
+                    hh, mm = (8, rnd.randint(15, 44)) if rnd.random() < 0.8 else (8, rnd.randint(46, 59))
+                    local = datetime.combine(d, time(hh, mm), tzinfo=SCHOOL_TZ)
+                    db.add(StaffAttendance(school_id=s.id, user_id=u.id, date=d, check_in_at=local.astimezone(timezone.utc).replace(tzinfo=None),
+                                           check_out_at=(local + timedelta(hours=6)).astimezone(timezone.utc).replace(tzinfo=None),
+                                           in_distance_m=rnd.randint(5, 90), late=(hh, mm) > (8, 45)))
+        db.commit()
+        return True
