@@ -29,7 +29,7 @@ Repo: JavedRNC/school-management-app — PUBLIC, branch main, Claude has push ac
 ## Delete policy (current)
 - Soft: users (active=false; Removed tab restores; history kept).
 - Hard (permanent, confirm dialog shows impact): class (blocked if students; cascades timetable/assignments/attendance/class posts), subject (cascades assignments/timetable/marks; posts untagged), exam (cascades marks), post, timetable slot, assignment.
-- OPEN: Claude proposed soft delete + Archive/Recycle bin for classes/subjects/exams/posts — awaiting Javed's decision.
+- DECIDED 9 Nov: switch to soft delete (is_active flag) + Archive screen for all records (features.md F12) — not built yet.
 
 ## Gotchas
 - `npx expo install` blocked by sandbox proxy → use versions from `expo/bundledNativeModules.json` via npm.
@@ -42,9 +42,11 @@ Repo: JavedRNC/school-management-app — PUBLIC, branch main, Claude has push ac
 ## Feature workflow
 - features.md = backlog. Javed adds requests; Claude records + suggests. IMPLEMENT ONLY when Javed says "implement". Recommended order: multi-school (F1) first since it adds school_id everywhere.
 
+## Key product decisions (9 Nov, see features.md)
+Multi-school with school code login (no email/OTP; principal issues temp passwords); Super Admin manages all schools & sees student PII; parent login; class-teacher attendance compulsory, others optional; no accountant; monthly student fee + principal rolls out extra fees to school/classes/students; banner with images; admin-configured optional/mandatory app updates; ONE app with role-based UI.
+
 ## Status / to-do
 - [ ] Javed: reset Neon password (was shared in chat) and update DATABASE_URL on Render.
-- [ ] Decide soft-delete/archive for classes/subjects/exams/posts.
 - [ ] Before real use: SEED_DEMO=0, fresh accounts.
 - Next ideas: exam-to-exam trend, teacher activity, parents, fees, push notifications, leave requests.
 
