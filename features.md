@@ -47,6 +47,10 @@ _Last updated: 9 Nov 2026_
 | Deleting | **Soft delete / archive** using an *active* flag — nothing is erased. |
 | Student fee | Charged **monthly** per student. |
 | App structure | **One app, different interface per role** (see "Architecture" below). |
+| Login IDs | Teacher = employee code · Student = admission number · Parent = mobile number · Principal = set by Admin. |
+| Monthly fee amount | **One amount for every student** (no per-student amounts). Built as a per-class amount with a "same for all classes" option; per-student discounts only if needed later. |
+| Banner images | Free image storage service (Cloudinary or similar). |
+| OTA updates | **Yes** — set up EAS Update so small changes reach phones without a new download. |
 
 ---
 
@@ -58,7 +62,7 @@ One app for many schools; every school is completely separate.
 - **School**: code (e.g. `DPS042`), name, logo, address, phone, board, academic year, status (active/suspended).
 - **Data isolation**: every record belongs to one school; users can never see another school's data.
 - **Login screen**: `School code` → `Login ID` → `Password`. The app remembers the school code on that phone.
-- **Login IDs** (no email) — proposal, *please confirm*:
+- **Login IDs** (no email) — ✅ confirmed:
   - Principal: chosen by Admin (e.g. `principal`)
   - Teacher: employee code (e.g. `T001`)
   - Student: admission number (e.g. `2024-0153`)
@@ -150,8 +154,8 @@ Shown at the top of the home screen **as soon as the user opens the app**.
 
 ### F10 · Monthly fees, ledger & receipts 📝 `L`
 **Setup**
-- **Monthly fee per class** (e.g. Class 8 = ₹1,500/month), optional transport fee per route, due day (e.g. 10th), late fine rule 💡.
-- Per-student **concession/discount** (sibling, scholarship, staff ward).
+- **Monthly fee: one amount for every student** — set once (optionally per class, with a "same for all classes" shortcut), plus optional transport fee per route, due day (e.g. 10th), late fine rule 💡.
+- Per-student concession/discount — ⏸️ not needed now (can add later).
 - At the start of each month the app **auto-creates that month's fee** for every active student.
 
 **Ledger** (per student): month-wise due / paid / balance; overdue highlighted.
@@ -200,7 +204,7 @@ Admin controls which app versions are allowed.
   - Version **≥ latest** → nothing shown.
   - Version **between minimum and latest** → **Optional update** pop-up: *Update now* / *Later* (asks again after a set time).
   - Version **below minimum** → **Mandatory update** full-screen block: only *Update now*; the app can't be used until updated.
-- 💡 **Over-the-air (OTA) updates** with EAS Update: screen/logic changes reach phones **without a store download**; the pop-up is then only needed for bigger native changes. Saves time for every small fix.
+- ✅ Decided: **Over-the-air (OTA) updates** with EAS Update: screen/logic changes reach phones **without a store download**; the pop-up is then only needed for bigger native changes. Saves time for every small fix.
 - Needs a real app build (APK / Play Store) — in Expo Go this check is skipped.
 
 ---
@@ -240,10 +244,11 @@ Admin controls which app versions are allowed.
 ---
 
 ## ❓ Open questions for Javed
+_None right now._ 🎉
 
-1. **Login IDs** — OK with: teachers = employee code, students = admission number, parents = mobile number, principal = set by Admin?
-2. **Monthly fee** — same amount for every student in a class (with optional discounts), or set per student?
-3. **Banner images** — fine to use a free image storage service (Cloudinary/Supabase)?
-4. **OTA updates** — set up EAS Update so small changes reach phones without a new download? (Free tier available; needs an Expo account.)
+## 🔑 Accounts Javed will need when we implement
+- **Cloudinary** (free) — for banner images (F15).
+- **Expo** account (free) — for EAS Update / app builds (F16).
+- Payment gateway (Razorpay etc.) — only for option C of F11, much later.
 
 _Nothing in this file is built until Javed says **"implement"**._
