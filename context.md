@@ -38,6 +38,8 @@ Claude codes in cloud → push GitHub (Render auto-deploys API) → Android Term
 ## Changes log
 - 2026-11-09: DELETE /classes/{id} (409 if active students; cascades timetable/assignments/attendance/class posts). Setup tab: tap class chip → rename/delete sheet + confirm dialog
 
+- 2026-11-09: Principal full CRUD. API: PUT/DELETE /users (soft delete=active false, list ?active=false, restore via PUT active), PUT/DELETE /subjects (+/usage; cascades assignments/timetable/marks, posts untagged), PUT/DELETE /exams (mark_count; max can't drop below top score; delete cascades marks), PUT /posts, class_teacher_id null allowed (validated). UI: People edit/remove/restore sheet + Removed tab; Classes: unassign teachers, Attendance/Marks register shortcuts → /records/* (shared src/screens/*, StackedContext shows back arrow); Setup subject/exam editors; post edit (pencil)
+
 ## Status
 - [x] Pushed to GitHub main (2026-11-08)
 - [x] Backend deployed (2026-11-09)

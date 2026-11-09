@@ -16,6 +16,7 @@ export default function TeacherPosts() {
   const t = useAppTheme();
   const { user } = useAuth();
   const [composing, setComposing] = useState(false);
+  const [editing, setEditing] = useState<Post | null>(null);
   const [filter, setFilter] = useState<'mine' | 'homework' | 'notice' | 'all'>('all');
   const { data, error, reload, refresh, refreshing } = useLoad(async () => {
     const [posts, classes, assignments] = await Promise.all([api<Post[]>('/posts'), api<SchoolClass[]>('/classes'), api<Assignment[]>('/assignments')]);
@@ -30,13 +31,13 @@ export default function TeacherPosts() {
           { label: 'All', value: 'all', icon: 'view-list-outline' }, { label: 'Mine', value: 'mine', icon: 'account-edit-outline' },
           { label: 'Homework', value: 'homework', icon: 'book-open-outline' }, { label: 'Notices', value: 'notice', icon: 'bullhorn-outline' }]} />
         {error ? <ErrorState message={error} onRetry={reload} /> : null}
-        {!data ? <LoadingCards /> : <PostList posts={posts} canDelete={(p) => p.author_id === user?.id} onDeleted={reload} />}
+        {!data ? <LoadingCards /> : <PostList posts={posts} canDelete={(p) => p.author_id === user?.id} onDeleted={reload} onEdit={(p) => { setEditing(p); setComposing(true); }} />}
       </Screen>
-      <AnimatedFAB icon="book-plus-outline" label="New homework" extended onPress={() => { haptic.tap(); setComposing(true); }}
+      <AnimatedFAB icon="book-plus-outline" label="New homework" extended onPress={() => { haptic.tap(); setEditing(null); setComposing(true); }}
         style={{ position: 'absolute', right: space.lg, bottom: space.lg }} />
       {data ? (
-        <PostComposer visible={composing} onDismiss={() => setComposing(false)} classes={data.classes} subjects={data.subjects}
-          allowSchoolWide={false} onPosted={() => { setComposing(false); reload(); }} />
+        <PostComposer visible={composing} editing={editing} onDismiss={() => setComposing(false)} classes={data.classes} subjects={data.subjects}
+          allowSchoolWide={false} onPosted={() => { setComposing(false); setEditing(null); reload(); }} />
       ) : null}
     </View>
   );

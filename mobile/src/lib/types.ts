@@ -7,6 +7,7 @@ export interface User {
   role: Role;
   class_id: number | null;
   roll_no: number | null;
+  active?: boolean;
 }
 
 export interface SchoolClass {
@@ -55,6 +56,14 @@ export interface Exam {
   name: string;
   date: string;
   max_marks: number;
+  mark_count?: number;
+}
+
+export interface Usage {
+  assignments: number;
+  timetable: number;
+  marks: number;
+  posts: number;
 }
 
 export interface MarkRow {

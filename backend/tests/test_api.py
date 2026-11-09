@@ -130,3 +130,55 @@ def test_delete_class(client):
     assert client.delete(f"/classes/{c['id']}", headers=h).status_code == 200
     assert all(x["id"] != c["id"] for x in client.get("/classes", headers=h).json())
     assert client.delete(f"/classes/{c['id']}", headers=h).status_code == 404
+
+
+def test_principal_crud_users(client):
+    h = login(client, "principal@school.com")
+    me = client.get("/auth/me", headers=h).json()
+    assert client.delete(f"/users/{me['id']}", headers=h).status_code == 400
+    s = client.get("/users", params={"role": "student"}, headers=h).json()[0]
+    classes = client.get("/classes", headers=h).json()
+    other = next(c for c in classes if c["id"] != s["class_id"])
+    r = client.put(f"/users/{s['id']}", json={"name": "Renamed Kid", "email": "RENAMED@school.com", "class_id": other["id"], "roll_no": 99}, headers=h)
+    assert r.status_code == 200, r.text
+    assert r.json()["email"] == "renamed@school.com" and r.json()["class_id"] == other["id"]
+    assert client.put(f"/users/{s['id']}", json={"class_id": None}, headers=h).status_code == 400
+    assert client.put(f"/users/{s['id']}", json={"email": "principal@school.com"}, headers=h).status_code == 409
+    assert client.put(f"/users/{s['id']}", json={"password": "newpass1"}, headers=h).status_code == 200
+    assert client.post("/auth/login", json={"email": "renamed@school.com", "password": "newpass1"}).status_code == 200
+    assert client.delete(f"/users/{s['id']}", headers=h).json()["active"] is False
+    assert client.post("/auth/login", json={"email": "renamed@school.com", "password": "newpass1"}).status_code == 401
+    removed = client.get("/users", params={"active": False}, headers=h).json()
+    assert any(u["id"] == s["id"] for u in removed)
+    assert client.put(f"/users/{s['id']}", json={"active": True}, headers=h).json()["active"] is True
+
+
+def test_principal_crud_subjects_exams_posts(client):
+    h = login(client, "principal@school.com")
+    sub = client.post("/subjects", json={"name": "Drawing"}, headers=h).json()
+    assert client.put(f"/subjects/{sub['id']}", json={"name": "Art"}, headers=h).json()["name"] == "Art"
+    assert client.put(f"/subjects/{sub['id']}", json={"name": "Science"}, headers=h).status_code == 409
+    teacher = client.get("/users", params={"role": "teacher"}, headers=h).json()[0]
+    client.post("/assignments", json={"teacher_id": teacher["id"], "class_id": 1, "subject_id": sub["id"]}, headers=h)
+    u = client.get(f"/subjects/{sub['id']}/usage", headers=h).json()
+    assert u["assignments"] == 1
+    assert client.delete(f"/subjects/{sub['id']}", headers=h).status_code == 200
+    assert all(a["subject_id"] != sub["id"] for a in client.get("/assignments", headers=h).json())
+
+    exams = client.get("/exams", headers=h).json()
+    hy = next(e for e in exams if e["name"] == "Half Yearly")
+    assert hy["mark_count"] > 0
+    assert client.put(f"/exams/{hy['id']}", json={"name": "Half Yearly", "date": hy["date"], "max_marks": 10}, headers=h).status_code == 409
+    assert client.put(f"/exams/{hy['id']}", json={"name": "Mid Term", "date": hy["date"], "max_marks": 100}, headers=h).json()["name"] == "Mid Term"
+    ut = next(e for e in exams if e["name"] == "Unit Test 1")
+    assert client.delete(f"/exams/{ut['id']}", headers=h).status_code == 200
+    assert all(c["exam"] != "Unit Test 1" for c in client.get("/me/marks", headers=login(client, "diya@school.com")).json())
+
+    post = client.post("/posts", json={"kind": "notice", "title": "Old"}, headers=h).json()
+    r = client.put(f"/posts/{post['id']}", json={"kind": "notice", "title": "New title", "body": "b"}, headers=h)
+    assert r.status_code == 200 and r.json()["title"] == "New title"
+    t = login(client, "anita@school.com")
+    assert client.put(f"/posts/{post['id']}", json={"kind": "notice", "title": "hack"}, headers=t).status_code == 403
+    cls = client.get("/classes", headers=h).json()[0]
+    assert client.put(f"/classes/{cls['id']}", json={"name": cls["name"], "class_teacher_id": None}, headers=h).json()["class_teacher_id"] is None
+    assert client.put(f"/classes/{cls['id']}", json={"name": cls["name"], "class_teacher_id": 1}, headers=h).status_code == 400

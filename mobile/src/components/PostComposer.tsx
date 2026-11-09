@@ -1,11 +1,11 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { View } from 'react-native';
 import { Button, HelperText, SegmentedButtons, TextInput } from 'react-native-paper';
 
 import { api } from '@/lib/api';
 import { haptic, useToast } from '@/lib/feedback';
 import { space } from '@/lib/theme';
-import type { SchoolClass, Subject } from '@/lib/types';
+import type { Post, SchoolClass, Subject } from '@/lib/types';
 
 import { FilterChips, Sheet } from './ui';
 
@@ -15,9 +15,10 @@ function isoIn(days: number) {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
 }
 
-/** Bottom sheet to post a notice or homework. */
-export function PostComposer({ visible, onDismiss, classes, subjects, allowSchoolWide, onPosted }: {
+/** Bottom sheet to create — or, with `editing`, update — a notice or homework. */
+export function PostComposer({ visible, onDismiss, classes, subjects, allowSchoolWide, onPosted, editing }: {
   visible: boolean; onDismiss: () => void; classes: SchoolClass[]; subjects?: Subject[]; allowSchoolWide: boolean; onPosted: () => void;
+  editing?: Post | null;
 }) {
   const toast = useToast();
   const [kind, setKind] = useState<'notice' | 'homework'>('notice');
@@ -28,6 +29,18 @@ export function PostComposer({ visible, onDismiss, classes, subjects, allowSchoo
   const [due, setDue] = useState<string>(isoIn(1));
   const [busy, setBusy] = useState(false);
   const [touched, setTouched] = useState(false);
+
+  useEffect(() => {
+    if (!visible) return;
+    if (editing) {
+      setKind(editing.kind); setClassId(editing.class_id ?? 0); setSubjectId(editing.subject_id ?? subjects?.[0]?.id ?? 0);
+      setTitle(editing.title); setBody(editing.body); setDue(editing.due_date ?? isoIn(1));
+    } else {
+      setTitle(''); setBody(''); setDue(isoIn(1));
+    }
+    setTouched(false);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [visible, editing]);
 
   const classOpts = [
     ...(allowSchoolWide && kind === 'notice' ? [{ label: 'Whole school', value: 0, icon: 'domain' as const }] : []),
@@ -40,14 +53,15 @@ export function PostComposer({ visible, onDismiss, classes, subjects, allowSchoo
     if (kind === 'homework' && !classId) return toast('Pick a class for homework', { error: true });
     setBusy(true);
     try {
-      await api('/posts', {
+      await api(editing ? `/posts/${editing.id}` : '/posts', {
+        method: editing ? 'PUT' : 'POST',
         body: {
           kind, title: title.trim(), body: body.trim(), class_id: classId || null,
           subject_id: kind === 'homework' && subjectId ? subjectId : null, due_date: kind === 'homework' ? due : null,
         },
       });
       setTitle(''); setBody(''); setTouched(false);
-      toast(kind === 'homework' ? 'Homework posted' : 'Notice published');
+      toast(editing ? 'Post updated' : kind === 'homework' ? 'Homework posted' : 'Notice published');
       onPosted();
     } catch (e) {
       toast((e as Error).message, { error: true });
@@ -57,7 +71,7 @@ export function PostComposer({ visible, onDismiss, classes, subjects, allowSchoo
   }
 
   return (
-    <Sheet visible={visible} onDismiss={onDismiss} title="Create post">
+    <Sheet visible={visible} onDismiss={onDismiss} title={editing ? 'Edit post' : 'Create post'}>
       <SegmentedButtons value={kind} style={{ marginBottom: space.md }}
         onValueChange={(v) => { haptic.tap(); const k = v as 'notice' | 'homework'; setKind(k); if (k === 'homework' && !classId) setClassId(classes[0]?.id ?? 0); }}
         buttons={[{ value: 'notice', label: 'Notice', icon: 'bullhorn-outline' }, { value: 'homework', label: 'Homework', icon: 'book-open-outline' }]} />
@@ -71,10 +85,13 @@ export function PostComposer({ visible, onDismiss, classes, subjects, allowSchoo
       <TextInput mode="outlined" label="Details" value={body} onChangeText={setBody} multiline numberOfLines={4} style={{ minHeight: 100 }} />
       {kind === 'homework' ? (
         <FilterChips label="Due" style={{ marginTop: space.md }} value={due} onChange={setDue}
-          options={[1, 2, 3, 7].map((d) => ({ label: d === 1 ? 'Tomorrow' : d === 7 ? 'Next week' : `In ${d} days`, value: isoIn(d) }))} />
+          options={[
+            ...(editing?.due_date && ![1, 2, 3, 7].some((d) => isoIn(d) === editing.due_date)
+              ? [{ label: new Date(editing.due_date + 'T00:00:00').toLocaleDateString('en-IN', { day: 'numeric', month: 'short' }), value: editing.due_date }] : []),
+            ...[1, 2, 3, 7].map((d) => ({ label: d === 1 ? 'Tomorrow' : d === 7 ? 'Next week' : `In ${d} days`, value: isoIn(d) }))]} />
       ) : <View style={{ height: space.md }} />}
       <Button mode="contained" icon="send" onPress={submit} loading={busy} contentStyle={{ paddingVertical: 6 }} style={{ marginTop: space.sm }}>
-        {kind === 'homework' ? 'Post homework' : 'Publish notice'}
+        {editing ? 'Save changes' : kind === 'homework' ? 'Post homework' : 'Publish notice'}
       </Button>
     </Sheet>
   );

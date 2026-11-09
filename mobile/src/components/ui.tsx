@@ -1,11 +1,12 @@
 import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
 import { LinearGradient } from 'expo-linear-gradient';
-import { ComponentProps, ReactNode, useEffect, useRef, useState } from 'react';
+import { router } from 'expo-router';
+import { ComponentProps, createContext, ReactNode, useContext, useEffect, useRef, useState } from 'react';
 import {
   Animated, Easing, KeyboardAvoidingView, Modal, Platform, Pressable, RefreshControl, ScrollView, StyleSheet,
   View, ViewStyle,
 } from 'react-native';
-import { Avatar, Button, Card, Chip, Text, TouchableRipple } from 'react-native-paper';
+import { Avatar, Button, Card, Chip, IconButton, Text, TouchableRipple } from 'react-native-paper';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { haptic } from '@/lib/feedback';
@@ -77,12 +78,16 @@ export function Screen({ children, onRefresh, refreshing = false, header, padded
   );
 }
 
+/** When true, Hero shows a back arrow (screens opened on top of the tabs). */
+export const StackedContext = createContext(false);
+
 /** Gradient hero header; children float over its bottom edge. */
 export function Hero({ title, subtitle, eyebrow, right, children, compact }: {
   title: string; subtitle?: string; eyebrow?: string; right?: ReactNode; children?: ReactNode; compact?: boolean;
 }) {
   const t = useAppTheme();
   const insets = useSafeAreaInsets();
+  const stacked = useContext(StackedContext);
   return (
     <View style={{ marginBottom: children ? 0 : space.lg }}>
       <LinearGradient colors={[t.custom.heroStart, t.custom.heroEnd]} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }}
@@ -91,6 +96,10 @@ export function Hero({ title, subtitle, eyebrow, right, children, compact }: {
         <View style={[styles.circle, { width: 220, height: 220, right: -60, top: -70, backgroundColor: 'rgba(255,255,255,0.07)' }]} />
         <View style={[styles.circle, { width: 120, height: 120, right: 70, top: 40, backgroundColor: 'rgba(245,166,35,0.16)' }]} />
         <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+          {stacked ? (
+            <IconButton icon="arrow-left" iconColor="#fff" size={24} style={{ marginLeft: -space.sm, marginRight: space.xs }}
+              onPress={() => { haptic.tap(); if (router.canGoBack()) router.back(); else router.replace('/'); }} />
+          ) : null}
           <View style={{ flex: 1 }}>
             {eyebrow ? <Text variant="labelLarge" style={{ color: 'rgba(255,255,255,0.75)' }}>{eyebrow}</Text> : null}
             <Text variant={compact ? 'headlineSmall' : 'headlineMedium'} style={{ color: '#fff', fontWeight: '800' }}>{title}</Text>

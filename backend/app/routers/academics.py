@@ -158,6 +158,25 @@ def create_post(body: PostIn, user: User = Depends(teacher_or_principal), db: Se
     return _post_out(p, name_maps(db))
 
 
+@router.put("/posts/{pid}", response_model=PostOut)
+def update_post(pid: int, body: PostIn, user: User = Depends(teacher_or_principal), db: Session = Depends(get_db)):
+    p = db.get(Post, pid)
+    if not p:
+        raise HTTPException(404, "Post not found")
+    if user.role != Role.principal and p.author_id != user.id:
+        raise HTTPException(403, "You can only edit your own posts")
+    if body.kind == "homework" and not body.class_id:
+        raise HTTPException(400, "Homework needs a class")
+    if body.class_id:
+        ensure_class_access(db, user, body.class_id)
+    elif user.role != Role.principal:
+        raise HTTPException(403, "Only the principal can post to the whole school")
+    for k, v in body.model_dump().items():
+        setattr(p, k, v)
+    db.commit()
+    return _post_out(p, name_maps(db))
+
+
 @router.delete("/posts/{pid}")
 def delete_post(pid: int, user: User = Depends(teacher_or_principal), db: Session = Depends(get_db)):
     p = db.get(Post, pid)

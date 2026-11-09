@@ -22,6 +22,7 @@ class UserOut(ORM):
     role: Role
     class_id: int | None = None
     roll_no: int | None = None
+    active: bool = True
 
 
 class LoginOut(BaseModel):
@@ -39,7 +40,8 @@ class UserCreate(BaseModel):
 
 
 class UserUpdate(BaseModel):
-    name: str | None = None
+    name: str | None = Field(default=None, min_length=1)
+    email: EmailStr | None = None
     password: str | None = Field(default=None, min_length=6)
     class_id: int | None = None
     roll_no: int | None = None
@@ -147,6 +149,14 @@ class ExamOut(ORM):
     name: str
     date: date
     max_marks: float
+    mark_count: int = 0
+
+
+class Usage(BaseModel):
+    assignments: int = 0
+    timetable: int = 0
+    marks: int = 0
+    posts: int = 0
 
 
 class MarkRecord(BaseModel):

@@ -14,6 +14,7 @@ import { useLoad } from '@/lib/useLoad';
 export default function Notices() {
   const t = useAppTheme();
   const [composing, setComposing] = useState(false);
+  const [editing, setEditing] = useState<Post | null>(null);
   const [filter, setFilter] = useState<'all' | 'notice' | 'homework'>('all');
   const { data, error, reload, refresh, refreshing } = useLoad(async () => {
     const [posts, classes] = await Promise.all([api<Post[]>('/posts'), api<SchoolClass[]>('/classes')]);
@@ -27,13 +28,13 @@ export default function Notices() {
           { label: 'All', value: 'all', icon: 'view-list-outline' }, { label: 'Notices', value: 'notice', icon: 'bullhorn-outline' },
           { label: 'Homework', value: 'homework', icon: 'book-open-outline' }]} />
         {error ? <ErrorState message={error} onRetry={reload} /> : null}
-        {!data ? <LoadingCards /> : <PostList posts={posts} canDelete={() => true} onDeleted={reload} />}
+        {!data ? <LoadingCards /> : <PostList posts={posts} canDelete={() => true} onDeleted={reload} onEdit={(p) => { setEditing(p); setComposing(true); }} />}
       </Screen>
-      <AnimatedFAB icon="plus" label="New notice" extended onPress={() => { haptic.tap(); setComposing(true); }}
+      <AnimatedFAB icon="plus" label="New notice" extended onPress={() => { haptic.tap(); setEditing(null); setComposing(true); }}
         style={{ position: 'absolute', right: space.lg, bottom: space.lg }} />
       {data ? (
-        <PostComposer visible={composing} onDismiss={() => setComposing(false)} classes={data.classes} allowSchoolWide
-          onPosted={() => { setComposing(false); reload(); }} />
+        <PostComposer visible={composing} editing={editing} onDismiss={() => setComposing(false)} classes={data.classes} allowSchoolWide
+          onPosted={() => { setComposing(false); setEditing(null); reload(); }} />
       ) : null}
     </View>
   );

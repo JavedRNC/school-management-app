@@ -7,10 +7,10 @@ from sqlalchemy.orm import Session
 from ..auth import current_user, hash_password, principal_only
 from ..db import get_db
 from ..deps import class_students, name_maps, teacher_class_ids
-from ..models import Assignment, Attendance, Exam, Post, Role, SchoolClass, Subject, TimetableEntry, User
+from ..models import Assignment, Attendance, Exam, Mark, Post, Role, SchoolClass, Subject, TimetableEntry, User
 from ..schemas import (
     AssignmentIn, AssignmentOut, ClassIn, ClassOut, ExamIn, ExamOut, NameIn, SubjectOut,
-    TimetableIn, TimetableOut, UserCreate, UserOut, UserUpdate,
+    TimetableIn, TimetableOut, Usage, UserCreate, UserOut, UserUpdate,
 )
 
 router = APIRouter(tags=["school"])
@@ -43,6 +43,7 @@ def list_classes(user: User = Depends(current_user), db: Session = Depends(get_d
 
 @router.post("/classes", response_model=ClassOut, dependencies=[Depends(principal_only)])
 def create_class(body: ClassIn, db: Session = Depends(get_db)):
+    _check_teacher(db, body.class_teacher_id)
     c = SchoolClass(name=body.name.strip(), class_teacher_id=body.class_teacher_id)
     db.add(c)
     _commit(db, "Class name already exists")
@@ -52,6 +53,7 @@ def create_class(body: ClassIn, db: Session = Depends(get_db)):
 @router.put("/classes/{class_id}", response_model=ClassOut, dependencies=[Depends(principal_only)])
 def update_class(class_id: int, body: ClassIn, db: Session = Depends(get_db)):
     c = db.get(SchoolClass, class_id) or _404("Class")
+    _check_teacher(db, body.class_teacher_id)
     c.name, c.class_teacher_id = body.name.strip(), body.class_teacher_id
     _commit(db, "Class name already exists")
     return ClassOut(id=c.id, name=c.name, class_teacher_id=c.class_teacher_id)
@@ -97,10 +99,43 @@ def create_subject(body: NameIn, db: Session = Depends(get_db)):
     return s
 
 
+@router.put("/subjects/{subject_id}", response_model=SubjectOut, dependencies=[Depends(principal_only)])
+def rename_subject(subject_id: int, body: NameIn, db: Session = Depends(get_db)):
+    s = db.get(Subject, subject_id) or _404("Subject")
+    s.name = body.name.strip()
+    _commit(db, "Subject already exists")
+    return s
+
+
+def _count(db: Session, model, *where) -> int:
+    return db.scalar(select(func.count()).select_from(model).where(*where)) or 0
+
+
+@router.get("/subjects/{subject_id}/usage", response_model=Usage, dependencies=[Depends(principal_only)])
+def subject_usage(subject_id: int, db: Session = Depends(get_db)):
+    db.get(Subject, subject_id) or _404("Subject")
+    return Usage(assignments=_count(db, Assignment, Assignment.subject_id == subject_id),
+                 timetable=_count(db, TimetableEntry, TimetableEntry.subject_id == subject_id),
+                 marks=_count(db, Mark, Mark.subject_id == subject_id),
+                 posts=_count(db, Post, Post.subject_id == subject_id))
+
+
+@router.delete("/subjects/{subject_id}", dependencies=[Depends(principal_only)])
+def delete_subject(subject_id: int, db: Session = Depends(get_db)):
+    """Deletes the subject, its teacher assignments, timetable slots and marks. Posts keep, untagged."""
+    s = db.get(Subject, subject_id) or _404("Subject")
+    for model in (Assignment, TimetableEntry, Mark):
+        db.execute(delete(model).where(model.subject_id == subject_id))
+    db.execute(update(Post).where(Post.subject_id == subject_id).values(subject_id=None))
+    db.delete(s)
+    db.commit()
+    return {"ok": True}
+
+
 # ---------- users
 @router.get("/users", response_model=list[UserOut], dependencies=[Depends(principal_only)])
-def list_users(role: Role | None = None, class_id: int | None = None, db: Session = Depends(get_db)):
-    q = select(User).where(User.active.is_(True)).order_by(User.role, User.class_id, User.roll_no, User.name)
+def list_users(role: Role | None = None, class_id: int | None = None, active: bool = True, db: Session = Depends(get_db)):
+    q = select(User).where(User.active.is_(active)).order_by(User.role, User.class_id, User.roll_no, User.name)
     if role:
         q = q.where(User.role == role)
     if class_id:
@@ -124,17 +159,44 @@ def create_user(body: UserCreate, db: Session = Depends(get_db)):
     return u
 
 
-@router.put("/users/{user_id}", response_model=UserOut, dependencies=[Depends(principal_only)])
-def update_user(user_id: int, body: UserUpdate, db: Session = Depends(get_db)):
+@router.put("/users/{user_id}", response_model=UserOut)
+def update_user(user_id: int, body: UserUpdate, me: User = Depends(principal_only), db: Session = Depends(get_db)):
     u = db.get(User, user_id) or _404("User")
     data = body.model_dump(exclude_unset=True)
-    if "password" in data:
-        pw = data.pop("password")
-        if pw:
-            u.password_hash = hash_password(pw)
+    if data.get("active") is False and u.id == me.id:
+        raise HTTPException(400, "You can't remove your own account")
+    pw = data.pop("password", None)
+    if pw:
+        u.password_hash = hash_password(pw)
+    if "email" in data:
+        if not data["email"]:
+            raise HTTPException(400, "Email is required")
+        data["email"] = data["email"].lower()
+    if "name" in data:
+        data["name"] = (data["name"] or "").strip() or u.name
+    if u.role == Role.student:
+        if "class_id" in data:
+            if not data["class_id"]:
+                raise HTTPException(400, "Students need a class")
+            if not db.get(SchoolClass, data["class_id"]):
+                raise HTTPException(400, "Class not found")
+    else:
+        data.pop("class_id", None)
+        data.pop("roll_no", None)
     for k, v in data.items():
         setattr(u, k, v)
-    _commit(db)
+    _commit(db, "Email already in use")
+    return u
+
+
+@router.delete("/users/{user_id}", response_model=UserOut)
+def remove_user(user_id: int, me: User = Depends(principal_only), db: Session = Depends(get_db)):
+    """Soft delete: the account can't sign in, but attendance and marks history is kept (restore any time)."""
+    u = db.get(User, user_id) or _404("User")
+    if u.id == me.id:
+        raise HTTPException(400, "You can't remove your own account")
+    u.active = False
+    db.commit()
     return u
 
 
@@ -222,7 +284,9 @@ def delete_slot(eid: int, db: Session = Depends(get_db)):
 # ---------- exams
 @router.get("/exams", response_model=list[ExamOut], dependencies=[Depends(current_user)])
 def list_exams(db: Session = Depends(get_db)):
-    return list(db.scalars(select(Exam).order_by(Exam.date.desc())))
+    counts = dict(db.execute(select(Mark.exam_id, func.count()).group_by(Mark.exam_id)).all())
+    return [ExamOut(id=e.id, name=e.name, date=e.date, max_marks=e.max_marks, mark_count=counts.get(e.id, 0))
+            for e in db.scalars(select(Exam).order_by(Exam.date.desc()))]
 
 
 @router.post("/exams", response_model=ExamOut, dependencies=[Depends(principal_only)])
@@ -231,6 +295,35 @@ def create_exam(body: ExamIn, db: Session = Depends(get_db)):
     db.add(e)
     db.commit()
     return e
+
+
+@router.put("/exams/{exam_id}", response_model=ExamOut, dependencies=[Depends(principal_only)])
+def update_exam(exam_id: int, body: ExamIn, db: Session = Depends(get_db)):
+    e = db.get(Exam, exam_id) or _404("Exam")
+    top = db.scalar(select(func.max(Mark.score)).where(Mark.exam_id == exam_id))
+    if top is not None and body.max_marks < top:
+        raise HTTPException(409, f"Max marks can't be below the highest score already entered ({top:g})")
+    e.name, e.date, e.max_marks = body.name.strip(), body.date, body.max_marks
+    db.commit()
+    return e
+
+
+@router.delete("/exams/{exam_id}", dependencies=[Depends(principal_only)])
+def delete_exam(exam_id: int, db: Session = Depends(get_db)):
+    """Deletes the exam and every mark entered for it."""
+    e = db.get(Exam, exam_id) or _404("Exam")
+    db.execute(delete(Mark).where(Mark.exam_id == exam_id))
+    db.delete(e)
+    db.commit()
+    return {"ok": True}
+
+
+def _check_teacher(db: Session, teacher_id: int | None) -> None:
+    if teacher_id is None:
+        return
+    t = db.get(User, teacher_id)
+    if not t or t.role != Role.teacher or not t.active:
+        raise HTTPException(400, "Class teacher must be an active teacher")
 
 
 def _404(what: str):

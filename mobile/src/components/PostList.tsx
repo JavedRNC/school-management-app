@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { LayoutAnimation, Platform, UIManager, View } from 'react-native';
-import { Button, Card, Dialog, Portal, Text } from 'react-native-paper';
+import { Button, Card, Dialog, IconButton, Portal, Text } from 'react-native-paper';
 
 import { api } from '@/lib/api';
 import { haptic, useToast } from '@/lib/feedback';
@@ -35,8 +35,8 @@ function dueInfo(due: string): { text: string; tone: 'danger' | 'warning' | 'suc
   return { text: `Due in ${days} days`, tone: 'success' };
 }
 
-export function PostList({ posts, canDelete, onDeleted, emptyText = 'Nothing posted yet' }: {
-  posts: Post[]; canDelete?: (p: Post) => boolean; onDeleted?: () => void; emptyText?: string;
+export function PostList({ posts, canDelete, onDeleted, onEdit, emptyText = 'Nothing posted yet' }: {
+  posts: Post[]; canDelete?: (p: Post) => boolean; onDeleted?: () => void; onEdit?: (p: Post) => void; emptyText?: string;
 }) {
   const t = useAppTheme();
   const toast = useToast();
@@ -90,8 +90,11 @@ export function PostList({ posts, canDelete, onDeleted, emptyText = 'Nothing pos
                       {p.author_name}
                     </Text>
                     {due ? <ToneChip text={due.text} tone={due.tone} icon="clock-outline" /> : null}
+                    {onEdit && canDelete?.(p) ? (
+                      <IconButton icon="pencil-outline" size={20} style={{ margin: 0 }} onPress={() => { haptic.tap(); onEdit(p); }} />
+                    ) : null}
                     {canDelete?.(p) ? (
-                      <Button compact icon="delete-outline" textColor={t.colors.error} onPress={() => setConfirm(p)}>{''}</Button>
+                      <IconButton icon="delete-outline" size={20} iconColor={t.colors.error} style={{ margin: 0 }} onPress={() => setConfirm(p)} />
                     ) : null}
                   </View>
                 </View>

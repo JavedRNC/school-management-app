@@ -1,16 +1,17 @@
-import { useState } from 'react';
+import { router } from 'expo-router';
+import { useEffect, useState } from 'react';
 import { View } from 'react-native';
 import { Button, Dialog, Portal, SegmentedButtons, Text, TextInput, TouchableRipple } from 'react-native-paper';
 
 import { subjectIcon, TimetableView } from '@/components/TimetableView';
 import {
-  EmptyState, ErrorState, FadeIn, FilterChips, Hero, Icon, IconBadge, IconName, LoadingCards, Panel, Row, Screen, Sheet, ToneChip,
+  EmptyState, ErrorState, FadeIn, FilterChips, Hero, Icon, IconBadge, IconName, LoadingCards, Panel, PressScale, Row, Screen, Sheet, ToneChip,
   UserAvatar,
 } from '@/components/ui';
 import { api } from '@/lib/api';
 import { haptic, useToast } from '@/lib/feedback';
 import { DAYS, radius, space, useAppTheme } from '@/lib/theme';
-import type { Assignment, Exam, SchoolClass, Slot, Subject, User } from '@/lib/types';
+import type { Assignment, Exam, SchoolClass, Slot, Subject, Usage, User } from '@/lib/types';
 import { useLoad } from '@/lib/useLoad';
 
 type Tab = 'subjects' | 'timetable' | 'setup';
@@ -50,6 +51,24 @@ export default function Classes() {
               ? <FilterChips options={d.classes.map((c) => ({ label: `${c.name}`, value: c.id, icon: 'google-classroom' as const }))} value={cid} onChange={setClassId} />
               : <EmptyState icon="google-classroom" title="No classes yet" text="Create your first class in Setup." action="Go to Setup" onAction={() => setTab('setup')} />
           ) : null}
+          {tab !== 'setup' && cid ? (
+            <FadeIn>
+              <View style={{ flexDirection: 'row', gap: space.sm, marginBottom: space.md }}>
+                {([['clipboard-check-outline', 'Attendance', '/records/attendance'], ['pencil-box-multiple-outline', 'Marks', '/records/marks']] as const).map(([icon, label, path]) => (
+                  <PressScale key={label} style={{ flex: 1 }} onPress={() => router.push({ pathname: path, params: { class_id: String(cid) } })}>
+                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: space.sm, backgroundColor: t.colors.secondaryContainer, borderRadius: radius.lg, padding: space.md }}>
+                      <Icon name={icon} size={22} color={t.colors.onSecondaryContainer} />
+                      <View style={{ flex: 1 }}>
+                        <Text variant="labelLarge" style={{ fontWeight: '800', color: t.colors.onSecondaryContainer }}>{label}</Text>
+                        <Text variant="labelSmall" style={{ color: t.colors.onSecondaryContainer }}>View & edit</Text>
+                      </View>
+                      <Icon name="chevron-right" size={18} color={t.colors.onSecondaryContainer} />
+                    </View>
+                  </PressScale>
+                ))}
+              </View>
+            </FadeIn>
+          ) : null}
           {tab === 'subjects' && cid ? <SubjectTeachers key={cid} classId={cid} data={d} onChange={base.reload} /> : null}
           {tab === 'timetable' && cid ? <ClassTimetable key={cid} classId={cid} data={d} /> : null}
           {tab === 'setup' ? <Setup data={d} onChange={base.reload} /> : null}
@@ -75,6 +94,25 @@ function SubjectTeachers({ classId, data, onChange }: { classId: number; data: B
       } else if (editing) {
         await api('/assignments', { body: { teacher_id: teacher.id, class_id: classId, subject_id: editing.id } });
         toast(`${teacher.name} teaches ${editing.name} in ${cls.name}`);
+      }
+      setEditing(null);
+      onChange();
+    } catch (e) {
+      toast((e as Error).message, { error: true });
+    }
+  }
+
+  const currentAssignment = editing && editing !== 'class-teacher'
+    ? data.assignments.find((a) => a.class_id === classId && a.subject_id === editing.id) : undefined;
+
+  async function unassign() {
+    try {
+      if (editing === 'class-teacher') {
+        await api(`/classes/${cls.id}`, { method: 'PUT', body: { name: cls.name, class_teacher_id: null } });
+        toast(`${cls.name} has no class teacher now`);
+      } else if (currentAssignment) {
+        await api(`/assignments/${currentAssignment.id}`, { method: 'DELETE' });
+        toast(`${currentAssignment.subject_name} has no teacher in ${cls.name} now`);
       }
       setEditing(null);
       onChange();
@@ -122,6 +160,10 @@ function SubjectTeachers({ classId, data, onChange }: { classId: number; data: B
               left={<UserAvatar name={x.name} size={40} />} right={current ? <ToneChip text="Current" tone="success" /> : undefined} />
           );
         })}
+        {(editing === 'class-teacher' && cls.class_teacher_id) || currentAssignment ? (
+          <Button mode="outlined" icon="account-cancel-outline" textColor={t.colors.error} style={{ borderColor: t.colors.error, marginTop: space.md }}
+            onPress={unassign}>{editing === 'class-teacher' ? 'Remove class teacher' : 'Remove teacher from this subject'}</Button>
+        ) : null}
       </Sheet>
     </>
   );
@@ -179,6 +221,8 @@ function Setup({ data, onChange }: { data: Base; onChange: () => void }) {
   const [editing, setEditing] = useState<SchoolClass | null>(null);
   const [rename, setRename] = useState('');
   const [confirmDel, setConfirmDel] = useState(false);
+  const [subj, setSubj] = useState<Subject | null>(null);
+  const [exam, setExam] = useState<Exam | null>(null);
 
   function openClass(c: SchoolClass) {
     haptic.tap();
@@ -262,10 +306,11 @@ function Setup({ data, onChange }: { data: Base; onChange: () => void }) {
     <>
       <Block kind="class" title="Classes" icon="google-classroom" index={0} hint={`${data.classes.length} total · tap one to rename or delete`}
         items={data.classes.map((c) => ({ key: String(c.id), label: c.name, onPress: () => openClass(c) }))} />
-      <Block kind="subject" title="Subjects" icon="book-education-outline" index={1}
-        items={data.subjects.map((x) => ({ key: String(x.id), label: x.name }))} />
-      <Block kind="exam" title="Exams" icon="file-document-edit-outline" index={2}
-        items={data.exams.map((e) => ({ key: String(e.id), label: `${e.name} · ${new Date(e.date + 'T00:00:00').toLocaleDateString('en-IN', { day: 'numeric', month: 'short' })}` }))} />
+      <Block kind="subject" title="Subjects" icon="book-education-outline" index={1} hint={`${data.subjects.length} total · tap to edit`}
+        items={data.subjects.map((x) => ({ key: String(x.id), label: x.name, onPress: () => { haptic.tap(); setSubj(x); } }))} />
+      <Block kind="exam" title="Exams" icon="file-document-edit-outline" index={2} hint={`${data.exams.length} total · tap to edit`}
+        items={data.exams.map((e) => ({ key: String(e.id), label: `${e.name} · ${new Date(e.date + 'T00:00:00').toLocaleDateString('en-IN', { day: 'numeric', month: 'short' })}`,
+          onPress: () => { haptic.tap(); setExam(e); } }))} />
       <Sheet visible={!!sheet} onDismiss={() => setSheet(null)} title={sheet === 'class' ? 'New class' : sheet === 'subject' ? 'New subject' : 'New exam'}>
         <TextInput mode="outlined" autoFocus label={sheet === 'class' ? 'Class name (e.g. 10-B)' : sheet === 'subject' ? 'Subject (e.g. Computer Science)' : 'Exam name (e.g. Unit Test 2)'}
           value={name} onChangeText={setName} style={{ marginBottom: space.md }} />
@@ -310,6 +355,136 @@ function Setup({ data, onChange }: { data: Base; onChange: () => void }) {
           </Dialog.Actions>
         </Dialog>
       </Portal>
+      <SubjectEditor subject={subj} onClose={() => setSubj(null)} onChange={onChange} />
+      <ExamEditor exam={exam} onClose={() => setExam(null)} onChange={onChange} />
+    </>
+  );
+}
+
+function ConfirmDelete({ visible, title, text, onCancel, onConfirm }: {
+  visible: boolean; title: string; text: string; onCancel: () => void; onConfirm: () => void;
+}) {
+  const t = useAppTheme();
+  return (
+    <Portal>
+      <Dialog visible={visible} onDismiss={onCancel}>
+        <Dialog.Icon icon="delete-alert-outline" />
+        <Dialog.Title style={{ textAlign: 'center' }}>{title}</Dialog.Title>
+        <Dialog.Content><Text variant="bodyMedium">{text}</Text></Dialog.Content>
+        <Dialog.Actions>
+          <Button onPress={onCancel}>Cancel</Button>
+          <Button textColor={t.colors.error} onPress={onConfirm}>Delete</Button>
+        </Dialog.Actions>
+      </Dialog>
+    </Portal>
+  );
+}
+
+function plural(n: number, w: string) {
+  return `${n} ${w}${n === 1 ? '' : 's'}`;
+}
+
+function SubjectEditor({ subject, onClose, onChange }: { subject: Subject | null; onClose: () => void; onChange: () => void }) {
+  const t = useAppTheme();
+  const toast = useToast();
+  const [name, setName] = useState('');
+  const [usage, setUsage] = useState<Usage | null>(null);
+  const [confirm, setConfirm] = useState(false);
+  const [busy, setBusy] = useState(false);
+
+  useEffect(() => {
+    if (!subject) return;
+    setName(subject.name);
+    setUsage(null);
+    api<Usage>(`/subjects/${subject.id}/usage`).then(setUsage).catch(() => {});
+  }, [subject]);
+
+  async function run(fn: () => Promise<unknown>, msg: string) {
+    setBusy(true);
+    try {
+      await fn();
+      toast(msg);
+      onClose();
+      onChange();
+    } catch (e) {
+      toast((e as Error).message, { error: true });
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  const impact = usage ? [plural(usage.assignments, 'teacher assignment'), plural(usage.timetable, 'timetable period'), plural(usage.marks, 'mark')].join(', ') : '…';
+  return (
+    <>
+      <Sheet visible={!!subject} onDismiss={onClose} title={subject ? subject.name : ''}>
+        <TextInput mode="outlined" label="Subject name" value={name} onChangeText={setName} style={{ marginBottom: space.md }} />
+        <Button mode="contained" icon="content-save-outline" loading={busy} disabled={!name.trim() || name.trim() === subject?.name}
+          onPress={() => subject && run(() => api(`/subjects/${subject.id}`, { method: 'PUT', body: { name: name.trim() } }), 'Subject renamed')}
+          contentStyle={{ paddingVertical: 6 }}>Save name</Button>
+        <View style={{ height: 1, backgroundColor: t.colors.outlineVariant, marginVertical: space.lg }} />
+        <Text variant="bodySmall" style={{ color: t.colors.onSurfaceVariant, marginBottom: space.sm }}>Used in: {impact}</Text>
+        <Button mode="outlined" icon="delete-outline" textColor={t.colors.error} style={{ borderColor: t.colors.error }} disabled={busy}
+          onPress={() => setConfirm(true)}>Delete subject</Button>
+      </Sheet>
+      <ConfirmDelete visible={confirm} title={`Delete ${subject?.name}?`}
+        text={`This also deletes ${impact} for this subject across all classes. Homework posts stay, without a subject tag. This can't be undone.`}
+        onCancel={() => setConfirm(false)}
+        onConfirm={() => { setConfirm(false); if (subject) run(() => api(`/subjects/${subject.id}`, { method: 'DELETE' }), `${subject.name} deleted`); }} />
+    </>
+  );
+}
+
+function ExamEditor({ exam, onClose, onChange }: { exam: Exam | null; onClose: () => void; onChange: () => void }) {
+  const t = useAppTheme();
+  const toast = useToast();
+  const [name, setName] = useState('');
+  const [date, setDate] = useState('');
+  const [max, setMax] = useState('');
+  const [confirm, setConfirm] = useState(false);
+  const [busy, setBusy] = useState(false);
+
+  useEffect(() => {
+    if (exam) { setName(exam.name); setDate(exam.date); setMax(String(exam.max_marks)); }
+  }, [exam]);
+
+  const dateOk = /^\d{4}-\d{2}-\d{2}$/.test(date);
+  const valid = name.trim() && dateOk && Number(max) > 0;
+
+  async function run(fn: () => Promise<unknown>, msg: string) {
+    setBusy(true);
+    try {
+      await fn();
+      toast(msg);
+      onClose();
+      onChange();
+    } catch (e) {
+      toast((e as Error).message, { error: true });
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  const marks = exam?.mark_count ?? 0;
+  return (
+    <>
+      <Sheet visible={!!exam} onDismiss={onClose} title={exam ? `Edit ${exam.name}` : ''}>
+        <TextInput mode="outlined" label="Exam name" value={name} onChangeText={setName} style={{ marginBottom: space.md }} />
+        <View style={{ flexDirection: 'row', gap: space.sm }}>
+          <TextInput mode="outlined" label="Date (YYYY-MM-DD)" value={date} onChangeText={setDate} style={{ flex: 2 }} left={<TextInput.Icon icon="calendar" />} error={!dateOk} />
+          <TextInput mode="outlined" label="Max marks" value={max} onChangeText={(v) => setMax(v.replace(/[^0-9.]/g, ''))} keyboardType="decimal-pad" style={{ flex: 1 }} />
+        </View>
+        <Text variant="bodySmall" style={{ color: t.colors.onSurfaceVariant, marginVertical: space.sm }}>{plural(marks, 'mark')} entered for this exam</Text>
+        <Button mode="contained" icon="content-save-outline" loading={busy} disabled={!valid}
+          onPress={() => exam && run(() => api(`/exams/${exam.id}`, { method: 'PUT', body: { name: name.trim(), date, max_marks: Number(max) } }), 'Exam updated')}
+          contentStyle={{ paddingVertical: 6 }}>Save changes</Button>
+        <View style={{ height: 1, backgroundColor: t.colors.outlineVariant, marginVertical: space.lg }} />
+        <Button mode="outlined" icon="delete-outline" textColor={t.colors.error} style={{ borderColor: t.colors.error }} disabled={busy}
+          onPress={() => setConfirm(true)}>Delete exam</Button>
+      </Sheet>
+      <ConfirmDelete visible={confirm} title={`Delete ${exam?.name}?`}
+        text={marks ? `All ${plural(marks, 'mark')} entered for this exam will be deleted from every report card. This can't be undone.` : 'No marks have been entered for this exam yet.'}
+        onCancel={() => setConfirm(false)}
+        onConfirm={() => { setConfirm(false); if (exam) run(() => api(`/exams/${exam.id}`, { method: 'DELETE' }), `${exam.name} deleted`); }} />
     </>
   );
 }
