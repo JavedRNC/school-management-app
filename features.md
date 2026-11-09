@@ -30,7 +30,7 @@ _Last updated: 9 Nov 2026 — **Phase 2 built** (banners, leaves, consent forms 
 | F10 | **Monthly fees**, fee receipts & ledger | ✅ Done (Phase 3) | L | 3 |
 | F14 | **Roll out extra fees** (activity/exam/maintenance) to school, classes or students | ✅ Done (Phase 3) | M | 3 |
 | F11 | Fee submission (payments) | ✅ A + B done · C (gateway) later | L | 3–4 |
-| F17 | **APK builds via GitHub Actions** | 📝 | S | any time |
+| F17 | **APK builds via GitHub Actions** | ✅ Done (debug-key signed APK; Play Store signing later) | S | any time |
 | F24 | **Roles: Vice Principal / Coordinator** (limited powers) | ✅ Done | M | 1 |
 | F25 | **Privacy & data access** (Admin sees only allowed data) | ✅ Done | M | 1 |
 | F26 | **School subscriptions** (modular plans, free/sponsored schools, manual config) | ✅ Done (billing via Admin; online payment later) | L | 1–2 |
@@ -246,7 +246,8 @@ Admin controls which app versions are allowed.
 
 ---
 
-### F17 · APK builds via GitHub Actions 📝 `S`
+### F17 · APK builds via GitHub Actions ✅ `S`
+> Built: `.github/workflows/android-apk.yml` → expo prebuild + gradle assembleRelease (arm only) on every push to main touching mobile/ → APK on the `latest-apk` GitHub release. Signed with the template debug key (same key every build, so updates install over the old app). For Play Store: add a release keystore as GitHub secrets + build an .aab.
 - A GitHub workflow builds a real, installable **Android APK** in the cloud — no computer and no Expo account needed.
 - Runs automatically on every push to `main` (or on demand with a button in GitHub → Actions).
 - Download the APK from the run's artifacts or a **GitHub Release** link, and install it on any Android phone.

@@ -61,6 +61,9 @@ Multi-school with school code login (no email/OTP; principal issues temp passwor
 - routers/fees.py (module fees, area fees: VP view, coord none): config, generate (idempotent; lazy ensure_current bills this month once), batches (preview/create/withdraw voids unpaid), students (?status), students/{id} ledger, items (add/concession), payments (record/list/cancel), receipts/{id} (staff or own parent/student), me + me/claim (UPI UTR), claims (+confirm/reject), summary. amount_in_words (Indian). Schema v4 additive. seed_fees_demo() idempotent (₹1500, 9-A ₹1800, routes ₹600/₹800, UPI greenvalley@sbi, prefix GVPS, 3 months, defaulters, 1 pending claim, Annual day ₹300). Tests: tests/test_fees.py (7) → 28 total.
 - App: lib/fees.ts (inr, upiLink…), types Fee*; more/fees/{index,students,student/[id],claims,payments,setup,extra,receipt/[id],my}; components/fees/* (receiptHtml via expo-print + expo-sharing, PaySheet with react-native-qrcode-svg, FeeDueCard, FeeSummaryCard). New deps → phone `npm install` once.
 
+## Android APK (F17)
+- .github/workflows/android-apk.yml: push to main (mobile/**) or manual → APK at github.com/JavedRNC/school-management-app/releases/tag/latest-apk (SchoolHub.apk). versionCode = run number. apiUrl baked from app.json. Debug-key signed (fine for sideload; Play Store needs real keystore secrets).
+
 ## Status / to-do
 - [ ] Javed: reset Neon password (was shared in chat) and update DATABASE_URL on Render.
 - [ ] Before real use: SEED_DEMO=0, fresh accounts.
