@@ -116,3 +116,17 @@ def test_principal_setup(client):
     assert clash.status_code == 409
     n = client.post("/posts", json={"kind": "notice", "title": "Holiday", "body": "School closed"}, headers=h)
     assert n.status_code == 200 and n.json()["class_id"] is None
+
+
+def test_delete_class(client):
+    h = login(client, "principal@school.com")
+    full = client.get("/classes", headers=h).json()[0]
+    r = client.delete(f"/classes/{full['id']}", headers=h)
+    assert r.status_code == 409 and "student" in r.json()["detail"]
+    c = client.post("/classes", json={"name": "Temp-Z"}, headers=h).json()
+    client.post("/posts", json={"kind": "notice", "title": "x", "class_id": c["id"]}, headers=h)
+    t = login(client, "anita@school.com")
+    assert client.delete(f"/classes/{c['id']}", headers=t).status_code == 403
+    assert client.delete(f"/classes/{c['id']}", headers=h).status_code == 200
+    assert all(x["id"] != c["id"] for x in client.get("/classes", headers=h).json())
+    assert client.delete(f"/classes/{c['id']}", headers=h).status_code == 404

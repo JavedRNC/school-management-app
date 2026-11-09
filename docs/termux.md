@@ -26,7 +26,7 @@ An iPhone on the same Wi-Fi can open `exp://<android-wifi-ip>:8081` (find the IP
 
 **Session 2** (swipe from left edge in Termux → New session) — auto-pull Claude's changes:
 ```bash
-cd ~/school-management-app && while true; do git pull -q --ff-only; sleep 20; done
+cd ~/school-management-app && while true; do git fetch -q && git reset -q --hard origin/main; sleep 20; done
 ```
 If `package.json` changes, stop session 1 (Ctrl+C), run `npm install`, start again.
 

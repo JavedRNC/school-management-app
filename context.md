@@ -16,7 +16,7 @@ Repo: JavedRNC/school-management-app (branch main; Claude has push access)
 - Keep deps Expo-Go compatible (no custom native modules)
 
 ## Dev flow (no PC — phones only)
-Claude codes in cloud → push GitHub → Android Termux pull loop → `npx expo start --offline` → Expo Go. Guide: docs/termux.md
+Claude codes in cloud → push GitHub (Render auto-deploys API) → Android Termux pull loop (`git fetch && git reset --hard origin/main`; Expo rewrites tsconfig locally so plain pull can conflict) → `npx expo start --offline` → Expo Go. Guide: docs/termux.md
 
 ## UI v0.2 (Material 3 redesign, Javed chose deep blue + amber)
 - Theme: src/lib/theme.ts (light+dark auto, `custom` semantic colours, pctTone/toneColors/gradeOf). Feedback: src/lib/feedback.tsx (haptics + Snackbar toast w/ Undo)
@@ -34,6 +34,9 @@ Claude codes in cloud → push GitHub → Android Termux pull loop → `npx expo
 ## Live
 - API: https://school-api-7y80.onrender.com (Render free, Ohio; manual Web Service, not Blueprint — Blueprint asked for payment). DB: Neon us-east-2. App default apiUrl set in mobile/app.json
 - Claude's sandbox can't reach onrender.com (allowlist) → Javed verifies live endpoints
+
+## Changes log
+- 2026-11-09: DELETE /classes/{id} (409 if active students; cascades timetable/assignments/attendance/class posts). Setup tab: tap class chip → rename/delete sheet + confirm dialog
 
 ## Status
 - [x] Pushed to GitHub main (2026-11-08)

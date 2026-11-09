@@ -1,13 +1,13 @@
 """School setup: classes, subjects, users, assignments, timetable, exams."""
 from fastapi import APIRouter, Depends, HTTPException
-from sqlalchemy import func, select
+from sqlalchemy import delete, func, select, update
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
 from ..auth import current_user, hash_password, principal_only
 from ..db import get_db
 from ..deps import class_students, name_maps, teacher_class_ids
-from ..models import Assignment, Exam, Role, SchoolClass, Subject, TimetableEntry, User
+from ..models import Assignment, Attendance, Exam, Post, Role, SchoolClass, Subject, TimetableEntry, User
 from ..schemas import (
     AssignmentIn, AssignmentOut, ClassIn, ClassOut, ExamIn, ExamOut, NameIn, SubjectOut,
     TimetableIn, TimetableOut, UserCreate, UserOut, UserUpdate,
@@ -55,6 +55,23 @@ def update_class(class_id: int, body: ClassIn, db: Session = Depends(get_db)):
     c.name, c.class_teacher_id = body.name.strip(), body.class_teacher_id
     _commit(db, "Class name already exists")
     return ClassOut(id=c.id, name=c.name, class_teacher_id=c.class_teacher_id)
+
+
+@router.delete("/classes/{class_id}", dependencies=[Depends(principal_only)])
+def delete_class(class_id: int, db: Session = Depends(get_db)):
+    """Delete an empty class with its timetable, subject teachers, attendance and class posts.
+    Refuses while active students are still enrolled (move or remove them first)."""
+    c = db.get(SchoolClass, class_id) or _404("Class")
+    n = len(class_students(db, class_id))
+    if n:
+        raise HTTPException(409, f"Class {c.name} still has {n} student{'s' if n != 1 else ''}. "
+                                 "Move them to another class or remove them first.")
+    for model in (TimetableEntry, Assignment, Attendance, Post):
+        db.execute(delete(model).where(model.class_id == class_id))
+    db.execute(update(User).where(User.class_id == class_id).values(class_id=None))  # removed students
+    db.delete(c)
+    db.commit()
+    return {"ok": True}
 
 
 @router.get("/classes/{class_id}/students", response_model=list[UserOut])

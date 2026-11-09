@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { View } from 'react-native';
-import { Button, SegmentedButtons, Text, TextInput } from 'react-native-paper';
+import { Button, Dialog, Portal, SegmentedButtons, Text, TextInput, TouchableRipple } from 'react-native-paper';
 
 import { subjectIcon, TimetableView } from '@/components/TimetableView';
 import {
@@ -176,6 +176,46 @@ function Setup({ data, onChange }: { data: Base; onChange: () => void }) {
   const [examDate, setExamDate] = useState(new Date().toISOString().slice(0, 10));
   const [max, setMax] = useState('100');
   const [busy, setBusy] = useState(false);
+  const [editing, setEditing] = useState<SchoolClass | null>(null);
+  const [rename, setRename] = useState('');
+  const [confirmDel, setConfirmDel] = useState(false);
+
+  function openClass(c: SchoolClass) {
+    haptic.tap();
+    setRename(c.name);
+    setEditing(c);
+  }
+
+  async function saveRename() {
+    if (!editing || !rename.trim()) return haptic.error();
+    setBusy(true);
+    try {
+      await api(`/classes/${editing.id}`, { method: 'PUT', body: { name: rename.trim(), class_teacher_id: editing.class_teacher_id } });
+      toast(`Renamed to ${rename.trim()}`);
+      setEditing(null);
+      onChange();
+    } catch (e) {
+      toast((e as Error).message, { error: true });
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function deleteClass() {
+    if (!editing) return;
+    setConfirmDel(false);
+    setBusy(true);
+    try {
+      await api(`/classes/${editing.id}`, { method: 'DELETE' });
+      toast(`Class ${editing.name} deleted`);
+      setEditing(null);
+      onChange();
+    } catch (e) {
+      toast((e as Error).message, { error: true });
+    } finally {
+      setBusy(false);
+    }
+  }
 
   async function save() {
     if (!name.trim()) return haptic.error();
@@ -198,15 +238,20 @@ function Setup({ data, onChange }: { data: Base; onChange: () => void }) {
     }
   }
 
-  const Block = ({ kind, title, icon, items, index }: { kind: 'class' | 'subject' | 'exam'; title: string; icon: IconName; items: string[]; index: number }) => (
+  type Item = { key: string; label: string; onPress?: () => void };
+  const Block = ({ kind, title, icon, items, index, hint }: { kind: 'class' | 'subject' | 'exam'; title: string; icon: IconName; items: Item[]; index: number; hint?: string }) => (
     <FadeIn index={index}>
-      <Panel title={title} subtitle={`${items.length} total`} icon={icon}
+      <Panel title={title} subtitle={hint ?? `${items.length} total`} icon={icon}
         right={<Button mode="contained-tonal" compact icon="plus" onPress={() => { haptic.tap(); setName(''); setSheet(kind); }}>Add</Button>}>
         <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 6 }}>
           {items.length ? items.map((x) => (
-            <View key={x} style={{ backgroundColor: t.colors.surfaceVariant, borderRadius: radius.pill, paddingHorizontal: 12, paddingVertical: 5 }}>
-              <Text variant="labelLarge" style={{ color: t.colors.onSurfaceVariant }}>{x}</Text>
-            </View>
+            <TouchableRipple key={x.key} disabled={!x.onPress} onPress={x.onPress} borderless style={{ borderRadius: radius.pill }}>
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4, backgroundColor: x.onPress ? t.colors.primaryContainer : t.colors.surfaceVariant,
+                borderRadius: radius.pill, paddingHorizontal: 12, paddingVertical: 6 }}>
+                <Text variant="labelLarge" style={{ color: x.onPress ? t.colors.onPrimaryContainer : t.colors.onSurfaceVariant }}>{x.label}</Text>
+                {x.onPress ? <Icon name="pencil-outline" size={14} color={t.colors.onPrimaryContainer} /> : null}
+              </View>
+            </TouchableRipple>
           )) : <Text variant="bodyMedium" style={{ color: t.colors.onSurfaceVariant }}>None yet</Text>}
         </View>
       </Panel>
@@ -215,10 +260,12 @@ function Setup({ data, onChange }: { data: Base; onChange: () => void }) {
 
   return (
     <>
-      <Block kind="class" title="Classes" icon="google-classroom" items={data.classes.map((c) => c.name)} index={0} />
-      <Block kind="subject" title="Subjects" icon="book-education-outline" items={data.subjects.map((s) => s.name)} index={1} />
+      <Block kind="class" title="Classes" icon="google-classroom" index={0} hint={`${data.classes.length} total · tap one to rename or delete`}
+        items={data.classes.map((c) => ({ key: String(c.id), label: c.name, onPress: () => openClass(c) }))} />
+      <Block kind="subject" title="Subjects" icon="book-education-outline" index={1}
+        items={data.subjects.map((x) => ({ key: String(x.id), label: x.name }))} />
       <Block kind="exam" title="Exams" icon="file-document-edit-outline" index={2}
-        items={data.exams.map((e) => `${e.name} · ${new Date(e.date + 'T00:00:00').toLocaleDateString('en-IN', { day: 'numeric', month: 'short' })}`)} />
+        items={data.exams.map((e) => ({ key: String(e.id), label: `${e.name} · ${new Date(e.date + 'T00:00:00').toLocaleDateString('en-IN', { day: 'numeric', month: 'short' })}` }))} />
       <Sheet visible={!!sheet} onDismiss={() => setSheet(null)} title={sheet === 'class' ? 'New class' : sheet === 'subject' ? 'New subject' : 'New exam'}>
         <TextInput mode="outlined" autoFocus label={sheet === 'class' ? 'Class name (e.g. 10-B)' : sheet === 'subject' ? 'Subject (e.g. Computer Science)' : 'Exam name (e.g. Unit Test 2)'}
           value={name} onChangeText={setName} style={{ marginBottom: space.md }} />
@@ -230,6 +277,39 @@ function Setup({ data, onChange }: { data: Base; onChange: () => void }) {
         ) : null}
         <Button mode="contained" icon="check" onPress={save} loading={busy} contentStyle={{ paddingVertical: 6 }}>Save</Button>
       </Sheet>
+
+      <Sheet visible={!!editing} onDismiss={() => setEditing(null)} title={editing ? `Class ${editing.name}` : ''}>
+        {editing ? (
+          <View>
+            <Text variant="bodyMedium" style={{ color: t.colors.onSurfaceVariant, marginBottom: space.md }}>
+              {editing.student_count} student{editing.student_count === 1 ? '' : 's'} enrolled
+            </Text>
+            <TextInput mode="outlined" label="Class name" value={rename} onChangeText={setRename} style={{ marginBottom: space.md }} />
+            <Button mode="contained" icon="content-save-outline" onPress={saveRename} loading={busy} disabled={rename.trim() === editing.name}
+              contentStyle={{ paddingVertical: 6 }}>Save name</Button>
+            <View style={{ height: 1, backgroundColor: t.colors.outlineVariant, marginVertical: space.lg }} />
+            {editing.student_count > 0 ? (
+              <Panel tone="warning" icon="account-alert-outline" title="Can't delete yet"
+                subtitle={`Move or remove its ${editing.student_count} student${editing.student_count === 1 ? '' : 's'} first (People tab).`} />
+            ) : null}
+            <Button mode="outlined" icon="delete-outline" textColor={t.colors.error} style={{ borderColor: t.colors.error }}
+              disabled={busy || editing.student_count > 0} onPress={() => setConfirmDel(true)}>Delete class</Button>
+          </View>
+        ) : null}
+      </Sheet>
+      <Portal>
+        <Dialog visible={confirmDel} onDismiss={() => setConfirmDel(false)}>
+          <Dialog.Icon icon="delete-alert-outline" />
+          <Dialog.Title style={{ textAlign: 'center' }}>Delete class {editing?.name}?</Dialog.Title>
+          <Dialog.Content>
+            <Text variant="bodyMedium">Its timetable, subject teachers, attendance records and class posts will also be deleted. This can't be undone.</Text>
+          </Dialog.Content>
+          <Dialog.Actions>
+            <Button onPress={() => setConfirmDel(false)}>Cancel</Button>
+            <Button textColor={t.colors.error} onPress={deleteClass}>Delete</Button>
+          </Dialog.Actions>
+        </Dialog>
+      </Portal>
     </>
   );
 }
