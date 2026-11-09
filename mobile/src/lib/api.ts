@@ -87,7 +87,7 @@ export async function api<T = unknown>(
       body: opts.body ? JSON.stringify(opts.body) : undefined,
     });
   } catch {
-    throw new ApiError(0, `Can't reach the server at ${baseUrl}. Check the server address and your internet.`);
+    throw new ApiError(0, `Can't reach the server at ${baseUrl}. If you haven't used the app for a while the free server may be waking up — wait a minute and try again. Also check your internet.`);
   }
   const text = await res.text();
   let data: unknown = null;

@@ -1,3 +1,4 @@
+import logging
 import os
 from contextlib import asynccontextmanager
 
@@ -15,13 +16,14 @@ async def lifespan(_app: FastAPI):
 
     ensure_platform()  # plans + super admin account
     if os.getenv("SEED_DEMO", "1") == "1":
-        seed_demo_if_empty()
-        from .seed import seed_phase2_demo
+        # demo data must never stop the server from starting
+        from . import seed
 
-        seed_phase2_demo()
-        from .seed import seed_fees_demo
-
-        seed_fees_demo()
+        for fn in (seed.seed_demo_if_empty, seed.seed_phase2_demo, seed.seed_fees_demo):
+            try:
+                fn()
+            except Exception:  # noqa: BLE001
+                logging.getLogger("seed").exception("%s failed — skipped", fn.__name__)
     yield
 
 

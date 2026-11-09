@@ -292,7 +292,9 @@ def seed_fees_demo() -> bool:
             return False
         t0 = today()
         users = {u.login_id: u for u in db.scalars(select(User).where(User.school_id == s.id))}
-        principal = users["principal"]
+        principal = users.get("principal") or next((u for u in users.values() if u.role == Role.principal), None)
+        if not principal:
+            return False
         students = sorted([u for u in users.values() if u.role == Role.student], key=lambda u: u.login_id)
         c9a = db.scalar(select(SchoolClass.id).where(SchoolClass.school_id == s.id, SchoolClass.name == "9-A"))
         routes = list(db.scalars(select(Route.id).where(Route.school_id == s.id).order_by(Route.id)))
