@@ -22,7 +22,7 @@ export function BannerCarousel({ style }: { style?: ViewStyle }) {
   const [open, setOpen] = useState<Banner | null>(null);
   const [popup, setPopup] = useState<Banner | null>(null);
   const [queue, setQueue] = useState<Banner[]>([]);
-  const scroll = useRef<ScrollView>(null);
+  const scroll = useRef<{ scrollTo: (o: { x: number; animated?: boolean }) => void } | null>(null);
   const x = useRef(new Animated.Value(0)).current;
   const paused = useRef(false);
 
@@ -78,7 +78,7 @@ export function BannerCarousel({ style }: { style?: ViewStyle }) {
   return (
     <View style={style} onLayout={onLayout}>
       {width ? (
-        <ScrollView ref={scroll} horizontal pagingEnabled showsHorizontalScrollIndicator={false} decelerationRate="fast"
+        <ScrollView ref={scroll as never} horizontal pagingEnabled showsHorizontalScrollIndicator={false} decelerationRate="fast"
           onScrollBeginDrag={() => { paused.current = true; }} onMomentumScrollEnd={onEnd} scrollEventThrottle={16}
           onScroll={Animated.event([{ nativeEvent: { contentOffset: { x } } }], { useNativeDriver: false })}>
           {items.map((b) => (
