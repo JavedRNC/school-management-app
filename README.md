@@ -1,27 +1,37 @@
-# School Hub — School Management App
+# School Hub — School Management Platform
 
-Android app (React Native / Expo) + Python API (FastAPI) for **Principal, Teachers and Students**.
+One Android app (React Native / Expo) + Python API (FastAPI) for **many schools**. Each school signs in with its own **school code**; the platform owner manages everything as **Super Admin**.
 
 | Role | Can do |
 |---|---|
-| Principal | Analytics dashboard, add teachers/students, classes & subjects, assign subject teachers, edit timetable, create exams, school-wide notices |
-| Teacher | Today's timetable, mark attendance (class or subject classes), enter exam marks, post homework & class notices |
-| Student | Attendance % and recent days, report card per exam, timetable, homework, notices |
-
-**Principal dashboard:** students/teachers/classes counts, today's attendance (overall + by class, unmarked classes), 30-day attendance trend, students below 75%, average by class and subject, pass rate, top/bottom 5, and an at-risk list (low attendance or low marks).
+| Super Admin | Add schools & principals, plans and modules, subscriptions (free/sponsored, trials, payments), manage any school's people (contact details masked unless the school shares them), audit log |
+| Principal | Insights dashboard, people (students, teachers, parents, staff roles), classes, subjects, timetable, exams, notices, school calendar, working days, archive, privacy & audit, plan |
+| Vice Principal / Coordinator | Principal screens limited by permission areas (coordinators can be limited to some classes) |
+| Teacher | Today's timetable, attendance (class teacher: required; others: optional), marks, homework & notices |
+| Student | Attendance, report cards, timetable, homework, notices, calendar |
+| Parent | Same as student for each linked child (child switcher), privacy consent on first login |
 
 ## Project layout
 ```
-backend/   FastAPI + SQLAlchemy (SQLite locally, Postgres in prod), JWT auth
-mobile/    Expo SDK 58, Expo Router (src/app), TypeScript
-render.yaml  one-click deploy of the API on Render
+backend/     FastAPI + SQLAlchemy (SQLite locally, Postgres in prod), JWT auth, bcrypt passwords
+mobile/      Expo SDK 58, Expo Router (src/app), TypeScript, React Native Paper (Material 3)
+render.yaml  deploy config for the API on Render
+features.md  feature backlog & decisions
 context.md   compact project state for resuming work
 ```
 
-## Demo accounts (password `demo123`)
-`principal@school.com` · teachers `anita@`, `rakesh@`, `sunita@`, `imran@`, `priya@school.com` · students e.g. `aarav@school.com`, `diya@school.com`
+## Demo logins
+| Who | School code | Login ID | Password |
+|---|---|---|---|
+| Principal | `DEMO01` | `principal` | `demo123` |
+| Vice Principal / Coordinator | `DEMO01` | `vp` / `coord` | `demo123` |
+| Teacher | `DEMO01` | `T001` … `T005` | `demo123` |
+| Student | `DEMO01` | `2026001` … `2026024` | `demo123` |
+| Parent (2 children) | `DEMO01` | `9876500001` | `demo123` |
+| Second school (Sun–Thu week) | `DEMO02` | `principal`, `T001`, `S001` | `demo123` |
+| Super Admin | `ADMIN` | `admin` | `admin123` → must be changed at first login (or set `ADMIN_PASSWORD`) |
 
-Demo data (3 classes, 24 students, 30 days of attendance, 2 exams) loads automatically on an empty database. Set `SEED_DEMO=0` to start empty.
+Demo data loads automatically on an empty database. Set `SEED_DEMO=0` to start empty (only the Super Admin is created).
 
 ## Run the API
 ```bash
@@ -31,7 +41,7 @@ pip install -r requirements.txt
 uvicorn app.main:app --reload --host 0.0.0.0 --port 8000   # docs at /docs
 pytest -q                                                   # tests
 ```
-Env vars: `DATABASE_URL` (default SQLite), `JWT_SECRET`, `SCHOOL_TZ` (default Asia/Kolkata), `SEED_DEMO`.
+Env vars: `DATABASE_URL` (default SQLite), `JWT_SECRET` (long random text), `SCHOOL_TZ` (default Asia/Kolkata), `SEED_DEMO`, `ADMIN_LOGIN_ID` / `ADMIN_PASSWORD` (Super Admin bootstrap), `ALLOW_SCHEMA_RESET` (default 1; resets only the old single-school demo schema).
 
 ## Deploy (free): Neon database + Render API
 Everything below works from a phone browser.

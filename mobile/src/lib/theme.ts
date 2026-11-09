@@ -97,7 +97,15 @@ export function useSchemeTheme(): AppTheme {
 
 export const space = { xs: 4, sm: 8, md: 12, lg: 16, xl: 24, xxl: 32 };
 export const radius = { sm: 8, md: 12, lg: 16, xl: 24, xxl: 28, pill: 999 };
-export const DAYS = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+export const DAYS = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun']; // index 0=Mon … 6=Sun
+export const DAY_NAMES = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
+
+/** JS Date → our weekday index (0=Mon … 6=Sun). */
+export const weekdayIdx = (d: Date) => (d.getDay() + 6) % 7;
+
+export function isoDate(d: Date) {
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+}
 
 export type Tone = 'success' | 'warning' | 'danger' | 'neutral' | 'primary';
 

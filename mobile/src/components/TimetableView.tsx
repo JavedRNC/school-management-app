@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { View } from 'react-native';
 import { Text, TouchableRipple } from 'react-native-paper';
 
+import { useAuth } from '@/lib/auth';
 import { haptic } from '@/lib/feedback';
 import { DAYS, radius, space, useAppTheme } from '@/lib/theme';
 import type { Slot } from '@/lib/types';
@@ -23,12 +24,22 @@ export function subjectIcon(name: string) {
 const TONES = ['primaryContainer', 'secondaryContainer', 'tertiaryContainer'] as const;
 
 /** Day switcher + period cards. `show` decides the second line. */
+/** Order working days so a Sunday-start week (Sun–Thu) shows Sunday first. */
+function orderWeek(days: number[]): number[] {
+  const set = [...new Set(days)].sort((a, b) => a - b);
+  if (set.includes(6) && !set.includes(5) && set.includes(0)) return [6, ...set.filter((d) => d !== 6)];
+  return set;
+}
+
 export function TimetableView({ slots, show, onSlotPress, periods = 5 }: {
   slots: Slot[]; show: 'teacher' | 'class'; onSlotPress?: (day: number, period: number, slot?: Slot) => void; periods?: number;
 }) {
   const t = useAppTheme();
+  const { school } = useAuth();
   const todayIdx = (new Date().getDay() + 6) % 7;
-  const [day, setDay] = useState(todayIdx > 5 ? 0 : todayIdx);
+  // School's working days in week order starting from its first day (e.g. Sun–Thu → [6,0,1,2,3])
+  const working = orderWeek(school?.working_days?.length ? school.working_days : [0, 1, 2, 3, 4, 5]);
+  const [day, setDay] = useState(working.includes(todayIdx) ? todayIdx : working[0]);
   const byPeriod = new Map(slots.filter((s) => s.day === day).map((s) => [s.period, s]));
   const maxP = Math.max(periods, ...slots.map((s) => s.period));
   const now = new Date();
@@ -38,7 +49,8 @@ export function TimetableView({ slots, show, onSlotPress, periods = 5 }: {
   return (
     <View>
       <View style={{ flexDirection: 'row', gap: 6, marginBottom: space.md }}>
-        {DAYS.map((d, i) => {
+        {working.map((i) => {
+          const d = DAYS[i];
           const on = i === day;
           const count = slots.filter((s) => s.day === i).length;
           return (
