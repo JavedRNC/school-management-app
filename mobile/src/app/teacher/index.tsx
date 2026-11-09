@@ -2,6 +2,7 @@ import { router } from 'expo-router';
 import { View } from 'react-native';
 import { Button, Text } from 'react-native-paper';
 
+import { StatusBanner } from '@/components/StatusBanner';
 import { subjectIcon, TimetableView } from '@/components/TimetableView';
 import { ErrorState, FadeIn, Hero, Icon, LoadingCards, Panel, PressScale, Screen, SectionTitle, UserAvatar } from '@/components/ui';
 import { api } from '@/lib/api';
@@ -12,7 +13,7 @@ import { useLoad } from '@/lib/useLoad';
 
 export default function TeacherHome() {
   const t = useAppTheme();
-  const { user } = useAuth();
+  const { user, school } = useAuth();
   const { data, error, reload, refresh, refreshing } = useLoad(async () => {
     const [slots, classes, assignments] = await Promise.all([api<Slot[]>('/timetable'), api<SchoolClass[]>('/classes'), api<Assignment[]>('/assignments')]);
     return { slots, classes, assignments };
@@ -25,7 +26,8 @@ export default function TeacherHome() {
     <Screen onRefresh={refresh} refreshing={refreshing}
       header={
         <Hero eyebrow={greeting()} title={user?.name.split(' ')[0] ?? ''}
-          subtitle={data ? (todayIdx > 5 ? 'No classes today — enjoy Sunday!' : `You have ${todayCount} period${todayCount === 1 ? '' : 's'} today`) : ' '}
+          subtitle={!data ? ' ' : school && !school.today_is_school_day ? `No school today${school.closed_reason ? ` · ${school.closed_reason}` : ''} 🎉`
+            : `You have ${todayCount} period${todayCount === 1 ? '' : 's'} today`}
           right={user ? <UserAvatar name={user.name} light size={48} /> : null}>
           {myClass ? (
             <FadeIn>
@@ -45,9 +47,23 @@ export default function TeacherHome() {
           ) : <View style={{ height: 40 }} />}
         </Hero>
       }>
+      <View style={{ height: space.lg }} />
+      <StatusBanner closed />
       {error ? <ErrorState message={error} onRetry={reload} /> : null}
-      {!data ? <View style={{ marginTop: space.lg }}><LoadingCards /></View> : (
+      {!data ? <LoadingCards /> : (
         <>
+          <FadeIn>
+            <PressScale onPress={() => router.push('/more/calendar')}>
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: space.md, backgroundColor: t.colors.tertiaryContainer, borderRadius: radius.xl, padding: space.md }}>
+                <Icon name="calendar-month-outline" size={26} color={t.colors.onTertiaryContainer} />
+                <View style={{ flex: 1 }}>
+                  <Text variant="titleSmall" style={{ fontWeight: '800', color: t.colors.onTertiaryContainer }}>School calendar</Text>
+                  <Text variant="bodySmall" style={{ color: t.colors.onTertiaryContainer }}>Holidays, vacations & events</Text>
+                </View>
+                <Icon name="chevron-right" size={20} color={t.colors.onTertiaryContainer} />
+              </View>
+            </PressScale>
+          </FadeIn>
           <SectionTitle title="Quick actions" />
           <FadeIn index={1}>
             <View style={{ flexDirection: 'row', gap: space.sm }}>

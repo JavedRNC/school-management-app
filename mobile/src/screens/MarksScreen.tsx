@@ -6,6 +6,7 @@ import { AnimatedFAB, Text, TextInput } from 'react-native-paper';
 import { subjectIcon } from '@/components/TimetableView';
 import { EmptyState, ErrorState, FilterChips, Hero, LoadingCards, Panel, Screen, ToneChip, UserAvatar } from '@/components/ui';
 import { api } from '@/lib/api';
+import { useAuth, usePerm } from '@/lib/auth';
 import { haptic, useToast } from '@/lib/feedback';
 import { gradeOf, pctTone, radius, space, toneColors, useAppTheme } from '@/lib/theme';
 import type { Assignment, Exam, MarkRow } from '@/lib/types';
@@ -45,6 +46,10 @@ export default function MarksScreen() {
 }
 
 function MarkSheet({ a, exam, pickers }: { a: Assignment; exam: Exam; pickers: ReactNode }) {
+  const { user, school } = useAuth();
+  const examsLevel = usePerm('exams');
+  const manager = !!user && ['principal', 'vice_principal', 'coordinator'].includes(user.role);
+  const canEdit = (!manager || examsLevel === 'edit') && school?.can_write !== false;
   const t = useAppTheme();
   const toast = useToast();
   const { data, error, reload } = useLoad(
@@ -119,7 +124,7 @@ function MarkSheet({ a, exam, pickers }: { a: Assignment; exam: Exam; pickers: R
       <Screen header={header} footerSpace={140}>
         {error ? <ErrorState message={error} onRetry={reload} /> : null}
         {!data ? <LoadingCards count={5} /> : !data.length ? <EmptyState title="No students in this class" /> : (
-          <Panel title={`Out of ${exam.max_marks}`} subtitle="Grade updates as you type" icon="pencil-box-multiple-outline">
+          <Panel title={`Out of ${exam.max_marks}`} subtitle={canEdit ? 'Grade updates as you type' : 'View only'} icon="pencil-box-multiple-outline">
             {data.map((r, i) => {
               const raw = vals[r.student_id] ?? '';
               const n = raw === '' ? null : Number(raw);
@@ -135,7 +140,7 @@ function MarkSheet({ a, exam, pickers }: { a: Assignment; exam: Exam; pickers: R
                     <Text variant="labelSmall" style={{ color: t.colors.onSurfaceVariant }}>Roll {r.roll_no ?? '-'}</Text>
                   </View>
                   {pct != null ? <ToneChip text={gradeOf(pct)} tone={tone} /> : null}
-                  <TextInput mode="outlined" dense value={raw} placeholder="—" keyboardType="decimal-pad" returnKeyType={i < data.length - 1 ? 'next' : 'done'}
+                  <TextInput mode="outlined" dense value={raw} editable={canEdit} placeholder="—" keyboardType="decimal-pad" returnKeyType={i < data.length - 1 ? 'next' : 'done'}
                     ref={(el: unknown) => { refs.current[r.student_id] = el as { focus: () => void } | null; }}
                     onSubmitEditing={() => refs.current[data[i + 1]?.student_id]?.focus()}
                     blurOnSubmit={i === data.length - 1}
@@ -147,7 +152,7 @@ function MarkSheet({ a, exam, pickers }: { a: Assignment; exam: Exam; pickers: R
           </Panel>
         )}
       </Screen>
-      {data?.length && dirty ? (
+      {data?.length && dirty && canEdit ? (
         <AnimatedFAB icon="content-save-outline" label={busy ? 'Saving…' : 'Save marks'} extended onPress={save} disabled={busy}
           style={{ position: 'absolute', right: space.lg, bottom: space.lg }} />
       ) : null}
