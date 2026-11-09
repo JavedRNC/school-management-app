@@ -1,9 +1,9 @@
-import { useEffect, useRef, useState } from 'react';
+import { ReactElement, useEffect, useRef, useState } from 'react';
 import { Animated, Easing, LayoutChangeEvent, Pressable, View } from 'react-native';
 import { Text } from 'react-native-paper';
 
 import { EmptyState, Hero, Icon, Row, Screen, ToneChip } from '@/components/ui';
-import { useCan, useModule, useAuth } from '@/lib/auth';
+import { useAuth, useCan, useModule } from '@/lib/auth';
 import { fmtDate, inr, inrShort, MODE_ICON, MODE_LABEL, PAY_LABEL, PAY_TONE } from '@/lib/fees';
 import { haptic } from '@/lib/feedback';
 import { radius, space, useAppTheme } from '@/lib/theme';
@@ -25,7 +25,7 @@ export function useFeeGate(title: string) {
   const canView = useCan('fees', 'view');
   const canEdit = useCan('fees', 'edit');
   const { school } = useAuth();
-  let block: JSX.Element | null = null;
+  let block: ReactElement | null = null;
   if (!enabled) {
     block = (
       <Screen header={<Hero title={title} compact />}>
