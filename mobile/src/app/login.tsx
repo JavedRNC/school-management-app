@@ -6,22 +6,28 @@ import { Button, HelperText, Text, TextInput, TouchableRipple } from 'react-nati
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { FadeIn, Icon, IconName, PressScale } from '@/components/ui';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+
 import { getBaseUrl, loadStored, setBaseUrl } from '@/lib/api';
-import { useAuth } from '@/lib/auth';
+import { homeFor, KEY_SCHOOL_CODE, useAuth } from '@/lib/auth';
 import { haptic } from '@/lib/feedback';
 import { radius, space, useAppTheme } from '@/lib/theme';
 
-const DEMO: { label: string; email: string; icon: IconName; desc: string }[] = [
-  { label: 'Principal', email: 'principal@school.com', icon: 'school', desc: 'Insights & admin' },
-  { label: 'Teacher', email: 'anita@school.com', icon: 'human-male-board', desc: 'Attendance & marks' },
-  { label: 'Student', email: 'aarav@school.com', icon: 'account-school', desc: 'Results & homework' },
+const DEMO: { label: string; code: string; id: string; pw: string; icon: IconName; desc: string }[] = [
+  { label: 'Principal', code: 'DEMO01', id: 'principal', pw: 'demo123', icon: 'school', desc: 'Insights & admin' },
+  { label: 'Teacher', code: 'DEMO01', id: 'T001', pw: 'demo123', icon: 'human-male-board', desc: 'Attendance & marks' },
+  { label: 'Student', code: 'DEMO01', id: '2026001', pw: 'demo123', icon: 'account-school', desc: 'Results & homework' },
+  { label: 'Parent', code: 'DEMO01', id: '9876500001', pw: 'demo123', icon: 'human-male-female-child', desc: 'Two children' },
+  { label: 'Vice Principal', code: 'DEMO01', id: 'vp', pw: 'demo123', icon: 'account-tie', desc: 'Limited admin' },
+  { label: 'Admin', code: 'ADMIN', id: 'admin', pw: 'admin123', icon: 'shield-crown', desc: 'All schools' },
 ];
 
 export default function Login() {
   const t = useAppTheme();
   const insets = useSafeAreaInsets();
   const { user, login } = useAuth();
-  const [email, setEmail] = useState('');
+  const [code, setCode] = useState('');
+  const [email, setEmail] = useState('');   // login ID
   const [password, setPassword] = useState('');
   const [showPw, setShowPw] = useState(false);
   const [server, setServer] = useState(getBaseUrl());
@@ -34,28 +40,29 @@ export default function Login() {
 
   useEffect(() => {
     loadStored().then(({ url }) => setServer(url));
+    AsyncStorage.getItem(KEY_SCHOOL_CODE).then((c) => { if (c) setCode(c); }).catch(() => {});
     Animated.loop(Animated.sequence([
       Animated.timing(float, { toValue: 1, duration: 2200, easing: Easing.inOut(Easing.sin), useNativeDriver: true }),
       Animated.timing(float, { toValue: 0, duration: 2200, easing: Easing.inOut(Easing.sin), useNativeDriver: true }),
     ])).start();
   }, [float]);
 
-  if (user) return <Redirect href={`/${user.role}`} />;
+  if (user) return <Redirect href={homeFor(user) as '/'} />;
 
   const doShake = () => {
     haptic.error();
     Animated.sequence([10, -10, 7, -7, 0].map((x) => Animated.timing(shake, { toValue: x, duration: 55, useNativeDriver: true }))).start();
   };
 
-  async function submit(e = email, p = password) {
+  async function submit(e = email, p = password, c = code) {
     setError(null);
-    if (!e || !p) return doShake();
+    if (!c || !e || !p) return doShake();
     setBusy(true);
     try {
       if (server.trim() !== getBaseUrl()) await setBaseUrl(server);
-      const u = await login(e.trim(), p);
+      const u = await login(c, e, p);
       haptic.success();
-      router.replace(`/${u.role}`);
+      router.replace(homeFor(u) as '/');
     } catch (err) {
       setError((err as Error).message);
       doShake();
@@ -86,9 +93,12 @@ export default function Login() {
             <Animated.View style={{ transform: [{ translateX: shake }], backgroundColor: t.colors.elevation.level1, borderRadius: radius.xxl, padding: space.xl,
               shadowColor: '#000', shadowOpacity: 0.1, shadowRadius: 20, shadowOffset: { width: 0, height: 8 }, elevation: 4 }}>
               <Text variant="titleLarge" style={{ fontWeight: '800', color: t.colors.onSurface }}>Welcome back 👋</Text>
-              <Text variant="bodyMedium" style={{ color: t.colors.onSurfaceVariant, marginBottom: space.lg }}>Sign in with your school account</Text>
-              <TextInput mode="outlined" label="Email" value={email} onChangeText={(v) => { setEmail(v); setPicked(null); }} autoCapitalize="none"
-                keyboardType="email-address" left={<TextInput.Icon icon="email-outline" />} style={{ marginBottom: space.md }} />
+              <Text variant="bodyMedium" style={{ color: t.colors.onSurfaceVariant, marginBottom: space.lg }}>Use the details your school gave you</Text>
+              <TextInput mode="outlined" label="School code" value={code} onChangeText={(v) => { setCode(v.toUpperCase()); setPicked(null); }} autoCapitalize="characters"
+                autoCorrect={false} left={<TextInput.Icon icon="domain" />} style={{ marginBottom: space.md }} />
+              <TextInput mode="outlined" label="Login ID" value={email} onChangeText={(v) => { setEmail(v); setPicked(null); }} autoCapitalize="none"
+                autoCorrect={false} left={<TextInput.Icon icon="account-outline" />} style={{ marginBottom: space.md }}
+                placeholder="Employee code, admission no. or mobile" />
               <TextInput mode="outlined" label="Password" value={password} onChangeText={setPassword} secureTextEntry={!showPw}
                 left={<TextInput.Icon icon="lock-outline" />} right={<TextInput.Icon icon={showPw ? 'eye-off' : 'eye'} onPress={() => setShowPw((s) => !s)} />}
                 onSubmitEditing={() => submit()} />
@@ -103,21 +113,26 @@ export default function Login() {
             <Text variant="titleSmall" style={{ color: t.colors.onSurfaceVariant, marginTop: space.xl, marginBottom: space.sm, fontWeight: '700' }}>
               Explore with a demo account
             </Text>
-            <View style={{ flexDirection: 'row', gap: space.sm }}>
+            <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: space.sm }}>
               {DEMO.map((d) => {
-                const on = picked === d.email;
+                const key = `${d.code}/${d.id}`;
+                const on = picked === key;
                 return (
-                  <PressScale key={d.email} style={{ flex: 1 }} onPress={() => { setPicked(d.email); setEmail(d.email); setPassword('demo123'); submit(d.email, 'demo123'); }}>
+                  <PressScale key={key} style={{ width: '31.5%' }}
+                    onPress={() => { setPicked(key); setCode(d.code); setEmail(d.id); setPassword(d.pw); submit(d.id, d.pw, d.code); }}>
                     <View style={{ backgroundColor: on ? t.colors.primaryContainer : t.colors.elevation.level2, borderRadius: radius.xl, padding: space.md,
-                      alignItems: 'center', borderWidth: 1, borderColor: on ? t.colors.primary : 'transparent' }}>
-                      <Icon name={d.icon} size={30} color={t.colors.primary} />
-                      <Text variant="labelLarge" style={{ fontWeight: '800', marginTop: 6, color: t.colors.onSurface }}>{d.label}</Text>
-                      <Text variant="labelSmall" style={{ color: t.colors.onSurfaceVariant, textAlign: 'center' }}>{d.desc}</Text>
+                      alignItems: 'center', borderWidth: 1, borderColor: on ? t.colors.primary : 'transparent', minHeight: 104 }}>
+                      <Icon name={d.icon} size={28} color={t.colors.primary} />
+                      <Text variant="labelLarge" style={{ fontWeight: '800', marginTop: 6, color: t.colors.onSurface, textAlign: 'center' }} numberOfLines={1}>{d.label}</Text>
+                      <Text variant="labelSmall" style={{ color: t.colors.onSurfaceVariant, textAlign: 'center' }} numberOfLines={2}>{d.desc}</Text>
                     </View>
                   </PressScale>
                 );
               })}
             </View>
+            <Text variant="labelSmall" style={{ color: t.colors.outline, marginTop: space.sm }}>
+              Demo school code DEMO01 · password demo123
+            </Text>
           </FadeIn>
 
           <TouchableRipple onPress={() => { haptic.tap(); setShowServer((s) => !s); }} style={{ marginTop: space.xl, alignSelf: 'center', borderRadius: radius.pill, paddingHorizontal: space.md, paddingVertical: space.sm }}>

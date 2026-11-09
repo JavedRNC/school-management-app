@@ -7,13 +7,31 @@ const KEY_TOKEN = 'token';
 let baseUrl: string = (Constants.expoConfig?.extra?.apiUrl as string) || 'http://localhost:8000';
 let token: string | null = null;
 let onUnauthorized: (() => void) | null = null;
+let onPasswordChange: (() => void) | null = null;
 
 export class ApiError extends Error {
   status: number;
-  constructor(status: number, message: string) {
+  /** Machine codes from the server: PASSWORD_CHANGE_REQUIRED, MODULE_NOT_ENABLED:<module>, READ_ONLY */
+  code: string | null;
+  constructor(status: number, message: string, code: string | null = null) {
     super(message);
     this.status = status;
+    this.code = code;
   }
+}
+
+/** Friendly text for server codes. */
+function friendly(status: number, msg: string): { text: string; code: string | null } {
+  if (msg === 'PASSWORD_CHANGE_REQUIRED') return { text: 'Please set a new password to continue.', code: msg };
+  if (msg.startsWith('MODULE_NOT_ENABLED:')) {
+    return { text: "This feature isn't part of your school's plan. Contact support to enable it.", code: msg };
+  }
+  if (status === 402) return { text: msg, code: 'READ_ONLY' };
+  return { text: msg, code: null };
+}
+
+export function setPasswordChangeHandler(fn: () => void) {
+  onPasswordChange = fn;
 }
 
 export async function loadStored() {
@@ -80,7 +98,9 @@ export async function api<T = unknown>(
   }
   if (!res.ok) {
     if (res.status === 401 && token && onUnauthorized) onUnauthorized();
-    throw new ApiError(res.status, errorMessage(data, res.status));
+    const f = friendly(res.status, errorMessage(data, res.status));
+    if (f.code === 'PASSWORD_CHANGE_REQUIRED' && onPasswordChange) onPasswordChange();
+    throw new ApiError(res.status, f.text, f.code);
   }
   return data as T;
 }

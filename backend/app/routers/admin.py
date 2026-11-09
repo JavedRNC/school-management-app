@@ -132,6 +132,15 @@ def update_school(sid: int, body: SchoolAdminUpdate, me: User = Depends(admin_on
     return school_detail(sid, me, db)
 
 
+@router.get("/schools/{sid}/classes")
+def school_classes(sid: int, me: User = Depends(admin_only), db: Session = Depends(get_db)):
+    _school(db, sid)
+    counts = dict(db.execute(select(User.class_id, func.count()).where(
+        User.school_id == sid, User.role == Role.student, User.active.is_(True)).group_by(User.class_id)).all())
+    return [{"id": c.id, "name": c.name, "class_teacher_id": c.class_teacher_id, "student_count": counts.get(c.id, 0)}
+            for c in db.scalars(select(SchoolClass).where(SchoolClass.school_id == sid, SchoolClass.is_active.is_(True)).order_by(SchoolClass.name))]
+
+
 # ---------------------------------------------------------------- people (privacy-masked)
 def _mask(out: UserOut, full: bool) -> UserOut:
     if full:

@@ -2,7 +2,7 @@ import { RoleTabs } from '@/components/RoleTabs';
 
 export default function PrincipalLayout() {
   return (
-    <RoleTabs role="principal" tabs={[
+    <RoleTabs roles={['principal', 'vice_principal', 'coordinator']} tabs={[
       { name: 'index', title: 'Insights', icon: 'chart-box-outline', iconActive: 'chart-box' },
       { name: 'people', title: 'People', icon: 'account-group-outline', iconActive: 'account-group' },
       { name: 'classes', title: 'Classes', icon: 'google-classroom', iconActive: 'google-classroom' },
