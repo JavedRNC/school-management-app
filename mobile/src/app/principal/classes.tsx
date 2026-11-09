@@ -9,6 +9,7 @@ import {
   UserAvatar,
 } from '@/components/ui';
 import { api } from '@/lib/api';
+import { useCan } from '@/lib/auth';
 import { haptic, useToast } from '@/lib/feedback';
 import { DAYS, radius, space, useAppTheme } from '@/lib/theme';
 import type { Assignment, Exam, SchoolClass, Slot, Subject, Usage, User } from '@/lib/types';
@@ -19,11 +20,15 @@ type Base = { classes: SchoolClass[]; subjects: Subject[]; teachers: User[]; ass
 
 export default function Classes() {
   const t = useAppTheme();
+  const canEdit = useCan('classes', 'edit');
+  const canAtt = useCan('attendance', 'view');
+  const canExams = useCan('exams', 'view');
   const [classId, setClassId] = useState<number | null>(null);
   const [tab, setTab] = useState<Tab>('subjects');
   const base = useLoad(async (): Promise<Base> => {
     const [classes, subjects, teachers, assignments, exams] = await Promise.all([
-      api<SchoolClass[]>('/classes'), api<Subject[]>('/subjects'), api<User[]>('/users', { params: { role: 'teacher' } }),
+      api<SchoolClass[]>('/classes'), api<Subject[]>('/subjects'),
+      api<User[]>('/users', { params: { role: 'teacher' } }).catch(() => [] as User[]), // needs People view
       api<Assignment[]>('/assignments'), api<Exam[]>('/exams'),
     ]);
     return { classes, subjects, teachers, assignments, exams };
@@ -51,10 +56,11 @@ export default function Classes() {
               ? <FilterChips options={d.classes.map((c) => ({ label: `${c.name}`, value: c.id, icon: 'google-classroom' as const }))} value={cid} onChange={setClassId} />
               : <EmptyState icon="google-classroom" title="No classes yet" text="Create your first class in Setup." action="Go to Setup" onAction={() => setTab('setup')} />
           ) : null}
-          {tab !== 'setup' && cid ? (
+          {tab !== 'setup' && cid && (canAtt || canExams) ? (
             <FadeIn>
               <View style={{ flexDirection: 'row', gap: space.sm, marginBottom: space.md }}>
-                {([['clipboard-check-outline', 'Attendance', '/records/attendance'], ['pencil-box-multiple-outline', 'Marks', '/records/marks']] as const).map(([icon, label, path]) => (
+                {([['clipboard-check-outline', 'Attendance', '/records/attendance', canAtt], ['pencil-box-multiple-outline', 'Marks', '/records/marks', canExams]] as const)
+                  .filter((x) => x[3]).map(([icon, label, path]) => (
                   <PressScale key={label} style={{ flex: 1 }} onPress={() => router.push({ pathname: path, params: { class_id: String(cid) } })}>
                     <View style={{ flexDirection: 'row', alignItems: 'center', gap: space.sm, backgroundColor: t.colors.secondaryContainer, borderRadius: radius.lg, padding: space.md }}>
                       <Icon name={icon} size={22} color={t.colors.onSecondaryContainer} />
@@ -69,16 +75,19 @@ export default function Classes() {
               </View>
             </FadeIn>
           ) : null}
-          {tab === 'subjects' && cid ? <SubjectTeachers key={cid} classId={cid} data={d} onChange={base.reload} /> : null}
-          {tab === 'timetable' && cid ? <ClassTimetable key={cid} classId={cid} data={d} /> : null}
-          {tab === 'setup' ? <Setup data={d} onChange={base.reload} /> : null}
+          {!canEdit ? (
+            <Text variant="labelMedium" style={{ color: t.colors.onSurfaceVariant, marginBottom: space.sm }}>View only — you can't change classes.</Text>
+          ) : null}
+          {tab === 'subjects' && cid ? <SubjectTeachers key={cid} classId={cid} data={d} onChange={base.reload} canEdit={canEdit} /> : null}
+          {tab === 'timetable' && cid ? <ClassTimetable key={cid} classId={cid} data={d} canEdit={canEdit} /> : null}
+          {tab === 'setup' ? <Setup data={d} onChange={base.reload} canEdit={canEdit} /> : null}
         </>
       )}
     </Screen>
   );
 }
 
-function SubjectTeachers({ classId, data, onChange }: { classId: number; data: Base; onChange: () => void }) {
+function SubjectTeachers({ classId, data, onChange, canEdit }: { classId: number; data: Base; onChange: () => void; canEdit: boolean }) {
   const t = useAppTheme();
   const toast = useToast();
   const [editing, setEditing] = useState<Subject | 'class-teacher' | null>(null);
@@ -124,7 +133,7 @@ function SubjectTeachers({ classId, data, onChange }: { classId: number; data: B
   return (
     <>
       <FadeIn>
-        <Panel onPress={() => { haptic.tap(); setEditing('class-teacher'); }}>
+        <Panel onPress={canEdit ? () => { haptic.tap(); setEditing('class-teacher'); } : undefined}>
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: space.md }}>
             {ct ? <UserAvatar name={ct.name} size={52} /> : <IconBadge icon="account-question-outline" tone="warning" size={52} />}
             <View style={{ flex: 1 }}>
@@ -142,7 +151,7 @@ function SubjectTeachers({ classId, data, onChange }: { classId: number; data: B
             const a = data.assignments.find((x) => x.class_id === classId && x.subject_id === s.id);
             return (
               <Row key={s.id} title={s.name} subtitle={a?.teacher_name ?? 'No teacher yet'} divider={i < data.subjects.length - 1}
-                onPress={() => setEditing(s)}
+                onPress={canEdit ? () => setEditing(s) : undefined}
                 left={<View style={{ width: 40, height: 40, borderRadius: 12, backgroundColor: t.colors.primaryContainer, alignItems: 'center', justifyContent: 'center' }}>
                   <Icon name={subjectIcon(s.name)} size={22} color={t.colors.primary} /></View>}
                 right={a ? <Icon name="check-circle" size={20} color={t.custom.success} /> : <ToneChip text="Assign" tone="warning" />} />
@@ -156,7 +165,7 @@ function SubjectTeachers({ classId, data, onChange }: { classId: number; data: B
           const current = editing === 'class-teacher' ? x.id === cls.class_teacher_id
             : !!editing && data.assignments.some((a) => a.class_id === classId && a.subject_id === editing.id && a.teacher_id === x.id);
           return (
-            <Row key={x.id} title={x.name} subtitle={x.email} divider={i < data.teachers.length - 1} onPress={() => pick(x)}
+            <Row key={x.id} title={x.name} subtitle={`Login ID ${x.login_id}`} divider={i < data.teachers.length - 1} onPress={() => pick(x)}
               left={<UserAvatar name={x.name} size={40} />} right={current ? <ToneChip text="Current" tone="success" /> : undefined} />
           );
         })}
@@ -169,7 +178,7 @@ function SubjectTeachers({ classId, data, onChange }: { classId: number; data: B
   );
 }
 
-function ClassTimetable({ classId, data }: { classId: number; data: Base }) {
+function ClassTimetable({ classId, data, canEdit }: { classId: number; data: Base; canEdit: boolean }) {
   const toast = useToast();
   const tt = useLoad(() => api<Slot[]>('/timetable', { params: { class_id: classId } }), [classId]);
   const [slot, setSlot] = useState<{ day: number; period: number; current?: Slot } | null>(null);
@@ -197,7 +206,7 @@ function ClassTimetable({ classId, data }: { classId: number; data: Base }) {
   return (
     <>
       {tt.error ? <ErrorState message={tt.error} onRetry={tt.reload} /> : null}
-      {tt.data ? <TimetableView slots={tt.data} show="teacher" onSlotPress={(day, period, current) => setSlot({ day, period, current })} /> : <LoadingCards />}
+      {tt.data ? <TimetableView slots={tt.data} show="teacher" onSlotPress={canEdit ? (day, period, current) => setSlot({ day, period, current }) : undefined} /> : <LoadingCards />}
       <Sheet visible={!!slot} onDismiss={() => setSlot(null)} title={slot ? `${DAYS[slot.day]} · Period ${slot.period}` : ''}>
         {here.length ? here.map((a, i) => (
           <Row key={a.id} title={a.subject_name} subtitle={a.teacher_name} divider={i < here.length - 1} onPress={() => save(a)}
@@ -210,8 +219,9 @@ function ClassTimetable({ classId, data }: { classId: number; data: Base }) {
   );
 }
 
-function Setup({ data, onChange }: { data: Base; onChange: () => void }) {
+function Setup({ data, onChange, canEdit }: { data: Base; onChange: () => void; canEdit: boolean }) {
   const t = useAppTheme();
+  const canExamEdit = useCan('exams', 'edit');
   const toast = useToast();
   const [sheet, setSheet] = useState<'class' | 'subject' | 'exam' | null>(null);
   const [name, setName] = useState('');
@@ -251,7 +261,7 @@ function Setup({ data, onChange }: { data: Base; onChange: () => void }) {
     setBusy(true);
     try {
       await api(`/classes/${editing.id}`, { method: 'DELETE' });
-      toast(`Class ${editing.name} deleted`);
+      toast(`Class ${editing.name} archived`);
       setEditing(null);
       onChange();
     } catch (e) {
@@ -283,10 +293,10 @@ function Setup({ data, onChange }: { data: Base; onChange: () => void }) {
   }
 
   type Item = { key: string; label: string; onPress?: () => void };
-  const Block = ({ kind, title, icon, items, index, hint }: { kind: 'class' | 'subject' | 'exam'; title: string; icon: IconName; items: Item[]; index: number; hint?: string }) => (
+  const Block = ({ kind, title, icon, items, index, hint, editable }: { kind: 'class' | 'subject' | 'exam'; title: string; icon: IconName; items: Item[]; index: number; hint?: string; editable: boolean }) => (
     <FadeIn index={index}>
-      <Panel title={title} subtitle={hint ?? `${items.length} total`} icon={icon}
-        right={<Button mode="contained-tonal" compact icon="plus" onPress={() => { haptic.tap(); setName(''); setSheet(kind); }}>Add</Button>}>
+      <Panel title={title} subtitle={editable ? hint ?? `${items.length} total` : `${items.length} total`} icon={icon}
+        right={editable ? <Button mode="contained-tonal" compact icon="plus" onPress={() => { haptic.tap(); setName(''); setSheet(kind); }}>Add</Button> : undefined}>
         <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 6 }}>
           {items.length ? items.map((x) => (
             <TouchableRipple key={x.key} disabled={!x.onPress} onPress={x.onPress} borderless style={{ borderRadius: radius.pill }}>
@@ -304,13 +314,16 @@ function Setup({ data, onChange }: { data: Base; onChange: () => void }) {
 
   return (
     <>
-      <Block kind="class" title="Classes" icon="google-classroom" index={0} hint={`${data.classes.length} total · tap one to rename or delete`}
-        items={data.classes.map((c) => ({ key: String(c.id), label: c.name, onPress: () => openClass(c) }))} />
-      <Block kind="subject" title="Subjects" icon="book-education-outline" index={1} hint={`${data.subjects.length} total · tap to edit`}
-        items={data.subjects.map((x) => ({ key: String(x.id), label: x.name, onPress: () => { haptic.tap(); setSubj(x); } }))} />
-      <Block kind="exam" title="Exams" icon="file-document-edit-outline" index={2} hint={`${data.exams.length} total · tap to edit`}
+      <Block kind="class" title="Classes" icon="google-classroom" index={0} editable={canEdit} hint={`${data.classes.length} total · tap one to rename or archive`}
+        items={data.classes.map((c) => ({ key: String(c.id), label: c.name, onPress: canEdit ? () => openClass(c) : undefined }))} />
+      <Block kind="subject" title="Subjects" icon="book-education-outline" index={1} editable={canEdit} hint={`${data.subjects.length} total · tap to edit`}
+        items={data.subjects.map((x) => ({ key: String(x.id), label: x.name, onPress: canEdit ? () => { haptic.tap(); setSubj(x); } : undefined }))} />
+      <Block kind="exam" title="Exams" icon="file-document-edit-outline" index={2} editable={canExamEdit} hint={`${data.exams.length} total · tap to edit`}
         items={data.exams.map((e) => ({ key: String(e.id), label: `${e.name} · ${new Date(e.date + 'T00:00:00').toLocaleDateString('en-IN', { day: 'numeric', month: 'short' })}`,
-          onPress: () => { haptic.tap(); setExam(e); } }))} />
+          onPress: canExamEdit ? () => { haptic.tap(); setExam(e); } : undefined }))} />
+      <Text variant="labelSmall" style={{ color: t.colors.outline, textAlign: 'center', marginTop: space.xs }}>
+        Archived items can be restored from Me → Archive.
+      </Text>
       <Sheet visible={!!sheet} onDismiss={() => setSheet(null)} title={sheet === 'class' ? 'New class' : sheet === 'subject' ? 'New subject' : 'New exam'}>
         <TextInput mode="outlined" autoFocus label={sheet === 'class' ? 'Class name (e.g. 10-B)' : sheet === 'subject' ? 'Subject (e.g. Computer Science)' : 'Exam name (e.g. Unit Test 2)'}
           value={name} onChangeText={setName} style={{ marginBottom: space.md }} />
@@ -334,24 +347,24 @@ function Setup({ data, onChange }: { data: Base; onChange: () => void }) {
               contentStyle={{ paddingVertical: 6 }}>Save name</Button>
             <View style={{ height: 1, backgroundColor: t.colors.outlineVariant, marginVertical: space.lg }} />
             {editing.student_count > 0 ? (
-              <Panel tone="warning" icon="account-alert-outline" title="Can't delete yet"
+              <Panel tone="warning" icon="account-alert-outline" title="Can't archive yet"
                 subtitle={`Move or remove its ${editing.student_count} student${editing.student_count === 1 ? '' : 's'} first (People tab).`} />
             ) : null}
-            <Button mode="outlined" icon="delete-outline" textColor={t.colors.error} style={{ borderColor: t.colors.error }}
-              disabled={busy || editing.student_count > 0} onPress={() => setConfirmDel(true)}>Delete class</Button>
+            <Button mode="outlined" icon="archive-arrow-down-outline" textColor={t.colors.error} style={{ borderColor: t.colors.error }}
+              disabled={busy || editing.student_count > 0} onPress={() => setConfirmDel(true)}>Archive class</Button>
           </View>
         ) : null}
       </Sheet>
       <Portal>
         <Dialog visible={confirmDel} onDismiss={() => setConfirmDel(false)}>
-          <Dialog.Icon icon="delete-alert-outline" />
-          <Dialog.Title style={{ textAlign: 'center' }}>Delete class {editing?.name}?</Dialog.Title>
+          <Dialog.Icon icon="archive-arrow-down-outline" />
+          <Dialog.Title style={{ textAlign: 'center' }}>Archive class {editing?.name}?</Dialog.Title>
           <Dialog.Content>
-            <Text variant="bodyMedium">Its timetable, subject teachers, attendance records and class posts will also be deleted. This can't be undone.</Text>
+            <Text variant="bodyMedium">It will be hidden everywhere, but nothing is erased — restore it any time from Me → Archive.</Text>
           </Dialog.Content>
           <Dialog.Actions>
             <Button onPress={() => setConfirmDel(false)}>Cancel</Button>
-            <Button textColor={t.colors.error} onPress={deleteClass}>Delete</Button>
+            <Button textColor={t.colors.error} onPress={deleteClass}>Archive</Button>
           </Dialog.Actions>
         </Dialog>
       </Portal>
@@ -368,12 +381,12 @@ function ConfirmDelete({ visible, title, text, onCancel, onConfirm }: {
   return (
     <Portal>
       <Dialog visible={visible} onDismiss={onCancel}>
-        <Dialog.Icon icon="delete-alert-outline" />
+        <Dialog.Icon icon="archive-arrow-down-outline" />
         <Dialog.Title style={{ textAlign: 'center' }}>{title}</Dialog.Title>
         <Dialog.Content><Text variant="bodyMedium">{text}</Text></Dialog.Content>
         <Dialog.Actions>
           <Button onPress={onCancel}>Cancel</Button>
-          <Button textColor={t.colors.error} onPress={onConfirm}>Delete</Button>
+          <Button textColor={t.colors.error} onPress={onConfirm}>Archive</Button>
         </Dialog.Actions>
       </Dialog>
     </Portal>
@@ -423,13 +436,13 @@ function SubjectEditor({ subject, onClose, onChange }: { subject: Subject | null
           contentStyle={{ paddingVertical: 6 }}>Save name</Button>
         <View style={{ height: 1, backgroundColor: t.colors.outlineVariant, marginVertical: space.lg }} />
         <Text variant="bodySmall" style={{ color: t.colors.onSurfaceVariant, marginBottom: space.sm }}>Used in: {impact}</Text>
-        <Button mode="outlined" icon="delete-outline" textColor={t.colors.error} style={{ borderColor: t.colors.error }} disabled={busy}
-          onPress={() => setConfirm(true)}>Delete subject</Button>
+        <Button mode="outlined" icon="archive-arrow-down-outline" textColor={t.colors.error} style={{ borderColor: t.colors.error }} disabled={busy}
+          onPress={() => setConfirm(true)}>Archive subject</Button>
       </Sheet>
-      <ConfirmDelete visible={confirm} title={`Delete ${subject?.name}?`}
-        text={`This also deletes ${impact} for this subject across all classes. Homework posts stay, without a subject tag. This can't be undone.`}
+      <ConfirmDelete visible={confirm} title={`Archive ${subject?.name}?`}
+        text={`It will be hidden with its ${impact}. Nothing is erased — restore it any time from Me → Archive and everything comes back.`}
         onCancel={() => setConfirm(false)}
-        onConfirm={() => { setConfirm(false); if (subject) run(() => api(`/subjects/${subject.id}`, { method: 'DELETE' }), `${subject.name} deleted`); }} />
+        onConfirm={() => { setConfirm(false); if (subject) run(() => api(`/subjects/${subject.id}`, { method: 'DELETE' }), `${subject.name} archived`); }} />
     </>
   );
 }
@@ -478,13 +491,13 @@ function ExamEditor({ exam, onClose, onChange }: { exam: Exam | null; onClose: (
           onPress={() => exam && run(() => api(`/exams/${exam.id}`, { method: 'PUT', body: { name: name.trim(), date, max_marks: Number(max) } }), 'Exam updated')}
           contentStyle={{ paddingVertical: 6 }}>Save changes</Button>
         <View style={{ height: 1, backgroundColor: t.colors.outlineVariant, marginVertical: space.lg }} />
-        <Button mode="outlined" icon="delete-outline" textColor={t.colors.error} style={{ borderColor: t.colors.error }} disabled={busy}
-          onPress={() => setConfirm(true)}>Delete exam</Button>
+        <Button mode="outlined" icon="archive-arrow-down-outline" textColor={t.colors.error} style={{ borderColor: t.colors.error }} disabled={busy}
+          onPress={() => setConfirm(true)}>Archive exam</Button>
       </Sheet>
-      <ConfirmDelete visible={confirm} title={`Delete ${exam?.name}?`}
-        text={marks ? `All ${plural(marks, 'mark')} entered for this exam will be deleted from every report card. This can't be undone.` : 'No marks have been entered for this exam yet.'}
+      <ConfirmDelete visible={confirm} title={`Archive ${exam?.name}?`}
+        text={marks ? `Its ${plural(marks, 'mark')} will be hidden from report cards. Nothing is erased — restore it from Me → Archive.` : 'No marks have been entered for this exam yet. You can restore it from Me → Archive.'}
         onCancel={() => setConfirm(false)}
-        onConfirm={() => { setConfirm(false); if (exam) run(() => api(`/exams/${exam.id}`, { method: 'DELETE' }), `${exam.name} deleted`); }} />
+        onConfirm={() => { setConfirm(false); if (exam) run(() => api(`/exams/${exam.id}`, { method: 'DELETE' }), `${exam.name} archived`); }} />
     </>
   );
 }

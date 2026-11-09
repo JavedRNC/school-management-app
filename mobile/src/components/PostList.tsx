@@ -49,7 +49,7 @@ export function PostList({ posts, canDelete, onDeleted, onEdit, emptyText = 'Not
     try {
       await api(`/posts/${p.id}`, { method: 'DELETE' });
       LayoutAnimation.easeInEaseOut();
-      toast('Post deleted');
+      toast('Post archived');
       onDeleted?.();
     } catch (e) {
       toast((e as Error).message, { error: true });
@@ -94,7 +94,7 @@ export function PostList({ posts, canDelete, onDeleted, onEdit, emptyText = 'Not
                       <IconButton icon="pencil-outline" size={20} style={{ margin: 0 }} onPress={() => { haptic.tap(); onEdit(p); }} />
                     ) : null}
                     {canDelete?.(p) ? (
-                      <IconButton icon="delete-outline" size={20} iconColor={t.colors.error} style={{ margin: 0 }} onPress={() => setConfirm(p)} />
+                      <IconButton icon="archive-arrow-down-outline" size={20} iconColor={t.colors.error} style={{ margin: 0 }} onPress={() => setConfirm(p)} />
                     ) : null}
                   </View>
                 </View>
@@ -105,12 +105,12 @@ export function PostList({ posts, canDelete, onDeleted, onEdit, emptyText = 'Not
       })}
       <Portal>
         <Dialog visible={!!confirm} onDismiss={() => setConfirm(null)}>
-          <Dialog.Icon icon="delete-alert-outline" />
-          <Dialog.Title style={{ textAlign: 'center' }}>Delete this post?</Dialog.Title>
-          <Dialog.Content><Text variant="bodyMedium">“{confirm?.title}” will be removed for everyone.</Text></Dialog.Content>
+          <Dialog.Icon icon="archive-arrow-down-outline" />
+          <Dialog.Title style={{ textAlign: 'center' }}>Archive this post?</Dialog.Title>
+          <Dialog.Content><Text variant="bodyMedium">“{confirm?.title}” will be hidden for everyone. You can restore it from Me → Archive.</Text></Dialog.Content>
           <Dialog.Actions>
             <Button onPress={() => setConfirm(null)}>Cancel</Button>
-            <Button textColor={t.colors.error} onPress={() => confirm && del(confirm)}>Delete</Button>
+            <Button textColor={t.colors.error} onPress={() => confirm && del(confirm)}>Archive</Button>
           </Dialog.Actions>
         </Dialog>
       </Portal>

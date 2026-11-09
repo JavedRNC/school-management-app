@@ -6,6 +6,7 @@ import { PostComposer } from '@/components/PostComposer';
 import { PostList } from '@/components/PostList';
 import { ErrorState, FilterChips, Hero, LoadingCards, Screen } from '@/components/ui';
 import { api } from '@/lib/api';
+import { useAuth, useCan } from '@/lib/auth';
 import { haptic } from '@/lib/feedback';
 import { space, useAppTheme } from '@/lib/theme';
 import type { Post, SchoolClass } from '@/lib/types';
@@ -13,6 +14,8 @@ import { useLoad } from '@/lib/useLoad';
 
 export default function Notices() {
   const t = useAppTheme();
+  const { user, school } = useAuth();
+  const canEdit = useCan('notices', 'edit') && school?.can_write !== false;
   const [composing, setComposing] = useState(false);
   const [editing, setEditing] = useState<Post | null>(null);
   const [filter, setFilter] = useState<'all' | 'notice' | 'homework'>('all');
@@ -28,10 +31,12 @@ export default function Notices() {
           { label: 'All', value: 'all', icon: 'view-list-outline' }, { label: 'Notices', value: 'notice', icon: 'bullhorn-outline' },
           { label: 'Homework', value: 'homework', icon: 'book-open-outline' }]} />
         {error ? <ErrorState message={error} onRetry={reload} /> : null}
-        {!data ? <LoadingCards /> : <PostList posts={posts} canDelete={() => true} onDeleted={reload} onEdit={(p) => { setEditing(p); setComposing(true); }} />}
+        {!data ? <LoadingCards /> : <PostList posts={posts} canDelete={(p) => canEdit || (p.author_id === user?.id && school?.can_write !== false)} onDeleted={reload} onEdit={(p) => { setEditing(p); setComposing(true); }} />}
       </Screen>
-      <AnimatedFAB icon="plus" label="New notice" extended onPress={() => { haptic.tap(); setEditing(null); setComposing(true); }}
-        style={{ position: 'absolute', right: space.lg, bottom: space.lg }} />
+      {canEdit ? (
+        <AnimatedFAB icon="plus" label="New notice" extended onPress={() => { haptic.tap(); setEditing(null); setComposing(true); }}
+          style={{ position: 'absolute', right: space.lg, bottom: space.lg }} />
+      ) : null}
       {data ? (
         <PostComposer visible={composing} editing={editing} onDismiss={() => setComposing(false)} classes={data.classes} allowSchoolWide
           onPosted={() => { setComposing(false); setEditing(null); reload(); }} />
