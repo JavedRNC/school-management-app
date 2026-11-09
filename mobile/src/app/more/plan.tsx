@@ -17,6 +17,9 @@ const inr = (n: number) => `₹${n.toLocaleString('en-IN', { maximumFractionDigi
 const fmt = (iso: string | null) => (iso ? new Date(iso + 'T00:00:00').toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' }) : '—');
 
 /** Subscription plan, usage and modules (F26). */
+/** Modules that already have screens in the app (others are planned). */
+const BUILT = new Set(['core', 'extra_roles']);
+
 export default function PlanScreen() {
   const t = useAppTheme();
   const { school } = useAuth();
@@ -88,6 +91,7 @@ export default function PlanScreen() {
               <View key={key} style={{ flexDirection: 'row', alignItems: 'center', gap: space.md, paddingVertical: 6 }}>
                 <Icon name={on ? 'check-circle' : 'lock-outline'} size={20} color={on ? t.custom.success : t.colors.outline} />
                 <Text variant="bodyMedium" style={{ flex: 1, color: on ? t.colors.onSurface : t.colors.onSurfaceVariant }}>{label}</Text>
+                {!BUILT.has(key) ? <ToneChip text="Coming soon" tone="neutral" /> : null}
               </View>
             );
           })}

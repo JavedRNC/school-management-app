@@ -83,7 +83,9 @@ export function UpcomingCard({ items }: { items: Holiday[] }) {
               </View>
               <View style={{ alignItems: 'flex-end', gap: 4 }}>
                 <ToneChip text={h.is_off ? 'School closed' : 'Event'} tone={h.is_off ? 'success' : 'primary'} icon={h.is_off ? 'beach' : 'party-popper'} />
-                <ToneChip text={h.kind} tone={KIND_TONE[h.kind] ?? 'neutral'} />
+                {h.kind !== 'event' && h.kind !== 'holiday' ? (
+                  <ToneChip text={h.kind.charAt(0).toUpperCase() + h.kind.slice(1)} tone={KIND_TONE[h.kind] ?? 'neutral'} />
+                ) : null}
               </View>
             </View>
           ))}

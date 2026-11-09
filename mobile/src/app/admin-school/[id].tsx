@@ -36,7 +36,7 @@ export default function AdminSchool() {
             shadowColor: '#000', shadowOpacity: 0.08, shadowRadius: 12, shadowOffset: { width: 0, height: 4 } }}>
             <SegmentedButtons value={section} onValueChange={(v) => { haptic.tap(); setSection(v as Section); }} density="small"
               buttons={[
-                { value: 'details', label: 'Info' }, { value: 'plan', label: 'Plan' }, { value: 'people', label: 'People' },
+                { value: 'details', label: 'Info' }, { value: 'plan', label: 'Plan' }, { value: 'people', label: 'Users' },
                 { value: 'payments', label: 'Pay' }, { value: 'log', label: 'Log' },
               ]} />
           </View>

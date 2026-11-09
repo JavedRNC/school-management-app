@@ -141,7 +141,7 @@ function SubjectTeachers({ classId, data, onChange, canEdit }: { classId: number
               <Text variant="titleMedium" style={{ fontWeight: '800', color: t.colors.onSurface }}>{ct?.name ?? 'Not assigned'}</Text>
               <Text variant="bodySmall" style={{ color: t.colors.onSurfaceVariant }}>{cls.student_count} students · {assigned}/{data.subjects.length} subjects staffed</Text>
             </View>
-            <Icon name="pencil-outline" size={20} color={t.colors.primary} />
+            {canEdit ? <Icon name="pencil-outline" size={20} color={t.colors.primary} /> : null}
           </View>
         </Panel>
       </FadeIn>

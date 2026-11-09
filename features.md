@@ -6,7 +6,7 @@
 > **Status:** 📝 Requested · 💡 Suggested by Claude · 🚧 In progress · ✅ Done · ⏸️ On hold
 > **Size:** S (hours) · M (a day) · L (several days)
 
-_Last updated: 9 Nov 2026 (evening)_
+_Last updated: 9 Nov 2026 — **Phase 1 built** (multi-school, admin, roles, privacy, subscriptions, parents, archive, calendar, working days, attendance rules)_
 
 ---
 
@@ -14,14 +14,14 @@ _Last updated: 9 Nov 2026 (evening)_
 
 | # | Feature | Status | Size | Phase |
 |---|---|---|---|---|
-| F1 | Multi-school platform + **school code** login | 📝 | L | 1 |
-| F2 | Super Admin (add schools, manage all users & data) | 📝 | L | 1 |
-| F3 | Secure one-way passwords + temporary password flow | ✅ hashing · 📝 temp-password flow | S | 1 |
-| F13 | **Parent login** | 📝 | M | 1 |
-| F12 | **Soft delete / Archive** (active flag on all records) | 📝 | M | 1 |
-| F4 | Configurable working days / weekly off | 📝 | M | 1 |
-| F18 | **School calendar & holidays** (yearly, set by Principal) | 📝 | M | 1 |
-| F5 | Attendance: class teacher **compulsory**, others optional | ✅ base · 📝 rules | S | 1 |
+| F1 | Multi-school platform + **school code** login | ✅ Done | L | 1 |
+| F2 | Super Admin (add schools, manage all users & data) | ✅ Done | L | 1 |
+| F3 | Secure one-way passwords + temporary password flow | ✅ Done | S | 1 |
+| F13 | **Parent login** | ✅ Done | M | 1 |
+| F12 | **Soft delete / Archive** (active flag on all records) | ✅ Done | M | 1 |
+| F4 | Configurable working days / weekly off | ✅ Done | M | 1 |
+| F18 | **School calendar & holidays** (yearly, set by Principal) | ✅ Done | M | 1 |
+| F5 | Attendance: class teacher **compulsory**, others optional | ✅ Done | S | 1 |
 | F6 | Toasts on all important actions | ✅ mostly · 📝 audit | S | 1 |
 | F7 | Richer, easier UI (cards, shadows, glows) | ✅ partly · 📝 polish | M | ongoing |
 | F15 | **Announcement banner** with images | 📝 | M | 2 |
@@ -31,9 +31,9 @@ _Last updated: 9 Nov 2026 (evening)_
 | F14 | **Roll out extra fees** (activity/exam/maintenance) to school, classes or students | 📝 | M | 3 |
 | F11 | Fee submission (payments) | 📝 | L | 3–4 |
 | F17 | **APK builds via GitHub Actions** | 📝 | S | any time |
-| F24 | **Roles: Vice Principal / Coordinator** (limited powers) | 📝 | M | 1 |
-| F25 | **Privacy & data access** (Admin sees only allowed data) | 📝 | M | 1 |
-| F26 | **School subscriptions** (modular plans, free/sponsored schools, manual config) | 📝 | L | 1–2 |
+| F24 | **Roles: Vice Principal / Coordinator** (limited powers) | ✅ Done | M | 1 |
+| F25 | **Privacy & data access** (Admin sees only allowed data) | ✅ Done | M | 1 |
+| F26 | **School subscriptions** (modular plans, free/sponsored schools, manual config) | ✅ Done (billing via Admin; online payment later) | L | 1–2 |
 | F19 | **Student leave by parent** | 📝 | S | 2 |
 | F20 | **Consent forms & polls** | 📝 | S | 2 |
 | F22 | **Staff attendance (GPS geofence)** | 📝 | M | 2 |
@@ -440,6 +440,11 @@ Schools pay for **the modules they use**. Admin controls everything manually, in
 | **Data backup & export** | Download school data | S |
 
 ---
+
+## 🧪 Phase 1 notes
+- Plan prices start at ₹0 — set real prices in **Admin → Plans**.
+- Modules other than Core and Extra roles show **"Coming soon"** until their screens are built (Phase 2+).
+- Dates are typed (YYYY-MM-DD) with quick buttons; a calendar date picker can come later.
 
 ## ❓ Open questions for Javed
 1. **Admin data access (F25):** by default, should Admin see student **names** across schools, or only counts/summaries unless the school allows more?
