@@ -20,6 +20,7 @@ _Last updated: 9 Nov 2026_
 | F13 | **Parent login** | 📝 | M | 1 |
 | F12 | **Soft delete / Archive** (active flag on all records) | 📝 | M | 1 |
 | F4 | Configurable working days / weekly off | 📝 | M | 1 |
+| F18 | **School calendar & holidays** (yearly, set by Principal) | 📝 | M | 1 |
 | F5 | Attendance: class teacher **compulsory**, others optional | ✅ base · 📝 rules | S | 1 |
 | F6 | Toasts on all important actions | ✅ mostly · 📝 audit | S | 1 |
 | F7 | Richer, easier UI (cards, shadows, glows) | ✅ partly · 📝 polish | M | ongoing |
@@ -52,7 +53,8 @@ _Last updated: 9 Nov 2026_
 | Monthly fee amount | **One amount for every student** (no per-student amounts). Built as a per-class amount with a "same for all classes" option; per-student discounts only if needed later. |
 | Banner images | Free image storage service (Cloudinary or similar). |
 | App builds | **GitHub Actions** builds the installable APK in the cloud (free, no Expo account). |
-| OTA updates | **Yes** — EAS Update (free plan; Expo account needed only when F16 is built). Can switch to self-hosted hot-updater later if needed. |
+| OTA updates | **Yes** — EAS Update on the **free plan** (1,000 users/month); Expo account needed only when F16 is built. Switch to self-hosted hot-updater if usage grows and cost matters. |
+| School calendar | Each school's yearly holiday calendar, fully configurable by the Principal (F18). |
 
 ---
 
@@ -105,10 +107,30 @@ A superuser above all schools.
 ### F4 · Working days / weekly off 📝 `M`
 - **Settings → Working days**: multi-select (e.g. Mon–Sat, Sun–Thu, Mon–Fri).
 - Used everywhere: attendance not required on off-days, timetable shows only working days, dashboard % skips off-days.
-- **Holiday calendar** 💡: festivals and vacations as one-off holidays, visible to all.
+- Works together with the **School calendar (F18)** for one-off holidays.
 - **2nd/4th Saturday off** 💡 option.
 
-### F5 · Attendance rules ✅ / 📝 `S`
+### F18 · School calendar & holidays 📝 `M`
+Each school keeps its own yearly calendar, **fully configurable by the Principal**.
+
+**Principal**
+- Add a holiday: **name** (e.g. Diwali), **date or date range** (e.g. summer vacation 15 May – 30 Jun), type, optional note.
+- **Types** (colour-coded): National holiday · Festival · Vacation · Exam · Event · Other.
+- Edit or archive any entry; see the whole academic year at a glance.
+- 💡 **Quick start**: copy last year's calendar, or start from a template of common Indian national/festival holidays and adjust.
+- 💡 **Events too**: PTM, Sports Day, Annual Function — shown on the calendar but school stays open.
+- 💡 Option to apply an entry to **selected classes only** (e.g. exam days for Class 10).
+
+**Everyone (teachers, students, parents)**
+- **Month view** with coloured dots + **list of upcoming holidays**; tap a day to see details.
+- "Next holiday" card on the home screen 💡.
+- 💡 Reminder notification a day before a holiday (with notifications).
+
+**Effects across the app**
+- Holidays count as **non-working days** (with weekly offs from F4): attendance isn't required or counted, dashboard and attendance % skip them, timetable shows "Holiday".
+- Teachers can't mark attendance on a holiday (Principal can override if school opens unexpectedly).
+
+ ✅ / 📝 `S`
 - ✅ Teachers already mark attendance in the app; Principal can view/correct it.
 - 📝 **Class teacher: compulsory** — dashboard flags any class not marked by its class teacher; reminder 💡 near the end of school day.
 - 📝 **Other teachers: optional** — can mark (e.g. when the class teacher is absent); the record shows who marked it.
