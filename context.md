@@ -39,6 +39,9 @@ Repo: JavedRNC/school-management-app — PUBLIC, branch main, Claude has push ac
 - Termux: React Native DevTools "arm64" error on start is harmless. Expo rewrites tsconfig locally → update loop uses `git fetch && git reset --hard origin/main`.
 - UI preview: `npm i --no-save --legacy-peer-deps react-native-web@~0.21.4`, point apiUrl to local API temporarily, `expo export --platform web`, serve + playwright (/usr/bin/google-chrome); then `npm install` and restore app.json.
 
+## Feature workflow
+- features.md = backlog. Javed adds requests; Claude records + suggests. IMPLEMENT ONLY when Javed says "implement". Recommended order: multi-school (F1) first since it adds school_id everywhere.
+
 ## Status / to-do
 - [ ] Javed: reset Neon password (was shared in chat) and update DATABASE_URL on Render.
 - [ ] Decide soft-delete/archive for classes/subjects/exams/posts.
