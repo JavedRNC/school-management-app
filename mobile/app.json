@@ -30,7 +30,7 @@
       "typedRoutes": false
     },
     "extra": {
-      "apiUrl": "http://localhost:8000"
+      "apiUrl": "https://school-api-7y80.onrender.com"
     }
   }
 }

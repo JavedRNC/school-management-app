@@ -31,9 +31,14 @@ Claude codes in cloud → push GitHub → Android Termux pull loop → `npx expo
 - App screens: login(+demo buttons, server setting); principal: dashboard, people(+add), classes(subject teachers, timetable editor, setup: classes/subjects/exams), notices, profile; teacher: today, attendance, marks, posts, profile; student: home(attendance ring+notices), marks, timetable, homework, profile
 - Verified: tsc clean, `expo export --platform android` bundles
 
+## Live
+- API: https://school-api-7y80.onrender.com (Render free, Ohio; manual Web Service, not Blueprint — Blueprint asked for payment). DB: Neon us-east-2. App default apiUrl set in mobile/app.json
+- Claude's sandbox can't reach onrender.com (allowlist) → Javed verifies live endpoints
+
 ## Status
 - [x] Pushed to GitHub main (2026-11-08)
-- [ ] Javed: deploy backend to Render, set Termux, test on phone
+- [x] Backend deployed (2026-11-09)
+- [ ] Javed: Termux setup, test app on phone; reset Neon password (was shared in chat)
 - [x] UI verified via web screenshots (light+dark); not yet on a real device
 
 ## Next ideas
