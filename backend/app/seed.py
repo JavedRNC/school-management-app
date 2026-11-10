@@ -4,6 +4,7 @@ Demo logins (password demo123, school code DEMO01):
   principal · vp · coord · T001..T005 (teachers) · 2026001.. (students) · 98765000xx (parents)
 Second school DEMO02 (Sun–Thu week). Super admin: school code ADMIN, login admin.
 """
+import logging
 import os
 import random
 from datetime import date, timedelta
@@ -37,6 +38,17 @@ def ensure_platform() -> None:
             env_pw = os.getenv("ADMIN_PASSWORD")
             db.add(User(school_id=None, login_id=os.getenv("ADMIN_LOGIN_ID", "admin"), name="Platform Admin", role=Role.admin,
                         password_hash=hash_password(env_pw or "admin123"), must_change_password=not env_pw))
+        reset_pw = os.getenv("ADMIN_RESET_PASSWORD")
+        if reset_pw:
+            # recovery switch: set ADMIN_RESET_PASSWORD on the server, restart, log in, then REMOVE the variable
+            admin = db.scalar(select(User).where(User.role == Role.admin).order_by(User.id))
+            if admin:
+                admin.password_hash = hash_password(reset_pw)
+                admin.failed_logins = 0
+                admin.locked_until = None
+                admin.must_change_password = True
+                admin.active = True
+                logging.getLogger("seed").warning("Admin password reset from ADMIN_RESET_PASSWORD — remove that variable now")
         db.commit()
 
 

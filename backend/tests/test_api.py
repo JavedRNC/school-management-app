@@ -376,3 +376,16 @@ def test_legacy_schema_is_reset(tmp_path):
     out = subprocess.run([sys.executable, "-c", code], capture_output=True, text=True,
                          env={**os.environ, "DATABASE_URL": f"sqlite:///{db}"}, cwd=os.path.dirname(os.path.dirname(__file__)))
     assert out.stdout.strip() == "True 4", out.stderr
+
+
+def test_admin_reset_password_env(client):
+    from app.seed import ensure_platform
+    for _ in range(6):
+        client.post("/auth/login", json={"school_code": "ADMIN", "login_id": "admin", "password": "wrong-pw"})
+    os.environ["ADMIN_RESET_PASSWORD"] = "Recover#2026"
+    try:
+        ensure_platform()
+    finally:
+        del os.environ["ADMIN_RESET_PASSWORD"]
+    r = client.post("/auth/login", json={"school_code": "ADMIN", "login_id": "admin", "password": "Recover#2026"})
+    assert r.status_code == 200 and r.json()["user"]["must_change_password"]

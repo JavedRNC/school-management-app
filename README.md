@@ -41,7 +41,7 @@ pip install -r requirements.txt
 uvicorn app.main:app --reload --host 0.0.0.0 --port 8000   # docs at /docs
 pytest -q                                                   # tests
 ```
-Env vars: `DATABASE_URL` (default SQLite), `JWT_SECRET` (long random text), `SCHOOL_TZ` (default Asia/Kolkata), `SEED_DEMO`, `ADMIN_LOGIN_ID` / `ADMIN_PASSWORD` (Super Admin bootstrap), `ALLOW_SCHEMA_RESET` (default 1; resets only the old single-school demo schema).
+Env vars: `DATABASE_URL` (default SQLite), `JWT_SECRET` (long random text), `SCHOOL_TZ` (default Asia/Kolkata), `SEED_DEMO`, `ADMIN_LOGIN_ID` / `ADMIN_PASSWORD` (Super Admin bootstrap), `ALLOW_SCHEMA_RESET`, `ADMIN_RESET_PASSWORD` (recovery: resets the admin password and unlocks it on restart — remove it right after logging in) (default 1; resets only the old single-school demo schema).
 
 ## Deploy (free): Neon database + Render API
 Everything below works from a phone browser.
