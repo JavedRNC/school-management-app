@@ -406,3 +406,18 @@ def seed_bell_demo() -> bool:
         db.add(BellSchedule(school_id=s.id, day=-1, slots=DEMO_BELL))
         db.commit()
         return True
+
+
+def seed_showcase_demo() -> bool:
+    """List the demo schools on the website (marked as demo there)."""
+    from .models import SchoolShowcase
+
+    with SessionLocal() as db:
+        done = False
+        for code, city in (("DEMO01", "Ranchi"), ("DEMO02", "Patna")):
+            s = db.scalar(select(School).where(School.code == code))
+            if s and not db.get(SchoolShowcase, s.id):
+                db.add(SchoolShowcase(school_id=s.id, show=True, city=city))
+                done = True
+        db.commit()
+        return done

@@ -520,3 +520,13 @@ class AppVersion(Base):
     url: Mapped[str] = mapped_column(String(500), default="")
     updated_at: Mapped[datetime] = mapped_column(DateTime, default=utcnow)
     updated_by: Mapped[str] = mapped_column(String(120), default="")
+
+
+# ================================================================ Website — schools that agree to be listed
+class SchoolShowcase(Base):
+    """Opt-in: the school appears on the public School Hub website (name, city, board and a generated crest — no real logos)."""
+    __tablename__ = "school_showcase"
+    school_id: Mapped[int] = mapped_column(ForeignKey("schools.id"), primary_key=True)
+    show: Mapped[bool] = mapped_column(Boolean, default=False)
+    city: Mapped[str] = mapped_column(String(60), default="")
+    updated_at: Mapped[datetime] = mapped_column(DateTime, default=utcnow)

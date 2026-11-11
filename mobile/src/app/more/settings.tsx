@@ -4,6 +4,7 @@ import { Button, Chip, HelperText, Text } from 'react-native-paper';
 import { TextInput } from '@/components/Field';
 
 import { StatusBanner } from '@/components/StatusBanner';
+import { WebsiteListing } from '@/components/WebsiteListing';
 import { FadeIn, Hero, LoadingCards, Panel, Screen } from '@/components/ui';
 import { api } from '@/lib/api';
 import { useAuth, useCan } from '@/lib/auth';
@@ -101,6 +102,7 @@ export default function SettingsScreen() {
           )}
         </Panel>
       </FadeIn>
+      <WebsiteListing />
     </Screen>
   );
 }

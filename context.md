@@ -71,6 +71,11 @@ Multi-school with school code login (no email/OTP; principal issues temp passwor
 - Model AppVersion (id=1: auto_latest, latest_build, min_build, message, url). routers/appversion.py: public GET /app/version (auto reads "Build N" from GitHub latest-apk release, cached 10 min); admin GET/PUT /admin/app-version. Schema v7.
 - CI stamps expo.extra.buildNumber + android.versionCode = run number. components/UpdateGate.tsx (root layout): build < min → forced dialog; < latest → optional with Later (remembers skipped build). Screen /admin-updates. APKs built before this have no build number → never prompted (install once manually).
 
+## Website (11 Nov)
+- website/ = static bilingual site (EN in HTML, Hindi in i18n.js; toggle remembered; auto Hindi for hi browsers). Fonts Martel+Mukta self-hosted (OFL). Sections: hero + live IST "school day" strip, roles tabs (app screenshots in assets/*.webp), features, steps, schools (crests generated from initials — never real logos), download (GitHub APK, build/size from GitHub API, QR), install steps, demo logins, FAQ.
+- Deploy: .github/workflows/website.yml → GitHub Pages (owner must set Settings → Pages → Source: GitHub Actions once). URL https://javedrnc.github.io/school-management-app/
+- Backend: SchoolShowcase (opt-in, city) schema v8; GET /public/schools (name, city, board, demo flag, crest; stats exclude DEMO schools; cached 5 min); principal GET/PUT /school/showcase; admin PUT /admin/schools/{id}/showcase. App: components/WebsiteListing.tsx in School settings.
+
 ## Android APK (F17)
 - .github/workflows/android-apk.yml: push to main (mobile/**) or manual → APK at github.com/JavedRNC/school-management-app/releases/tag/latest-apk (SchoolHub.apk). versionCode = run number. apiUrl baked from app.json. Debug-key signed (fine for sideload; Play Store needs real keystore secrets).
 
