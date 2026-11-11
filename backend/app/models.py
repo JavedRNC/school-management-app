@@ -506,3 +506,17 @@ class DataSnapshot(Base):
     created_at: Mapped[datetime] = mapped_column(DateTime, default=utcnow)
     created_by: Mapped[str] = mapped_column(String(120), default="")
     content: Mapped[bytes] = mapped_column(LargeBinary)
+
+
+# ================================================================ F16 — in-app update prompt
+class AppVersion(Base):
+    """Single row (id=1): what build phones should run. Builds = GitHub Actions run numbers (Android versionCode)."""
+    __tablename__ = "app_version"
+    id: Mapped[int] = mapped_column(primary_key=True)
+    auto_latest: Mapped[bool] = mapped_column(Boolean, default=True)     # read the newest build from the GitHub release
+    latest_build: Mapped[int] = mapped_column(Integer, default=0)        # used when auto_latest is off (or GitHub unreachable)
+    min_build: Mapped[int] = mapped_column(Integer, default=0)           # below this the app must update (forced)
+    message: Mapped[str] = mapped_column(Text, default="")
+    url: Mapped[str] = mapped_column(String(500), default="")
+    updated_at: Mapped[datetime] = mapped_column(DateTime, default=utcnow)
+    updated_by: Mapped[str] = mapped_column(String(120), default="")

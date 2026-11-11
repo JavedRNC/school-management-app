@@ -42,6 +42,15 @@ jobs:
       - name: Install JS packages
         run: npm ci
 
+      - name: Stamp the build number into the app (used for the in-app update prompt)
+        run: |
+          node -e "
+            const fs=require('fs'); const p='app.json'; const j=JSON.parse(fs.readFileSync(p));
+            j.expo.android = Object.assign({}, j.expo.android, { versionCode: Number(process.env.GITHUB_RUN_NUMBER) });
+            j.expo.extra = Object.assign({}, j.expo.extra, { buildNumber: Number(process.env.GITHUB_RUN_NUMBER) });
+            fs.writeFileSync(p, JSON.stringify(j, null, 2));"
+          grep -n "buildNumber\|versionCode" app.json
+
       - name: Generate native Android project
         run: npx expo prebuild --platform android --no-install
         env:

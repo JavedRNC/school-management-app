@@ -6,7 +6,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from .migrate import migrate
-from .routers import academics, admin, auth, comms, bell, dashboard, data, fees, leaves, school, settings, staff_attendance, transport
+from .routers import academics, admin, appversion, auth, comms, bell, dashboard, data, fees, leaves, school, settings, staff_attendance, transport
 
 
 @asynccontextmanager
@@ -43,7 +43,7 @@ app = FastAPI(title="School Hub API", version="0.6.0", lifespan=lifespan)
 app.add_middleware(CORSMiddleware, allow_origins=["*"], allow_methods=["*"], allow_headers=["*"])
 
 for r in (auth.router, school.router, academics.router, dashboard.router, settings.router, admin.router,
-          leaves.router, comms.router, comms.poll_router, staff_attendance.router, transport.router, fees.router, bell.router, data.router):
+          leaves.router, comms.router, comms.poll_router, staff_attendance.router, transport.router, fees.router, bell.router, data.router, appversion.router):
     app.include_router(r)
 
 
