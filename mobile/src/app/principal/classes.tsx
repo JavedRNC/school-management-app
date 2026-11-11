@@ -3,6 +3,7 @@ import { useEffect, useState } from 'react';
 import { View } from 'react-native';
 import { Button, Dialog, SegmentedButtons, Text, TextInput, TouchableRipple } from 'react-native-paper';
 
+import { bellSummary, useBell } from '@/components/BellTimes';
 import { subjectIcon, TimetableView } from '@/components/TimetableView';
 import {
   EmptyState, ErrorState, FadeIn, FilterChips, Hero, Icon, IconBadge, IconName, LoadingCards, Panel, PressScale, Row, Screen, Sheet, ToneChip,
@@ -232,6 +233,8 @@ function Setup({ data, onChange, canEdit }: { data: Base; onChange: () => void; 
   const [confirmDel, setConfirmDel] = useState(false);
   const [subj, setSubj] = useState<Subject | null>(null);
   const [exam, setExam] = useState<Exam | null>(null);
+  const { bell } = useBell();
+  const ownDays = bell ? Object.keys(bell.overrides).map((d) => DAYS[Number(d)]) : [];
 
   function openClass(c: SchoolClass) {
     haptic.tap();
@@ -317,6 +320,13 @@ function Setup({ data, onChange, canEdit }: { data: Base; onChange: () => void; 
         items={data.classes.map((c) => ({ key: String(c.id), label: c.name, onPress: canEdit ? () => openClass(c) : undefined }))} />
       <Block kind="subject" title="Subjects" icon="book-education-outline" index={1} editable={canEdit} hint={`${data.subjects.length} total · tap to edit`}
         items={data.subjects.map((x) => ({ key: String(x.id), label: x.name, onPress: canEdit ? () => { haptic.tap(); setSubj(x); } : undefined }))} />
+      <FadeIn index={3}>
+        <Panel icon="bell-ring-outline" title="Period timings"
+          subtitle={bell ? (bell.configured ? `${bellSummary(bell.default)}${ownDays.length ? ` · own timings on ${ownDays.join(', ')}` : ''}` : 'Not set yet · tap to set start and end times')
+            : 'Loading…'}
+          onPress={() => { haptic.tap(); router.push('/more/periods'); }}
+          right={<Icon name="chevron-right" size={22} color={t.colors.onSurfaceVariant} />} />
+      </FadeIn>
       <Block kind="exam" title="Exams" icon="file-document-edit-outline" index={2} editable={canExamEdit} hint={`${data.exams.length} total · tap to edit`}
         items={data.exams.map((e) => ({ key: String(e.id), label: `${e.name} · ${new Date(e.date + 'T00:00:00').toLocaleDateString('en-IN', { day: 'numeric', month: 'short' })}`,
           onPress: canExamEdit ? () => { haptic.tap(); setExam(e); } : undefined }))} />
