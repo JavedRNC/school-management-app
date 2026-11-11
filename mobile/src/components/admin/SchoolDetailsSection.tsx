@@ -1,8 +1,8 @@
 import { useEffect, useState } from 'react';
 import { View } from 'react-native';
-import { Button, Dialog, Portal, Switch, Text, TextInput } from 'react-native-paper';
+import { Button, Dialog, Switch, Text, TextInput } from 'react-native-paper';
 
-import { FadeIn, Panel, StatTile } from '@/components/ui';
+import { FadeIn, Panel, StatTile, TopLayer } from '@/components/ui';
 import { api } from '@/lib/api';
 import { haptic, useToast } from '@/lib/feedback';
 import { DAYS, space, useAppTheme } from '@/lib/theme';
@@ -73,7 +73,7 @@ export function SchoolDetailsSection({ d, onSaved }: { d: AdminSchoolDetail; onS
           subtitle={d.suspended ? 'Nobody in this school can sign in.' : 'Blocks all sign-ins for this school. Data is kept.'}
           right={<Switch value={d.suspended} onValueChange={() => { haptic.tap(); setConfirm(true); }} />} />
       </FadeIn>
-      <Portal>
+      <TopLayer visible={confirm} onDismiss={() => setConfirm(false)}>
         <Dialog visible={confirm} onDismiss={() => setConfirm(false)}>
           <Dialog.Icon icon={d.suspended ? 'lock-open-variant-outline' : 'lock-outline'} />
           <Dialog.Title style={{ textAlign: 'center' }}>{d.suspended ? `Reactivate ${d.name}?` : `Suspend ${d.name}?`}</Dialog.Title>
@@ -91,7 +91,7 @@ export function SchoolDetailsSection({ d, onSaved }: { d: AdminSchoolDetail; onS
             </Button>
           </Dialog.Actions>
         </Dialog>
-      </Portal>
+      </TopLayer>
     </>
   );
 }

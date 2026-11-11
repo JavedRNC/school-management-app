@@ -1,8 +1,8 @@
 import { useEffect, useState } from 'react';
 import { View } from 'react-native';
-import { Button, Dialog, HelperText, Portal, Text, TextInput } from 'react-native-paper';
+import { Button, Dialog, HelperText, Text, TextInput } from 'react-native-paper';
 
-import { FilterChips, Sheet, ToneChip, UserAvatar } from '@/components/ui';
+import { FilterChips, Sheet, ToneChip, UserAvatar, TopLayer } from '@/components/ui';
 import { api } from '@/lib/api';
 import { ROLE_LABEL, useAuth } from '@/lib/auth';
 import { haptic, useToast } from '@/lib/feedback';
@@ -245,7 +245,7 @@ export function PersonSheet({
           )
         ) : null}
       </Sheet>
-      <Portal>
+      <TopLayer visible={confirm} onDismiss={() => setConfirm(false)}>
         <Dialog visible={confirm} onDismiss={() => setConfirm(false)}>
           <Dialog.Icon icon="account-remove-outline" />
           <Dialog.Title style={{ textAlign: 'center' }}>Remove {person?.name}?</Dialog.Title>
@@ -259,7 +259,7 @@ export function PersonSheet({
             <Button textColor={t.colors.error} onPress={() => { setConfirm(false); if (person) onRemove(person); }}>Remove</Button>
           </Dialog.Actions>
         </Dialog>
-      </Portal>
+      </TopLayer>
     </>
   );
 }

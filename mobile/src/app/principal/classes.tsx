@@ -1,13 +1,12 @@
 import { router } from 'expo-router';
 import { useEffect, useState } from 'react';
 import { View } from 'react-native';
-import { Button, Dialog, Portal, SegmentedButtons, Text, TextInput, TouchableRipple } from 'react-native-paper';
+import { Button, Dialog, SegmentedButtons, Text, TextInput, TouchableRipple } from 'react-native-paper';
 
 import { subjectIcon, TimetableView } from '@/components/TimetableView';
 import {
   EmptyState, ErrorState, FadeIn, FilterChips, Hero, Icon, IconBadge, IconName, LoadingCards, Panel, PressScale, Row, Screen, Sheet, ToneChip,
-  UserAvatar,
-} from '@/components/ui';
+  UserAvatar, TopLayer } from '@/components/ui';
 import { api } from '@/lib/api';
 import { useCan } from '@/lib/auth';
 import { haptic, useToast } from '@/lib/feedback';
@@ -355,7 +354,7 @@ function Setup({ data, onChange, canEdit }: { data: Base; onChange: () => void; 
           </View>
         ) : null}
       </Sheet>
-      <Portal>
+      <TopLayer visible={confirmDel} onDismiss={() => setConfirmDel(false)}>
         <Dialog visible={confirmDel} onDismiss={() => setConfirmDel(false)}>
           <Dialog.Icon icon="archive-arrow-down-outline" />
           <Dialog.Title style={{ textAlign: 'center' }}>Archive class {editing?.name}?</Dialog.Title>
@@ -367,7 +366,7 @@ function Setup({ data, onChange, canEdit }: { data: Base; onChange: () => void; 
             <Button textColor={t.colors.error} onPress={deleteClass}>Archive</Button>
           </Dialog.Actions>
         </Dialog>
-      </Portal>
+      </TopLayer>
       <SubjectEditor subject={subj} onClose={() => setSubj(null)} onChange={onChange} />
       <ExamEditor exam={exam} onClose={() => setExam(null)} onChange={onChange} />
     </>
@@ -379,7 +378,7 @@ function ConfirmDelete({ visible, title, text, onCancel, onConfirm }: {
 }) {
   const t = useAppTheme();
   return (
-    <Portal>
+    <TopLayer visible={visible} onDismiss={onCancel}>
       <Dialog visible={visible} onDismiss={onCancel}>
         <Dialog.Icon icon="archive-arrow-down-outline" />
         <Dialog.Title style={{ textAlign: 'center' }}>{title}</Dialog.Title>
@@ -389,7 +388,7 @@ function ConfirmDelete({ visible, title, text, onCancel, onConfirm }: {
           <Button textColor={t.colors.error} onPress={onConfirm}>Archive</Button>
         </Dialog.Actions>
       </Dialog>
-    </Portal>
+    </TopLayer>
   );
 }
 

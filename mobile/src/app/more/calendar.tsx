@@ -1,8 +1,8 @@
 import { useMemo, useState } from 'react';
 import { Pressable, View } from 'react-native';
-import { AnimatedFAB, Button, Dialog, HelperText, IconButton, Portal, SegmentedButtons, Switch, Text, TextInput } from 'react-native-paper';
+import { AnimatedFAB, Button, Dialog, HelperText, IconButton, SegmentedButtons, Switch, Text, TextInput } from 'react-native-paper';
 
-import { ErrorState, FadeIn, FilterChips, Hero, Icon, IconName, LoadingCards, Panel, Screen, SectionTitle, Sheet } from '@/components/ui';
+import { ErrorState, FadeIn, FilterChips, Hero, Icon, IconName, LoadingCards, Panel, Screen, SectionTitle, Sheet, TopLayer } from '@/components/ui';
 import { api } from '@/lib/api';
 import { useAuth, useCan } from '@/lib/auth';
 import { haptic, useToast } from '@/lib/feedback';
@@ -178,7 +178,7 @@ export default function CalendarScreen() {
           style={{ position: 'absolute', right: space.lg, bottom: space.lg }} />
       ) : null}
       <Editor entry={editing} defaultDate={selected} onClose={() => setEditing(null)} onSaved={() => { setEditing(null); reload(); }} />
-      <Portal>
+      <TopLayer visible={natOpen} onDismiss={() => setNatOpen(false)}>
         <Dialog visible={natOpen} onDismiss={() => setNatOpen(false)}>
           <Dialog.Icon icon="flag-outline" />
           <Dialog.Title style={{ textAlign: 'center' }}>Add national holidays</Dialog.Title>
@@ -190,7 +190,7 @@ export default function CalendarScreen() {
             <Button onPress={() => addNational(new Date().getFullYear() + 1)}>{new Date().getFullYear() + 1}</Button>
           </Dialog.Actions>
         </Dialog>
-      </Portal>
+      </TopLayer>
     </View>
   );
 }
@@ -314,7 +314,7 @@ function Editor({ entry, defaultDate, onClose, onSaved }: { entry: Holiday | 'ne
             onPress={() => setConfirm(true)}>Archive entry</Button>
         ) : null}
       </Sheet>
-      <Portal>
+      <TopLayer visible={confirm} onDismiss={() => setConfirm(false)}>
         <Dialog visible={confirm} onDismiss={() => setConfirm(false)}>
           <Dialog.Icon icon="archive-arrow-down-outline" />
           <Dialog.Title style={{ textAlign: 'center' }}>Archive {existing?.name}?</Dialog.Title>
@@ -324,7 +324,7 @@ function Editor({ entry, defaultDate, onClose, onSaved }: { entry: Holiday | 'ne
             <Button textColor={t.colors.error} onPress={archive}>Archive</Button>
           </Dialog.Actions>
         </Dialog>
-      </Portal>
+      </TopLayer>
     </>
   );
 }

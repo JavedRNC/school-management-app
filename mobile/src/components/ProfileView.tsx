@@ -1,7 +1,7 @@
 import { router } from 'expo-router';
 import { useState } from 'react';
 import { View } from 'react-native';
-import { Button, Dialog, List, Portal, Text, TextInput } from 'react-native-paper';
+import { Button, Dialog, List, Text, TextInput } from 'react-native-paper';
 
 import { api, getBaseUrl } from '@/lib/api';
 import { ROLE_LABEL, useAuth, useCan } from '@/lib/auth';
@@ -11,7 +11,7 @@ import type { User } from '@/lib/types';
 
 import { useOps } from './OpsGrid';
 import { StatusBanner } from './StatusBanner';
-import { FadeIn, Hero, IconName, Panel, Screen, Sheet, UserAvatar } from './ui';
+import { FadeIn, Hero, IconName, Panel, Screen, Sheet, UserAvatar, TopLayer } from './ui';
 
 type Link = { title: string; desc: string; icon: IconName; to: string };
 
@@ -137,7 +137,7 @@ export function ProfileView({ extra }: { extra?: string }) {
         <Text variant="bodySmall" style={{ color: t.colors.onSurfaceVariant, marginVertical: space.sm }}>At least 6 characters, not the same as your login ID.</Text>
         <Button mode="contained" onPress={change} loading={busy} contentStyle={{ paddingVertical: 6 }}>Update password</Button>
       </Sheet>
-      <Portal>
+      <TopLayer visible={confirmOut} onDismiss={() => setConfirmOut(false)}>
         <Dialog visible={confirmOut} onDismiss={() => setConfirmOut(false)}>
           <Dialog.Icon icon="logout" />
           <Dialog.Title style={{ textAlign: 'center' }}>Log out?</Dialog.Title>
@@ -146,7 +146,7 @@ export function ProfileView({ extra }: { extra?: string }) {
             <Button onPress={() => { setConfirmOut(false); logout(); router.replace('/login'); }}>Log out</Button>
           </Dialog.Actions>
         </Dialog>
-      </Portal>
+      </TopLayer>
     </Screen>
   );
 }

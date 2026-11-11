@@ -1,8 +1,8 @@
 import { useEffect, useMemo, useState } from 'react';
 import { View } from 'react-native';
-import { Button, Checkbox, Dialog, HelperText, Portal, Searchbar, Text, TextInput } from 'react-native-paper';
+import { Button, Checkbox, Dialog, HelperText, Searchbar, Text, TextInput } from 'react-native-paper';
 
-import { EmptyState, ErrorState, FadeIn, FilterChips, Icon, LoadingCards, Panel, Row, Sheet, ToneChip, UserAvatar } from '@/components/ui';
+import { EmptyState, ErrorState, FadeIn, FilterChips, Icon, LoadingCards, Panel, Row, Sheet, ToneChip, UserAvatar, TopLayer } from '@/components/ui';
 import { api } from '@/lib/api';
 import { ROLE_LABEL } from '@/lib/auth';
 import { haptic, useToast } from '@/lib/feedback';
@@ -225,7 +225,7 @@ function PersonSheet({ target, d, full, classes, defaultRole, onClose, onSaved, 
           )
         ) : null}
       </Sheet>
-      <Portal>
+      <TopLayer visible={confirm} onDismiss={() => setConfirm(false)}>
         <Dialog visible={confirm} onDismiss={() => setConfirm(false)}>
           <Dialog.Icon icon="account-remove-outline" />
           <Dialog.Title style={{ textAlign: 'center' }}>Remove {u?.name}?</Dialog.Title>
@@ -235,7 +235,7 @@ function PersonSheet({ target, d, full, classes, defaultRole, onClose, onSaved, 
             <Button textColor={t.colors.error} onPress={() => { setConfirm(false); if (u) onSetActive(u, false); }}>Remove</Button>
           </Dialog.Actions>
         </Dialog>
-      </Portal>
+      </TopLayer>
     </>
   );
 }

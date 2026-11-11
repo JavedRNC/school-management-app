@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { View } from 'react-native';
-import { AnimatedFAB, Button, Dialog, Portal, SegmentedButtons, Text } from 'react-native-paper';
+import { AnimatedFAB, Button, Dialog, SegmentedButtons, Text } from 'react-native-paper';
 
 import { MyBusCard } from '@/components/BusCard';
 import { AssignSheet } from '@/components/transport/AssignSheet';
@@ -8,8 +8,7 @@ import { CallButton, daysUntil, expiryTone, fmtDay, KIND_ICON, PlateChip, SeatsB
 import { RouteSheet } from '@/components/transport/RouteSheet';
 import { VehicleSheet } from '@/components/transport/VehicleSheet';
 import {
-  EmptyState, ErrorState, FadeIn, FilterChips, Hero, Icon, LoadingCards, Panel, Row, Screen, SectionTitle, StatTile, ToneChip,
-} from '@/components/ui';
+  EmptyState, ErrorState, FadeIn, FilterChips, Hero, Icon, LoadingCards, Panel, Row, Screen, SectionTitle, StatTile, ToneChip, TopLayer } from '@/components/ui';
 import { api } from '@/lib/api';
 import { useAuth, useCan, useModule } from '@/lib/auth';
 import { haptic, useToast } from '@/lib/feedback';
@@ -173,7 +172,7 @@ function ManageTransport() {
       <AssignSheet visible={assign.open} routes={d?.routes ?? []} riders={riders.data ?? []} students={people.data?.students ?? []}
         classes={people.data?.classes ?? []} preselect={assign.pre} onDismiss={() => setAssign({ open: false })}
         onSaved={() => { setAssign({ open: false }); reload(); }} />
-      <Portal>
+      <TopLayer visible={!!confirm} onDismiss={() => setConfirm(null)}>
         <Dialog visible={!!confirm} onDismiss={() => setConfirm(null)}>
           <Dialog.Icon icon={confirm?.kind === 'rider' ? 'account-remove-outline' : 'archive-arrow-down-outline'} />
           <Dialog.Title style={{ textAlign: 'center' }}>
@@ -191,7 +190,7 @@ function ManageTransport() {
             <Button textColor={t.colors.error} onPress={doArchive}>{confirm?.kind === 'rider' ? 'Remove' : 'Archive'}</Button>
           </Dialog.Actions>
         </Dialog>
-      </Portal>
+      </TopLayer>
     </View>
   );
 }

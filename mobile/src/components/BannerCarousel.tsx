@@ -1,7 +1,8 @@
+import { TopLayer } from '@/components/ui';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { Animated, Image, LayoutChangeEvent, NativeScrollEvent, NativeSyntheticEvent, ScrollView, View, ViewStyle } from 'react-native';
-import { Button, Dialog, Portal, Text } from 'react-native-paper';
+import { Button, Dialog, Text } from 'react-native-paper';
 
 import { BannerCard } from '@/components/comms/BannerCard';
 import { shortDate } from '@/components/comms/util';
@@ -98,7 +99,7 @@ export function BannerCarousel({ style }: { style?: ViewStyle }) {
         </View>
       ) : null}
 
-      <Portal>
+      <TopLayer visible={!!detail} onDismiss={() => (open ? setOpen(null) : dismissPopup())}>
         <Dialog visible={!!detail} onDismiss={() => (open ? setOpen(null) : dismissPopup())}>
           {detail?.image_url ? (
             <Image source={{ uri: detail.image_url }} resizeMode="cover"
@@ -118,7 +119,7 @@ export function BannerCarousel({ style }: { style?: ViewStyle }) {
             <Button onPress={() => (open ? setOpen(null) : dismissPopup())}>{open ? 'Close' : 'Got it'}</Button>
           </Dialog.Actions>
         </Dialog>
-      </Portal>
+      </TopLayer>
     </View>
   );
 }

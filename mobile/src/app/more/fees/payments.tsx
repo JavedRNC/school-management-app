@@ -1,10 +1,10 @@
 import { router, useLocalSearchParams } from 'expo-router';
 import { useMemo, useState } from 'react';
 import { View } from 'react-native';
-import { Button, Dialog, IconButton, Portal, Switch, Text, TextInput } from 'react-native-paper';
+import { Button, Dialog, IconButton, Switch, Text, TextInput } from 'react-native-paper';
 
 import { ISO_RE, iso, isoToday, ModeSplit, PaymentRow, useFeeGate } from '@/components/fees/staff/common';
-import { EmptyState, ErrorState, FadeIn, FilterChips, Hero, LoadingCards, Panel, Screen, SectionTitle } from '@/components/ui';
+import { EmptyState, ErrorState, FadeIn, FilterChips, Hero, LoadingCards, Panel, Screen, SectionTitle, TopLayer } from '@/components/ui';
 import { api } from '@/lib/api';
 import { fmtDate, inr, MODE_ICON, MODE_LABEL } from '@/lib/fees';
 import { useToast } from '@/lib/feedback';
@@ -138,7 +138,7 @@ function Report({ canEdit }: { canEdit: boolean }) {
           );
         })}
 
-      <Portal>
+      <TopLayer visible={!!cancel} onDismiss={() => setCancel(null)}>
         <Dialog visible={!!cancel} onDismiss={() => setCancel(null)}>
           <Dialog.Icon icon="receipt-text-remove-outline" />
           <Dialog.Title style={{ textAlign: 'center' }}>Cancel receipt {cancel?.receipt_no}?</Dialog.Title>
@@ -153,7 +153,7 @@ function Report({ canEdit }: { canEdit: boolean }) {
             <Button textColor={t.custom.danger} onPress={doCancel} loading={busy} disabled={busy}>Cancel receipt</Button>
           </Dialog.Actions>
         </Dialog>
-      </Portal>
+      </TopLayer>
     </Screen>
   );
 }

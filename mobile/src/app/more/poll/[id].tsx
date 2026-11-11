@@ -1,11 +1,11 @@
 import { router, useLocalSearchParams } from 'expo-router';
 import { useMemo, useState } from 'react';
 import { Share, View } from 'react-native';
-import { Button, Dialog, Portal, Text } from 'react-native-paper';
+import { Button, Dialog, Text } from 'react-native-paper';
 
 import { Ring } from '@/components/charts';
 import { deadlineText, rupees, shortDate } from '@/components/comms/util';
-import { EmptyState, ErrorState, FadeIn, FilterChips, Hero, LoadingCards, Panel, Row, Screen, ToneChip, UserAvatar } from '@/components/ui';
+import { EmptyState, ErrorState, FadeIn, FilterChips, Hero, LoadingCards, Panel, Row, Screen, ToneChip, UserAvatar, TopLayer } from '@/components/ui';
 import { api } from '@/lib/api';
 import { useAuth, useCan } from '@/lib/auth';
 import { useToast } from '@/lib/feedback';
@@ -163,7 +163,7 @@ export default function PollResultsScreen() {
         </Panel>
       </FadeIn>
 
-      <Portal>
+      <TopLayer visible={!!confirm} onDismiss={() => setConfirm(null)}>
         <Dialog visible={!!confirm} onDismiss={() => setConfirm(null)}>
           <Dialog.Icon icon={confirm === 'close' ? 'lock-outline' : 'archive-arrow-down-outline'} />
           <Dialog.Title style={{ textAlign: 'center' }}>{confirm === 'close' ? 'Close this form?' : 'Archive this form?'}</Dialog.Title>
@@ -179,7 +179,7 @@ export default function PollResultsScreen() {
             </Button>
           </Dialog.Actions>
         </Dialog>
-      </Portal>
+      </TopLayer>
     </Screen>
   );
 }

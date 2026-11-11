@@ -316,6 +316,16 @@ export function Sheet({ visible, onDismiss, title, children }: { visible: boolea
   );
 }
 
+/** Wrap a Paper <Dialog> in this instead of <Portal>. A Portal draws under native modals, so a dialog
+ *  opened from inside a <Sheet> was invisible on phones (e.g. "Archive entry" seemed to do nothing). */
+export function TopLayer({ visible, onDismiss, children }: { visible: boolean; onDismiss: () => void; children: ReactNode }) {
+  return (
+    <Modal visible={visible} transparent animationType="none" onRequestClose={onDismiss} statusBarTranslucent>
+      {children}
+    </Modal>
+  );
+}
+
 export const styles = StyleSheet.create({
   circle: { position: 'absolute', borderRadius: 999 },
   row: { flexDirection: 'row', alignItems: 'center' },

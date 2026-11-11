@@ -1,8 +1,8 @@
 import { useState } from 'react';
 import { View } from 'react-native';
-import { AnimatedFAB, Button, Dialog, Portal, Text } from 'react-native-paper';
+import { AnimatedFAB, Button, Dialog, Text } from 'react-native-paper';
 
-import { EmptyState, ErrorState, FadeIn, Hero, LoadingCards, Panel, Screen, SectionTitle, ToneChip } from '@/components/ui';
+import { EmptyState, ErrorState, FadeIn, Hero, LoadingCards, Panel, Screen, SectionTitle, ToneChip, TopLayer } from '@/components/ui';
 import { api } from '@/lib/api';
 import { haptic, useToast } from '@/lib/feedback';
 import { space, useAppTheme } from '@/lib/theme';
@@ -115,7 +115,7 @@ export function BannerManager({ endpoint, canEdit, allowImages, showClasses, tit
       ) : null}
       <BannerEditor visible={open} onDismiss={() => { setOpen(false); setEditing(null); }} initial={editing} allowImages={allowImages}
         showClasses={showClasses} onSave={save} />
-      <Portal>
+      <TopLayer visible={!!confirm} onDismiss={() => setConfirm(null)}>
         <Dialog visible={!!confirm} onDismiss={() => setConfirm(null)}>
           <Dialog.Icon icon="archive-arrow-down-outline" />
           <Dialog.Title style={{ textAlign: 'center' }}>{endpoint === '/banners' ? 'Archive' : 'Remove'} this banner?</Dialog.Title>
@@ -127,7 +127,7 @@ export function BannerManager({ endpoint, canEdit, allowImages, showClasses, tit
             <Button textColor={t.colors.error} onPress={() => confirm && archive(confirm)}>{endpoint === '/banners' ? 'Archive' : 'Remove'}</Button>
           </Dialog.Actions>
         </Dialog>
-      </Portal>
+      </TopLayer>
     </View>
   );
 }

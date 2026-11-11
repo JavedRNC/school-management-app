@@ -1,7 +1,8 @@
 import { Share, View } from 'react-native';
-import { Button, Dialog, Portal, Text } from 'react-native-paper';
+import { Button, Dialog, Text } from 'react-native-paper';
 
 import { radius, space, useAppTheme } from '@/lib/theme';
+import { TopLayer } from '../ui';
 
 export type Credentials = { name: string; schoolCode: string; loginId: string; password: string; title: string };
 
@@ -17,7 +18,7 @@ export function CredentialsDialog({ creds, onDismiss }: { creds: Credentials | n
     </View>
   );
   return (
-    <Portal>
+    <TopLayer visible onDismiss={onDismiss}>
       <Dialog visible onDismiss={onDismiss}>
         <Dialog.Icon icon="account-key-outline" />
         <Dialog.Title style={{ textAlign: 'center' }}>{creds.title}</Dialog.Title>
@@ -36,6 +37,6 @@ export function CredentialsDialog({ creds, onDismiss }: { creds: Credentials | n
           <Button onPress={onDismiss}>Done</Button>
         </Dialog.Actions>
       </Dialog>
-    </Portal>
+    </TopLayer>
   );
 }

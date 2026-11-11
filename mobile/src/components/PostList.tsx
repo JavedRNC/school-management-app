@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { LayoutAnimation, Platform, UIManager, View } from 'react-native';
-import { Button, Card, Dialog, IconButton, Portal, Text } from 'react-native-paper';
+import { Button, Card, Dialog, IconButton, Text } from 'react-native-paper';
 
 import { api } from '@/lib/api';
 import { haptic, useToast } from '@/lib/feedback';
@@ -8,7 +8,7 @@ import { radius, space, useAppTheme } from '@/lib/theme';
 import type { Post } from '@/lib/types';
 
 import { subjectIcon } from './TimetableView';
-import { EmptyState, FadeIn, Icon, ToneChip, UserAvatar } from './ui';
+import { EmptyState, FadeIn, Icon, ToneChip, UserAvatar, TopLayer } from './ui';
 
 if (Platform.OS === 'android') UIManager.setLayoutAnimationEnabledExperimental?.(true);
 
@@ -103,7 +103,7 @@ export function PostList({ posts, canDelete, onDeleted, onEdit, emptyText = 'Not
           </FadeIn>
         );
       })}
-      <Portal>
+      <TopLayer visible={!!confirm} onDismiss={() => setConfirm(null)}>
         <Dialog visible={!!confirm} onDismiss={() => setConfirm(null)}>
           <Dialog.Icon icon="archive-arrow-down-outline" />
           <Dialog.Title style={{ textAlign: 'center' }}>Archive this post?</Dialog.Title>
@@ -113,7 +113,7 @@ export function PostList({ posts, canDelete, onDeleted, onEdit, emptyText = 'Not
             <Button textColor={t.colors.error} onPress={() => confirm && del(confirm)}>Archive</Button>
           </Dialog.Actions>
         </Dialog>
-      </Portal>
+      </TopLayer>
     </View>
   );
 }

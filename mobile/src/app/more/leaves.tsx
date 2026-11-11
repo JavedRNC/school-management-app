@@ -1,14 +1,13 @@
 import { useLocalSearchParams } from 'expo-router';
 import { useEffect, useMemo, useState } from 'react';
 import { View } from 'react-native';
-import { AnimatedFAB, Button, Dialog, Portal, SegmentedButtons, Text, TextInput } from 'react-native-paper';
+import { AnimatedFAB, Button, Dialog, SegmentedButtons, Text, TextInput } from 'react-native-paper';
 
 import { ApplyLeaveSheet } from '@/components/leaves/ApplyLeaveSheet';
 import { fmtDay, STAFF_ROLES, TYPE_ICON, TYPE_LABEL } from '@/components/leaves/common';
 import { LeaveCard } from '@/components/leaves/LeaveCard';
 import {
-  EmptyState, ErrorState, FadeIn, FilterChips, Hero, LoadingCards, Panel, Row, Screen, Sheet, StatTile, ToneChip, UserAvatar,
-} from '@/components/ui';
+  EmptyState, ErrorState, FadeIn, FilterChips, Hero, LoadingCards, Panel, Row, Screen, Sheet, StatTile, ToneChip, UserAvatar, TopLayer } from '@/components/ui';
 import { api, ApiError } from '@/lib/api';
 import { useAuth, useCan, useModule } from '@/lib/auth';
 import { haptic, useToast } from '@/lib/feedback';
@@ -236,7 +235,7 @@ function MyLeaves({ mine, balance, onChanged, readOnly }: {
         const cancellable = lr.status === 'pending' || (lr.status === 'approved' && lr.start_date > todayIso);
         return <LeaveCard key={lr.id} lr={lr} index={i} disabled={readOnly} onCancel={cancellable ? () => setCancelling(lr) : undefined} />;
       }) : <EmptyState icon="beach" title="No leave requests yet" text="Tap “Apply for leave” to send one to the principal." />}
-      <Portal>
+      <TopLayer visible={!!cancelling} onDismiss={() => setCancelling(null)}>
         <Dialog visible={!!cancelling} onDismiss={() => setCancelling(null)}>
           <Dialog.Icon icon="cancel" />
           <Dialog.Title style={{ textAlign: 'center' }}>Cancel this request?</Dialog.Title>
@@ -245,7 +244,7 @@ function MyLeaves({ mine, balance, onChanged, readOnly }: {
             <Button textColor={t.colors.error} onPress={() => cancelling && cancel(cancelling)}>Cancel request</Button>
           </Dialog.Actions>
         </Dialog>
-      </Portal>
+      </TopLayer>
     </>
   );
 }
@@ -298,7 +297,7 @@ function ChildrenLeaves({ kids, mine, child, onPick, onChanged, readOnly }: {
         const cancellable = lr.status === 'pending' || (lr.status === 'approved' && lr.start_date > todayIso);
         return <LeaveCard key={lr.id} lr={lr} index={i} disabled={readOnly} onCancel={cancellable ? () => setCancelling(lr) : undefined} />;
       }) : <EmptyState icon="calendar-blank-outline" title="No leave requests" text={`Apply leave when ${child?.name.split(' ')[0]} can't come to school.`} />}
-      <Portal>
+      <TopLayer visible={!!cancelling} onDismiss={() => setCancelling(null)}>
         <Dialog visible={!!cancelling} onDismiss={() => setCancelling(null)}>
           <Dialog.Icon icon="cancel" />
           <Dialog.Title style={{ textAlign: 'center' }}>Cancel this request?</Dialog.Title>
@@ -307,7 +306,7 @@ function ChildrenLeaves({ kids, mine, child, onPick, onChanged, readOnly }: {
             <Button textColor={t.colors.error} onPress={() => cancelling && cancel(cancelling)}>Cancel request</Button>
           </Dialog.Actions>
         </Dialog>
-      </Portal>
+      </TopLayer>
     </>
   );
 }

@@ -1,11 +1,11 @@
 import { useState } from 'react';
 import { View } from 'react-native';
-import { AnimatedFAB, Button, Dialog, Portal, Text } from 'react-native-paper';
+import { AnimatedFAB, Button, Dialog, Text } from 'react-native-paper';
 
 import { Bar, Glow } from '@/components/fees/setup/common';
 import { RolloutSheet } from '@/components/fees/setup/RolloutSheet';
 import { StatusBanner } from '@/components/StatusBanner';
-import { EmptyState, ErrorState, FadeIn, Hero, Icon, LoadingCards, Panel, Screen, StatTile, ToneChip } from '@/components/ui';
+import { EmptyState, ErrorState, FadeIn, Hero, Icon, LoadingCards, Panel, Screen, StatTile, ToneChip, TopLayer } from '@/components/ui';
 import { api } from '@/lib/api';
 import { useAuth, useCan, useModule } from '@/lib/auth';
 import { haptic, useToast } from '@/lib/feedback';
@@ -123,7 +123,7 @@ function ExtraFees() {
       <RolloutSheet visible={open} classes={cfg.data?.classes ?? []} onDismiss={() => setOpen(false)}
         onDone={(b) => { setOpen(false); setFresh(b.id); batches.reload(); }} />
 
-      <Portal>
+      <TopLayer visible={!!confirm} onDismiss={() => setConfirm(null)}>
         <Dialog visible={!!confirm} onDismiss={() => setConfirm(null)}>
           <Dialog.Icon icon="undo-variant" />
           <Dialog.Title style={{ textAlign: 'center' }}>Withdraw {confirm?.title}?</Dialog.Title>
@@ -138,7 +138,7 @@ function ExtraFees() {
             <Button textColor={t.colors.error} onPress={withdraw}>Withdraw</Button>
           </Dialog.Actions>
         </Dialog>
-      </Portal>
+      </TopLayer>
     </View>
   );
 }
