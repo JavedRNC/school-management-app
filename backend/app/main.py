@@ -6,20 +6,25 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from .migrate import migrate
-from .routers import academics, admin, auth, comms, dashboard, fees, leaves, school, settings, staff_attendance, transport
+from .routers import academics, admin, auth, comms, bell, dashboard, data, fees, leaves, school, settings, staff_attendance, transport
 
 
 @asynccontextmanager
 async def lifespan(_app: FastAPI):
     migrate()
+    from .auth import ensure_secret
+    from .db import SessionLocal
     from .seed import ensure_platform, seed_demo_if_empty
+
+    with SessionLocal() as db:
+        ensure_secret(db)
 
     ensure_platform()  # plans + super admin account
     if os.getenv("SEED_DEMO", "1") == "1":
         # demo data must never stop the server from starting
         from . import seed
 
-        for fn in (seed.seed_demo_if_empty, seed.seed_phase2_demo, seed.seed_fees_demo):
+        for fn in (seed.seed_demo_if_empty, seed.seed_phase2_demo, seed.seed_fees_demo, seed.seed_bell_demo):
             try:
                 fn()
             except Exception:  # noqa: BLE001
@@ -31,7 +36,7 @@ app = FastAPI(title="School Hub API", version="0.5.0", lifespan=lifespan)
 app.add_middleware(CORSMiddleware, allow_origins=["*"], allow_methods=["*"], allow_headers=["*"])
 
 for r in (auth.router, school.router, academics.router, dashboard.router, settings.router, admin.router,
-          leaves.router, comms.router, comms.poll_router, staff_attendance.router, transport.router, fees.router):
+          leaves.router, comms.router, comms.poll_router, staff_attendance.router, transport.router, fees.router, bell.router, data.router):
     app.include_router(r)
 
 

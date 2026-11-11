@@ -12,7 +12,24 @@ from .models import AuditLog, Role, School, User
 from .perms import RANK, level_of
 from .subscription import can_write, school_modules
 
-SECRET = os.getenv("JWT_SECRET", "dev-only-secret-change-me-in-production-0123456789")
+DEV_SECRET = "dev-only-secret-change-me-in-production-0123456789"
+SECRET = os.getenv("JWT_SECRET") or DEV_SECRET   # replaced at startup by ensure_secret() when JWT_SECRET is unset
+
+
+def ensure_secret(db) -> None:
+    """Never run with the public default secret: if JWT_SECRET isn't set, use a random one kept in the database."""
+    global SECRET
+    if os.getenv("JWT_SECRET"):
+        return
+    import secrets as _s
+
+    from .models import Meta
+    row = db.get(Meta, "jwt_secret")
+    if not row:
+        row = Meta(key="jwt_secret", value=_s.token_urlsafe(48))
+        db.add(row)
+        db.commit()
+    SECRET = row.value
 TOKEN_DAYS = 7
 MAX_FAILED = 5
 LOCK_MINUTES = 15

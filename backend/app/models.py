@@ -486,3 +486,13 @@ class ReceiptCounter(Base):
     school_id: Mapped[int] = mapped_column(ForeignKey("schools.id"), primary_key=True)
     year: Mapped[str] = mapped_column(String(7), primary_key=True)    # 2026-27
     last_no: Mapped[int] = mapped_column(Integer, default=0)
+
+
+# ================================================================ Phase 4 — period timings (F28)
+class BellSchedule(Base):
+    """Period timings. day = -1 is the school default; 0..6 (Mon..Sun) overrides one weekday (e.g. Saturday half day).
+    slots: [{"kind": "period"|"break", "label": "Lunch", "start": "08:00", "end": "08:40"}, ...] in time order."""
+    __tablename__ = "bell_schedules"
+    school_id: Mapped[int] = mapped_column(ForeignKey("schools.id"), primary_key=True)
+    day: Mapped[int] = mapped_column(Integer, primary_key=True)
+    slots: Mapped[list] = mapped_column(JSON, default=list)

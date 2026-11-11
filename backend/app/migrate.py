@@ -12,7 +12,7 @@ from sqlalchemy import MetaData, inspect, select
 from .db import Base, SessionLocal, engine
 from .models import Meta
 
-SCHEMA_VERSION = 4  # v3 = Phase 2 tables, v4 = fees tables (additive; create_all adds them)
+SCHEMA_VERSION = 5  # v3 Phase 2, v4 fees, v5 bell schedules (all additive; create_all adds them)
 log = logging.getLogger("migrate")
 
 

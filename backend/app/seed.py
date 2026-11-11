@@ -381,3 +381,28 @@ def seed_fees_demo() -> bool:
         db.commit()
         _ = period_of
         return True
+
+
+DEMO_BELL = [
+    {"kind": "period", "label": "Period 1", "start": "08:00", "end": "08:40"},
+    {"kind": "period", "label": "Period 2", "start": "08:40", "end": "09:20"},
+    {"kind": "break", "label": "Short break", "start": "09:20", "end": "09:35"},
+    {"kind": "period", "label": "Period 3", "start": "09:35", "end": "10:15"},
+    {"kind": "period", "label": "Period 4", "start": "10:15", "end": "10:55"},
+    {"kind": "break", "label": "Lunch", "start": "10:55", "end": "11:30"},
+    {"kind": "period", "label": "Period 5", "start": "11:30", "end": "12:10"},
+    {"kind": "period", "label": "Period 6", "start": "12:10", "end": "12:50"},
+]
+
+
+def seed_bell_demo() -> bool:
+    """F28 demo period timings for DEMO01 (idempotent)."""
+    from .models import BellSchedule
+
+    with SessionLocal() as db:
+        s = db.scalar(select(School).where(School.code == "DEMO01"))
+        if not s or db.get(BellSchedule, (s.id, -1)):
+            return False
+        db.add(BellSchedule(school_id=s.id, day=-1, slots=DEMO_BELL))
+        db.commit()
+        return True

@@ -1,9 +1,11 @@
 """School setup: classes, subjects, people, assignments, timetable, exams. All tenant-scoped."""
 from fastapi import APIRouter, Depends, HTTPException
+from pydantic import BaseModel, Field
 from sqlalchemy import delete, func, select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
+from ..bell import period_count, schedules
 from ..auth import audit, check_password_rules, hash_password, require_area, school_user
 from ..db import get_db
 from ..deps import active_ids, class_students, get_school, name_maps, owned, resolve_student, visible_class_ids
@@ -54,7 +56,7 @@ def _check_teacher(db: Session, user: User, teacher_id: int | None) -> None:
         return
     t = db.get(User, teacher_id)
     if not t or t.school_id != user.school_id or t.role != Role.teacher or not t.active:
-        raise HTTPException(400, "Class teacher must be an active teacher")
+        raise HTTPException(400, "Pick an active teacher of this school")
 
 
 @router.post("/classes", response_model=ClassOut)
@@ -209,6 +211,40 @@ def create_user(body: UserCreate, me: User = Depends(require_area("people", "edi
     return user_out(db, u)
 
 
+class BulkIn(BaseModel):
+    role: Role
+    rows: list[dict] = Field(min_length=1, max_length=300)
+    dry_run: bool = True
+
+
+@router.post("/users/bulk")
+def bulk_create(body: BulkIn, me: User = Depends(require_area("people", "edit")), db: Session = Depends(get_db)):
+    """F29 · Add many people of one type. dry_run → only check. Nothing is saved if any row has a problem."""
+    from ..people import Ctx, PeoplePlan, apply_plan, check_student_limit, plan_rows, summary
+
+    if body.role not in (Role.student, Role.teacher, Role.parent, Role.vice_principal, Role.coordinator):
+        raise HTTPException(400, "Pick students, teachers, parents, vice principals or coordinators")
+    _validate_role(db, me, body.role)
+    school = get_school(db, me)
+    ctx = Ctx(db, school)
+    plan = PeoplePlan(school=school, me=me)
+    rows = [r for r in body.rows if any(str(v or "").strip() for v in r.values())]
+    if not rows:
+        raise HTTPException(400, "All rows are empty")
+    plan_rows(ctx, plan, body.role, rows)
+    check_student_limit(ctx, plan)
+    out = {"ok": not plan.issues, "errors": [i.out() for i in plan.issues], **summary(plan),
+           "count": len(plan.creates)}
+    if plan.issues or body.dry_run:
+        db.rollback()
+        return out
+    creds = apply_plan(ctx, plan)
+    audit(db, me, "users.bulk_created", f"{len(plan.creates)} accounts ({body.role.value}s + linked parents)")
+    _commit(db, "Some login IDs are already used in this school")
+    out["credentials"] = creds
+    return out
+
+
 @router.put("/users/{user_id}", response_model=UserOut)
 def update_user(user_id: int, body: UserUpdate, me: User = Depends(require_area("people", "edit")), db: Session = Depends(get_db)):
     u = db.get(User, user_id)
@@ -347,6 +383,12 @@ def get_timetable(class_id: int | None = None, student_id: int | None = None, us
 def set_timetable_slot(body: TimetableIn, user: User = Depends(require_area("classes", "edit")), db: Session = Depends(get_db)):
     owned(db, SchoolClass, body.class_id, user, "Class")
     owned(db, Subject, body.subject_id, user, "Subject")
+    _check_teacher(db, user, body.teacher_id)
+    if not 0 <= body.day <= 6 or body.period < 1:
+        raise HTTPException(400, "Pick a valid day and period")
+    n = period_count(schedules(db, user.school_id), body.day)
+    if n is not None and body.period > n:
+        raise HTTPException(400, f"This day has only {n} periods — change Period timings to add more")
     clash = db.scalar(select(TimetableEntry).where(
         TimetableEntry.school_id == user.school_id, TimetableEntry.teacher_id == body.teacher_id,
         TimetableEntry.day == body.day, TimetableEntry.period == body.period, TimetableEntry.class_id != body.class_id))

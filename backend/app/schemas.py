@@ -125,7 +125,7 @@ class AssignmentOut(ORM):
 class TimetableIn(BaseModel):
     class_id: int
     day: int = Field(ge=0, le=6)
-    period: int = Field(ge=1, le=10)
+    period: int = Field(ge=1, le=12)
     subject_id: int
     teacher_id: int
 
