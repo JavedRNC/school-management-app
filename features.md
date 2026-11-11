@@ -40,6 +40,7 @@ _Last updated: 9 Nov 2026 — **Phase 2 built** (banners, leaves, consent forms 
 | F21 | **Digital ID card** (photo + QR) | 📝 | M | 3 |
 | F23 | **Admissions & enquiries** | 📝 | M | 3 |
 | F27 | **Photo gallery** | 📝 | M | 3 |
+| F28 | **Period timings (bell schedule)** — number of periods, start/end times, breaks | 📝 Requested 11 Nov | S–M | next |
 | F16 | **App update pop-up** (optional / mandatory) configured by Admin | 📝 | M | 4 (Admin page later) |
 
 ---
@@ -361,6 +362,14 @@ Schools pay for **the modules they use**. Admin controls everything manually, in
 - **Storage quota** by plan (F26); old albums can be archived.
 
 ---
+
+### F28 · Period timings (bell schedule) 📝 `S–M` — requested by Javed 11 Nov
+Today the timetable has a fixed 5 numbered periods and no times. Proposal:
+- **Principal → Classes → Setup → Period timings**: set how many periods, each period's start–end time, and breaks (Short break, Lunch) between periods.
+- One school-wide schedule, with an optional **different schedule per weekday** (e.g. Saturday half day). Optional later: separate schedule per wing (Primary / Senior).
+- Timetable, teacher home ("Now: Period 3 · 9-A Maths, ends 10:40") and student timetable show times; current period highlighted.
+- Admin can view/edit it from the school page (support).
+- Changing number of periods never deletes assigned periods silently: periods beyond the new count are listed and must be cleared first.
 
 ## 🖥️ Infrastructure & effort plan
 
