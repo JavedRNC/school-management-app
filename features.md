@@ -44,7 +44,7 @@ _Last updated: 9 Nov 2026 — **Phase 2 built** (banners, leaves, consent forms 
 | F29 | **Add many people at once** (students / teachers / parents / staff) | ✅ Done (Phase 4) | M | 4 |
 | F30 | **Excel import of all school data** (multi-tab template, preview, all-or-nothing save) | ✅ Done (Phase 4) | L | 4 |
 | F31 | **Export / backup & restore** (same Excel format, re-importable) | ✅ Done (Phase 4) | L | 4 |
-| F16 | **App update pop-up** (optional / mandatory) configured by Admin | 📝 | M | 4 (Admin page later) |
+| F16 | **App update pop-up** (optional / mandatory) configured by Admin | ✅ Done 11 Nov (APK prompt; EAS over-the-air updates still later) | M | 4 |
 
 ---
 
