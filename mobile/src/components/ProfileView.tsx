@@ -63,6 +63,9 @@ export function ProfileView({ extra }: { extra?: string }) {
       links.push({ title: 'School settings', desc: 'Profile & working days', icon: 'cog-outline', to: '/more/settings' });
       links.push({ title: 'Archive', desc: 'Restore archived items', icon: 'archive-outline', to: '/more/archive' });
     }
+    if (isPrincipal) {
+      links.push({ title: 'Import & backup', desc: 'Excel template, import, full backup & restore', icon: 'database-sync-outline', to: '/more/data' });
+    }
     if (isPrincipal || canSettings) {
       links.push({ title: 'Privacy & audit log', desc: 'What support can see · activity history', icon: 'shield-lock-outline', to: '/more/privacy' });
       if (school.subscription) links.push({ title: 'Plan & usage', desc: `${school.subscription.plan ?? 'Custom'} plan`, icon: 'card-account-details-star-outline', to: '/more/plan' });

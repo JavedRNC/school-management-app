@@ -1,7 +1,7 @@
-import { useLocalSearchParams } from 'expo-router';
+import { router, useLocalSearchParams } from 'expo-router';
 import { useState } from 'react';
 import { View } from 'react-native';
-import { SegmentedButtons } from 'react-native-paper';
+import { Button, SegmentedButtons } from 'react-native-paper';
 
 import { AuditList } from '@/components/admin/AuditList';
 import { StatusChip } from '@/components/admin/common';
@@ -46,7 +46,13 @@ export default function AdminSchool() {
       {detail.error ? <ErrorState message={detail.error} onRetry={detail.reload} /> : null}
       {!d ? (detail.error ? null : <LoadingCards />) : (
         <>
-          {section === 'details' ? <SchoolDetailsSection d={d} onSaved={detail.reload} /> : null}
+          {section === 'details' ? (
+            <>
+              <SchoolDetailsSection d={d} onSaved={detail.reload} />
+              <Button mode="contained-tonal" icon="database-sync-outline" style={{ marginBottom: space.md }} contentStyle={{ paddingVertical: 4 }}
+                onPress={() => { haptic.tap(); router.push(`/admin-school/data/${sid}`); }}>Data: import & backup</Button>
+            </>
+          ) : null}
           {section === 'plan' ? <SchoolPlanSection d={d} onSaved={detail.reload} /> : null}
           {section === 'people' ? <SchoolPeopleSection d={d} /> : null}
           {section === 'payments' ? <SchoolPaymentsSection d={d} onSaved={detail.reload} /> : null}
