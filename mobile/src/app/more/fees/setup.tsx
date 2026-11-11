@@ -9,7 +9,7 @@ import { api } from '@/lib/api';
 import { useAuth, useCan, useModule } from '@/lib/auth';
 import { haptic, useToast } from '@/lib/feedback';
 import { fmtDate, inr, monthLabel, shiftMonth } from '@/lib/fees';
-import { radius, space, useAppTheme } from '@/lib/theme';
+import { fieldOutline, radius, space, useAppTheme } from '@/lib/theme';
 import type { FeeConfig, GenerateResult } from '@/lib/types';
 import { useLoad } from '@/lib/useLoad';
 
@@ -145,7 +145,7 @@ function Setup() {
                 <IconBadge icon="cash-multiple" tone="success" size={44} />
                 <View style={{ flex: 1 }}>
                   <Text variant="labelLarge" style={{ color: t.colors.onSurfaceVariant }}>Expected every month</Text>
-                  <Text variant="headlineSmall" style={{ fontWeight: '900', color: t.colors.onSurface }}>{inr(expected)}</Text>
+                  <Text variant="headlineSmall" style={{ fontWeight: '700', color: t.colors.onSurface }}>{inr(expected)}</Text>
                   <Text variant="labelSmall" style={{ color: t.colors.outline }}>
                     {c.classes.reduce((a, k) => a + k.students, 0)} students{c.transport_enabled ? ` · ${c.routes.reduce((a, r) => a + r.riders, 0)} bus riders` : ''}
                   </Text>
@@ -180,7 +180,7 @@ function Setup() {
                   return (
                     <View key={k.id} style={{ flexDirection: 'row', alignItems: 'center', gap: space.sm }}>
                       <View style={{ width: 84 }}>
-                        <Text variant="titleSmall" style={{ fontWeight: '800', color: t.colors.onSurface }}>{k.name}</Text>
+                        <Text variant="titleSmall" style={{ fontWeight: '700', color: t.colors.onSurface }}>{k.name}</Text>
                         <Text variant="labelSmall" style={{ color: t.colors.onSurfaceVariant }}>{k.students} students</Text>
                       </View>
                       <MoneyInput label={val ? 'Class fee' : `Default ${inr(Number.isNaN(def) ? 0 : def)}`} value={val} dense editable={canEdit}
@@ -219,7 +219,7 @@ function Setup() {
             <View style={{ flexDirection: 'row', alignItems: 'center', gap: space.sm, marginBottom: space.sm }}>
               <IconButton mode="contained-tonal" icon="minus" disabled={!canEdit || dueDay <= 1} onPress={() => { haptic.tap(); setDueDay((d) => Math.max(1, d - 1)); }} />
               <View style={{ alignItems: 'center', minWidth: 72 }}>
-                <Text variant="headlineMedium" style={{ fontWeight: '900', color: t.colors.primary }}>{dueDay}</Text>
+                <Text variant="headlineMedium" style={{ fontWeight: '700', color: t.colors.primary }}>{dueDay}</Text>
                 <Text variant="labelSmall" style={{ color: t.colors.onSurfaceVariant }}>day of month</Text>
               </View>
               <IconButton mode="contained-tonal" icon="plus" disabled={!canEdit || dueDay >= 28} onPress={() => { haptic.tap(); setDueDay((d) => Math.min(28, d + 1)); }} />
@@ -257,13 +257,13 @@ function Setup() {
         {/* 4 · UPI */}
         <FadeIn index={3}>
           <Panel title="UPI payments" subtitle="Parents pay from any UPI app; you confirm the UTR" icon="qrcode-scan">
-            <TextInput mode="outlined" label="School UPI ID" value={upiId} onChangeText={(s) => setUpiId(s.replace(/\s/g, ''))} editable={canEdit}
+            <TextInput mode="outlined" outlineStyle={fieldOutline} label="School UPI ID" value={upiId} onChangeText={(s) => setUpiId(s.replace(/\s/g, ''))} editable={canEdit}
               autoCapitalize="none" placeholder="schoolname@sbi" error={!upiOk}
               right={upiId && upiOk ? <TextInput.Icon icon="check-circle" color={t.custom.success} /> : undefined} />
             <HelperText type={upiOk ? 'info' : 'error'}>
               {upiOk ? (upiId ? 'Looks good' : 'Leave empty to turn off UPI payments for parents') : 'Should look like name@bank — e.g. greenvalley@sbi'}
             </HelperText>
-            <TextInput mode="outlined" label="Payee name (shown in UPI app)" value={upiName} onChangeText={setUpiName} editable={canEdit} />
+            <TextInput mode="outlined" outlineStyle={fieldOutline} label="Payee name (shown in UPI app)" value={upiName} onChangeText={setUpiName} editable={canEdit} />
             {upiId && upiOk ? (
               <View style={{ marginTop: space.md, borderRadius: radius.lg, padding: space.md, backgroundColor: t.colors.surfaceVariant, gap: 4 }}>
                 <Text variant="labelMedium" style={{ color: t.colors.onSurfaceVariant }}>Parents will see</Text>
@@ -272,7 +272,7 @@ function Setup() {
                     <Icon name="qrcode" size={32} color={t.colors.onSurface} />
                   </View>
                   <View style={{ flex: 1 }}>
-                    <Text variant="titleSmall" style={{ fontWeight: '800', color: t.colors.onSurface }}>Pay {payee}</Text>
+                    <Text variant="titleSmall" style={{ fontWeight: '700', color: t.colors.onSurface }}>Pay {payee}</Text>
                     <Text variant="bodySmall" style={{ color: t.colors.onSurfaceVariant }}>{upiId.trim()} · scan or tap "Pay with UPI app"</Text>
                   </View>
                 </View>
@@ -284,14 +284,14 @@ function Setup() {
         {/* 5 · receipts */}
         <FadeIn index={4}>
           <Panel title="Receipts" subtitle="Numbered automatically, restarting every April" icon="receipt-text-outline">
-            <TextInput mode="outlined" label="Receipt prefix" value={prefix} editable={canEdit} autoCapitalize="characters" maxLength={20}
+            <TextInput mode="outlined" outlineStyle={fieldOutline} label="Receipt prefix" value={prefix} editable={canEdit} autoCapitalize="characters" maxLength={20}
               onChangeText={(s) => setPrefix(s.replace(/[^A-Za-z0-9-]/g, '').toUpperCase())} />
             <View style={{ flexDirection: 'row', alignItems: 'center', gap: space.sm, marginVertical: space.sm }}>
               <Icon name="pound" size={16} color={t.colors.onSurfaceVariant} />
               <Text variant="bodyMedium" style={{ color: t.colors.onSurfaceVariant }}>Sample:</Text>
-              <Text variant="titleSmall" style={{ fontWeight: '800', color: t.colors.primary, letterSpacing: 0.5 }}>{samplePrefix}/{academicYear()}/0001</Text>
+              <Text variant="titleSmall" style={{ fontWeight: '700', color: t.colors.primary, letterSpacing: 0.5 }}>{samplePrefix}/{academicYear()}/0001</Text>
             </View>
-            <TextInput mode="outlined" label="Footer note on receipts" value={note} onChangeText={setNote} editable={canEdit} multiline maxLength={500}
+            <TextInput mode="outlined" outlineStyle={fieldOutline} label="Footer note on receipts" value={note} onChangeText={setNote} editable={canEdit} multiline maxLength={500}
               placeholder="Fees once paid are not refundable." />
           </Panel>
         </FadeIn>
@@ -356,7 +356,7 @@ function BillMonth({ c, canEdit, onDone }: { c: FeeConfig; canEdit: boolean; onD
         </View>
         {preview ? (
           <View style={{ marginTop: space.md, borderRadius: radius.lg, padding: space.md, backgroundColor: t.colors.surfaceVariant }}>
-            <Text variant="titleSmall" style={{ fontWeight: '800', marginBottom: 4, color: t.colors.onSurface }}>{preview.label}</Text>
+            <Text variant="titleSmall" style={{ fontWeight: '700', marginBottom: 4, color: t.colors.onSurface }}>{preview.label}</Text>
             {preview.new_items ? (
               <>
                 <KV k="New charges" v={String(preview.new_items)} />

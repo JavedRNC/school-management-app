@@ -8,7 +8,7 @@ import { EmptyState, ErrorState, FadeIn, FilterChips, Hero, Icon, LoadingCards, 
 import { api } from '@/lib/api';
 import { fmtDate, inr, PAY_LABEL, PAY_TONE } from '@/lib/fees';
 import { useToast } from '@/lib/feedback';
-import { radius, space, useAppTheme } from '@/lib/theme';
+import { fieldOutline, radius, space, useAppTheme } from '@/lib/theme';
 import type { FeePayment, FeeReceipt } from '@/lib/types';
 import { useLoad } from '@/lib/useLoad';
 
@@ -97,7 +97,7 @@ function Inbox({ canEdit }: { canEdit: boolean }) {
                 </Text>
               </View>
               <View style={{ alignItems: 'flex-end', gap: 4 }}>
-                <Text variant="titleMedium" style={{ fontWeight: '800', color: t.colors.primary }}>{inr(p.amount)}</Text>
+                <Text variant="titleMedium" style={{ fontWeight: '700', color: t.colors.primary }}>{inr(p.amount)}</Text>
                 <ToneChip text={PAY_LABEL[p.status]} tone={PAY_TONE[p.status]} />
               </View>
             </View>
@@ -105,7 +105,7 @@ function Inbox({ canEdit }: { canEdit: boolean }) {
               <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
                 <Icon name="pound" size={16} color={t.colors.onSurfaceVariant} />
                 <Text variant="labelMedium" style={{ color: t.colors.onSurfaceVariant }}>UTR</Text>
-                <Text selectable variant="titleSmall" style={{ fontWeight: '800', letterSpacing: 1, color: t.colors.onSurface, flex: 1 }}>{p.reference}</Text>
+                <Text selectable variant="titleSmall" style={{ fontWeight: '700', letterSpacing: 1, color: t.colors.onSurface, flex: 1 }}>{p.reference}</Text>
               </View>
               <Text variant="bodySmall" style={{ color: t.colors.onSurfaceVariant }}>
                 Paid {fmtDate(p.paid_on)} · reported {fmtDate(p.created_at)}{p.outstanding != null ? ` · student owes ${inr(p.outstanding)}` : ''}
@@ -131,9 +131,9 @@ function Inbox({ canEdit }: { canEdit: boolean }) {
         {confirm ? (
           <>
             <Text variant="bodyMedium" style={{ color: t.colors.onSurfaceVariant, marginBottom: space.md }}>
-              {confirm.student_name} · UTR <Text style={{ fontWeight: '800' }}>{confirm.reference}</Text>
+              {confirm.student_name} · UTR <Text style={{ fontWeight: '700' }}>{confirm.reference}</Text>
             </Text>
-            <TextInput mode="outlined" label="Amount received (₹)" keyboardType="decimal-pad" value={amount}
+            <TextInput mode="outlined" outlineStyle={fieldOutline} label="Amount received (₹)" keyboardType="decimal-pad" value={amount}
               onChangeText={(v) => setAmount(v.replace(/[^0-9.]/g, ''))} left={<TextInput.Affix text="₹" />} />
             <HelperText type="info">{Number(amount) !== confirm.amount ? `Parent reported ${inr(confirm.amount)}` : 'Change it only if the bank shows a different amount'}</HelperText>
             <Button mode="contained" icon="receipt-text-check-outline" onPress={doConfirm} loading={busy} disabled={busy}
@@ -143,7 +143,7 @@ function Inbox({ canEdit }: { canEdit: boolean }) {
       </Sheet>
       <Sheet visible={!!reject} onDismiss={() => setReject(null)} title="Reject payment claim">
         <FilterChips value={reason} onChange={setReason} options={REASONS.map((r) => ({ label: r, value: r }))} />
-        <TextInput mode="outlined" label="Reason for the parent" value={reason} onChangeText={setReason} multiline />
+        <TextInput mode="outlined" outlineStyle={fieldOutline} label="Reason for the parent" value={reason} onChangeText={setReason} multiline />
         <Button mode="contained" icon="close" buttonColor={t.custom.danger} textColor="#fff" onPress={doReject} loading={busy} disabled={busy}
           style={{ marginTop: space.lg }} contentStyle={{ paddingVertical: 6 }}>Reject</Button>
       </Sheet>

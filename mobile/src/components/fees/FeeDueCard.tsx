@@ -36,7 +36,7 @@ function Inner() {
             borderRadius: radius.xl, padding: space.md, marginBottom: space.md }}>
             <IconBadge icon="check-decagram" tone="success" size={36} />
             <View style={{ flex: 1 }}>
-              <Text variant="titleSmall" style={{ fontWeight: '800', color: t.custom.onSuccessContainer }}>All fees paid ✓</Text>
+              <Text variant="titleSmall" style={{ fontWeight: '700', color: t.custom.onSuccessContainer }}>All fees paid ✓</Text>
               <Text variant="bodySmall" style={{ color: t.custom.onSuccessContainer }}>Tap to see receipts</Text>
             </View>
           </View>
@@ -57,7 +57,7 @@ function Inner() {
             <IconBadge icon="cash-clock" tone={late ? 'danger' : 'warning'} size={44} />
             <View style={{ flex: 1 }}>
               <Text variant="labelLarge" style={{ color: t.colors.onSurfaceVariant }}>Fees due{data.student.name ? ` · ${data.student.name.split(' ')[0]}` : ''}</Text>
-              <Text style={{ fontSize: 26, fontWeight: '900', color: late ? t.custom.danger : t.colors.onSurface }}>{inr(outstanding)}</Text>
+              <Text style={{ fontSize: 26, fontWeight: '700', color: late ? t.custom.danger : t.colors.onSurface }}>{inr(outstanding)}</Text>
             </View>
           </View>
           <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: space.sm, marginTop: space.sm }}>

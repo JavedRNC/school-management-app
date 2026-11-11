@@ -6,7 +6,7 @@ import { Icon, Sheet, ToneChip } from '@/components/ui';
 import { api } from '@/lib/api';
 import { haptic, useToast } from '@/lib/feedback';
 import { fmtDate, inr } from '@/lib/fees';
-import { radius, space, useAppTheme } from '@/lib/theme';
+import { fieldOutline, radius, space, useAppTheme } from '@/lib/theme';
 import type { BatchPreview, FeeBatch, FeeConfig, FeeStudentRow } from '@/lib/types';
 
 import { DATE_RE, isoIn, KV, MoneyInput, parseAmount } from './common';
@@ -117,7 +117,7 @@ export function RolloutSheet({ visible, onDismiss, onDone, classes }: {
 
       {step === 0 ? (
         <View>
-          <TextInput mode="outlined" label="Fee name" value={title} onChangeText={setTitle} maxLength={120} />
+          <TextInput mode="outlined" outlineStyle={fieldOutline} label="Fee name" value={title} onChangeText={setTitle} maxLength={120} />
           <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 6, marginVertical: space.sm }}>
             {SUGGEST.map((s) => (
               <Chip key={s} compact selected={title === s} onPress={() => { haptic.tap(); setTitle(s); }}>{s}</Chip>
@@ -125,13 +125,13 @@ export function RolloutSheet({ visible, onDismiss, onDone, classes }: {
           </View>
           <View style={{ flexDirection: 'row', gap: space.sm }}>
             <MoneyInput label="Amount per student" value={amount} onChange={setAmount} style={{ flex: 1 }} />
-            <TextInput mode="outlined" label="Due date" value={due} onChangeText={setDue} placeholder="YYYY-MM-DD" error={!dueOk} style={{ flex: 1 }} />
+            <TextInput mode="outlined" outlineStyle={fieldOutline} label="Due date" value={due} onChangeText={setDue} placeholder="YYYY-MM-DD" error={!dueOk} style={{ flex: 1 }} />
           </View>
           <HelperText type={dueOk ? 'info' : 'error'}>{dueOk ? (due ? `Due ${fmtDate(due)}` : 'No due date — never overdue') : 'Use YYYY-MM-DD'}</HelperText>
           <View style={{ flexDirection: 'row', gap: 6, marginBottom: space.sm }}>
             {[7, 14, 30].map((d) => <Chip key={d} compact onPress={() => { haptic.tap(); setDue(isoIn(d)); }}>In {d} days</Chip>)}
           </View>
-          <TextInput mode="outlined" label="Note for parents (optional)" value={note} onChangeText={setNote} multiline maxLength={500} />
+          <TextInput mode="outlined" outlineStyle={fieldOutline} label="Note for parents (optional)" value={note} onChangeText={setNote} multiline maxLength={500} />
           <Button mode="contained" icon="arrow-right" onPress={() => { haptic.tap(); setStep(1); }} disabled={!step0Ok} style={{ marginTop: space.lg }}
             contentStyle={{ paddingVertical: 6, flexDirection: 'row-reverse' }}>Next: who pays</Button>
         </View>
@@ -198,9 +198,9 @@ export function RolloutSheet({ visible, onDismiss, onDone, classes }: {
           <View style={{ borderRadius: radius.xl, padding: space.lg, backgroundColor: t.colors.primaryContainer, marginBottom: space.md }}>
             <View style={{ flexDirection: 'row', alignItems: 'center', gap: space.sm }}>
               <Icon name="star-four-points-outline" size={22} color={t.colors.onPrimaryContainer} />
-              <Text variant="titleMedium" style={{ fontWeight: '800', color: t.colors.onPrimaryContainer, flex: 1 }}>{title.trim()}</Text>
+              <Text variant="titleMedium" style={{ fontWeight: '700', color: t.colors.onPrimaryContainer, flex: 1 }}>{title.trim()}</Text>
             </View>
-            <Text variant="headlineMedium" style={{ fontWeight: '900', color: t.colors.onPrimaryContainer, marginTop: space.sm }}>{inr(preview.total)}</Text>
+            <Text variant="headlineMedium" style={{ fontWeight: '700', color: t.colors.onPrimaryContainer, marginTop: space.sm }}>{inr(preview.total)}</Text>
             <Text variant="bodyMedium" style={{ color: t.colors.onPrimaryContainer }}>{inr(amt)} × {preview.count} student{preview.count === 1 ? '' : 's'}</Text>
           </View>
           <KV k="Due" v={due ? fmtDate(due) : 'No due date'} />

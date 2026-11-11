@@ -1,13 +1,13 @@
 import { useState } from 'react';
 import { View } from 'react-native';
-import { AnimatedFAB, Button, Dialog, SegmentedButtons, Text } from 'react-native-paper';
+import { Button, Dialog, SegmentedButtons, Text } from 'react-native-paper';
 
 import { MyBusCard } from '@/components/BusCard';
 import { AssignSheet } from '@/components/transport/AssignSheet';
 import { CallButton, daysUntil, expiryTone, fmtDay, KIND_ICON, PlateChip, SeatsBar, StopTimeline } from '@/components/transport/common';
 import { RouteSheet } from '@/components/transport/RouteSheet';
 import { VehicleSheet } from '@/components/transport/VehicleSheet';
-import {
+import { Fab,
   EmptyState, ErrorState, FadeIn, FilterChips, Hero, Icon, LoadingCards, Panel, Row, Screen, SectionTitle, StatTile, ToneChip, TopLayer } from '@/components/ui';
 import { api } from '@/lib/api';
 import { useAuth, useCan, useModule } from '@/lib/auth';
@@ -162,7 +162,7 @@ function ManageTransport() {
         )}
       </Screen>
 
-      {fab ? <AnimatedFAB icon={fab.icon} label={fab.label} extended onPress={() => { haptic.tap(); fab.onPress(); }}
+      {fab ? <Fab icon={fab.icon} label={fab.label} extended onPress={() => { haptic.tap(); fab.onPress(); }}
         style={{ position: 'absolute', right: space.lg, bottom: space.lg }} /> : null}
 
       <VehicleSheet visible={vehicleSheet.open} vehicle={vehicleSheet.v} onDismiss={() => setVehicleSheet({ open: false, v: null })}

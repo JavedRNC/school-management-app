@@ -115,7 +115,7 @@ export function SeatsBar({ used, capacity }: { used: number; capacity: number | 
     <View>
       <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginBottom: 4 }}>
         <Text variant="labelMedium" style={{ color: t.colors.onSurfaceVariant }}>Seats</Text>
-        <Text variant="labelMedium" style={{ color, fontWeight: '800' }}>{used} / {capacity}{over ? ' · over capacity' : ''}</Text>
+        <Text variant="labelMedium" style={{ color, fontWeight: '700' }}>{used} / {capacity}{over ? ' · over capacity' : ''}</Text>
       </View>
       <View style={{ height: 8, borderRadius: radius.pill, backgroundColor: t.custom.chartTrack, overflow: 'hidden' }}>
         <View style={{ width: `${pct * 100}%`, height: 8, borderRadius: radius.pill, backgroundColor: color }} />

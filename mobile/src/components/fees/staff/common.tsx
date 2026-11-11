@@ -61,7 +61,7 @@ export function MoneyBars({ data, height = 170 }: { data: { label: string; value
     <View>
       <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'baseline', marginBottom: space.sm }}>
         <Text variant="labelLarge" style={{ color: t.colors.onSurfaceVariant }}>{data[shown]?.sub ?? data[shown]?.label}</Text>
-        <Text variant="titleMedium" style={{ fontWeight: '800', color: t.colors.primary }}>{inr(data[shown]?.value ?? 0)}</Text>
+        <Text variant="titleMedium" style={{ fontWeight: '700', color: t.colors.primary }}>{inr(data[shown]?.value ?? 0)}</Text>
       </View>
       <View onLayout={(e: LayoutChangeEvent) => setW(Math.max(100, e.nativeEvent.layout.width))}
         style={{ height, flexDirection: 'row', alignItems: 'flex-end' }}>
@@ -129,7 +129,7 @@ export function PaymentRow({ p, onPress, showStudent = true, divider = true }: {
       }
       right={
         <View style={{ alignItems: 'flex-end', gap: 4 }}>
-          <Text variant="titleSmall" style={{ fontWeight: '800', color: dim ? t.colors.outline : t.colors.onSurface,
+          <Text variant="titleSmall" style={{ fontWeight: '700', color: dim ? t.colors.outline : t.colors.onSurface,
             textDecorationLine: p.status === 'cancelled' ? 'line-through' : 'none' }}>{inr(p.amount)}</Text>
           {p.status !== 'confirmed' ? <ToneChip text={PAY_LABEL[p.status]} tone={PAY_TONE[p.status]} /> : null}
         </View>
@@ -142,7 +142,7 @@ export function MoneyFigure({ label, value, color, align = 'flex-start' }: { lab
   const t = useAppTheme();
   return (
     <View style={{ alignItems: align, flex: 1 }}>
-      <Text variant="titleMedium" style={{ fontWeight: '800', color: color ?? t.colors.onSurface }} numberOfLines={1}>{inr(value)}</Text>
+      <Text variant="titleMedium" style={{ fontWeight: '700', color: color ?? t.colors.onSurface }} numberOfLines={1}>{inr(value)}</Text>
       <Text variant="labelSmall" style={{ color: t.colors.onSurfaceVariant }} numberOfLines={1}>{label}</Text>
     </View>
   );
@@ -155,7 +155,7 @@ export function CountBadge({ n }: { n: number }) {
   return (
     <View style={{ position: 'absolute', top: 8, right: 10, minWidth: 22, height: 22, borderRadius: radius.pill, paddingHorizontal: 6,
       backgroundColor: t.custom.danger, alignItems: 'center', justifyContent: 'center', shadowColor: t.custom.danger, shadowOpacity: 0.5, shadowRadius: 6, elevation: 4 }}>
-      <Text style={{ color: '#fff', fontWeight: '800', fontSize: 12 }}>{n}</Text>
+      <Text style={{ color: '#fff', fontWeight: '700', fontSize: 12 }}>{n}</Text>
     </View>
   );
 }

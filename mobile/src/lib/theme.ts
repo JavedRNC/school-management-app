@@ -1,5 +1,5 @@
-import { useColorScheme } from 'react-native';
-import { MD3DarkTheme, MD3LightTheme, useTheme } from 'react-native-paper';
+import { Platform, useColorScheme, ViewStyle } from 'react-native';
+import { configureFonts, MD3DarkTheme, MD3LightTheme, useTheme } from 'react-native-paper';
 
 /**
  * Material 3 theme — deep blue (primary) + amber (secondary).
@@ -18,24 +18,25 @@ const lightColors = {
   tertiary: '#00677F',
   tertiaryContainer: '#B7EAFF',
   onTertiaryContainer: '#001F28',
-  background: '#F8F9FF',
-  onBackground: '#191C20',
-  surface: '#F8F9FF',
-  onSurface: '#191C20',
-  surfaceVariant: '#E0E2EC',
+  background: '#F2F5FB',
+  onBackground: '#171A1F',
+  surface: '#F2F5FB',
+  onSurface: '#171A1F',
+  surfaceVariant: '#E1E6F0',
   onSurfaceVariant: '#43474E',
-  outline: '#74777F',
-  outlineVariant: '#C4C6CF',
+  outline: '#6B6F78',
+  outlineVariant: '#CDD2DC',
   error: '#BA1A1A',
   errorContainer: '#FFDAD6',
   onErrorContainer: '#410002',
   elevation: {
     level0: 'transparent',
-    level1: '#EFF3FC',
-    level2: '#E9EEF9',
-    level3: '#E3E9F6',
-    level4: '#E1E8F5',
-    level5: '#DDE5F3',
+    // Cards are white on a cool-grey page: depth comes from the shadow, not from a tint.
+    level1: '#FFFFFF',
+    level2: '#FFFFFF',
+    level3: '#FFFFFF',
+    level4: '#FAFBFE',
+    level5: '#F6F8FD',
   },
 };
 
@@ -43,33 +44,33 @@ const darkColors = {
   ...MD3DarkTheme.colors,
   primary: '#A9C7FF',
   onPrimary: '#003063',
-  primaryContainer: '#00468C',
+  primaryContainer: '#12407A',
   onPrimaryContainer: '#D6E3FF',
   secondary: '#FFB951',
   onSecondary: '#482900',
-  secondaryContainer: '#673D00',
+  secondaryContainer: '#543807',
   onSecondaryContainer: '#FFDDB0',
   tertiary: '#5DD5FC',
-  tertiaryContainer: '#004D61',
+  tertiaryContainer: '#0B4656',
   onTertiaryContainer: '#B7EAFF',
-  background: '#111318',
-  onBackground: '#E1E2E9',
-  surface: '#111318',
-  onSurface: '#E1E2E9',
+  background: '#0E1117',
+  onBackground: '#E3E5EC',
+  surface: '#0E1117',
+  onSurface: '#E3E5EC',
   surfaceVariant: '#43474E',
   onSurfaceVariant: '#C4C6CF',
   outline: '#8E9099',
   outlineVariant: '#43474E',
   error: '#FFB4AB',
-  errorContainer: '#93000A',
+  errorContainer: '#5F1A1A',
   onErrorContainer: '#FFDAD6',
   elevation: {
     level0: 'transparent',
-    level1: '#191C23',
-    level2: '#1D212A',
-    level3: '#212631',
-    level4: '#222833',
-    level5: '#252B37',
+    level1: '#181C25',
+    level2: '#1C212C',
+    level3: '#222835',
+    level4: '#252B39',
+    level5: '#29303F',
   },
 };
 
@@ -77,17 +78,45 @@ const lightCustom = {
   success: '#1E7A46', successContainer: '#C8F0D4', onSuccessContainer: '#00210E',
   warning: '#8A5A00', warningContainer: '#FFE3B5', onWarningContainer: '#2C1700',
   danger: '#BA1A1A', dangerContainer: '#FFDAD6', onDangerContainer: '#410002',
-  heroStart: '#123A6E', heroEnd: '#2D6CC0', amber: '#F5A623', chartTrack: '#E0E6F0',
+  heroStart: '#123A6E', heroEnd: '#2D6CC0', amber: '#F5A623', chartTrack: '#E3E8F2',
+  inset: '#F0F3FA', cardBorder: 'rgba(26,77,143,0.07)', shadow: '#1A3A6B', onAmber: '#2B1B00',
 };
 const darkCustom = {
-  success: '#7FD99E', successContainer: '#005229', onSuccessContainer: '#C8F0D4',
-  warning: '#FFB951', warningContainer: '#5A3A00', onWarningContainer: '#FFE3B5',
-  danger: '#FFB4AB', dangerContainer: '#93000A', onDangerContainer: '#FFDAD6',
+  success: '#7FD99E', successContainer: '#123F29', onSuccessContainer: '#C8F0D4',
+  warning: '#FFB951', warningContainer: '#4A3305', onWarningContainer: '#FFE3B5',
+  danger: '#FFB4AB', dangerContainer: '#5F1A1A', onDangerContainer: '#FFDAD6',
   heroStart: '#0B2547', heroEnd: '#1B4B8A', amber: '#FFB951', chartTrack: '#2A303B',
+  inset: '#232937', cardBorder: 'rgba(255,255,255,0.07)', shadow: '#000000', onAmber: '#2B1B00',
 };
 
-export const lightTheme = { ...MD3LightTheme, roundness: 4, colors: lightColors, custom: lightCustom, dark: false };
-export const darkTheme = { ...MD3DarkTheme, roundness: 4, colors: darkColors, custom: darkCustom, dark: true };
+/**
+ * Type scale — one step tighter than stock Material 3 (body 16→15, titles 22/16→19/15, headlines 28/24→24/21) and
+ * with the wide M3 tracking removed. Nothing goes below 12sp. Line-heights stay ≥1.3 so Devanagari matras
+ * and descenders in names are never clipped.
+ */
+export const fontWeight = { regular: '400', medium: '500', semibold: '600', bold: '700' } as const;
+const fonts = configureFonts({
+  config: {
+    displayLarge: { fontSize: 44, lineHeight: 52, letterSpacing: -0.5 },
+    displayMedium: { fontSize: 36, lineHeight: 44, letterSpacing: -0.4 },
+    displaySmall: { fontSize: 30, lineHeight: 38, letterSpacing: -0.3 },
+    headlineLarge: { fontSize: 26, lineHeight: 33, letterSpacing: -0.3 },
+    headlineMedium: { fontSize: 23, lineHeight: 30, letterSpacing: -0.2 },
+    headlineSmall: { fontSize: 20, lineHeight: 26, letterSpacing: -0.1 },
+    titleLarge: { fontSize: 18, lineHeight: 24, letterSpacing: 0 },
+    titleMedium: { fontSize: 15, lineHeight: 21, letterSpacing: 0, fontWeight: '600' },
+    titleSmall: { fontSize: 13, lineHeight: 18, letterSpacing: 0, fontWeight: '600' },
+    bodyLarge: { fontSize: 15, lineHeight: 22, letterSpacing: 0 },
+    bodyMedium: { fontSize: 13, lineHeight: 19, letterSpacing: 0 },
+    bodySmall: { fontSize: 12, lineHeight: 17, letterSpacing: 0.1 },
+    labelLarge: { fontSize: 13, lineHeight: 18, letterSpacing: 0.1, fontWeight: '600' },
+    labelMedium: { fontSize: 12, lineHeight: 16, letterSpacing: 0.1, fontWeight: '600' },
+    labelSmall: { fontSize: 12, lineHeight: 16, letterSpacing: 0.1, fontWeight: '500' },
+  },
+});
+
+export const lightTheme = { ...MD3LightTheme, roundness: 4, colors: lightColors, custom: lightCustom, dark: false, fonts };
+export const darkTheme = { ...MD3DarkTheme, roundness: 4, colors: darkColors, custom: darkCustom, dark: true, fonts };
 export type AppTheme = typeof lightTheme;
 
 export const useAppTheme = () => useTheme<AppTheme>();
@@ -96,7 +125,46 @@ export function useSchemeTheme(): AppTheme {
 }
 
 export const space = { xs: 4, sm: 8, md: 12, lg: 16, xl: 24, xxl: 32 };
-export const radius = { sm: 8, md: 12, lg: 16, xl: 24, xxl: 28, pill: 999 };
+export const radius = { sm: 8, md: 12, lg: 16, xl: 20, xxl: 28, pill: 999 };
+/** Outline shape for every outlined text field (Paper's default 4dp corners look dated next to 20dp cards). */
+export const fieldOutline = { borderRadius: 12 };
+/** Minimum touch target (dp). */
+export const HIT = 44;
+
+/**
+ * Elevation language.
+ *  1 = resting card · 2 = floating card (over a hero, sticky bars) · 3 = FAB / sheet / toast.
+ * Shadows are tinted with the brand blue in light mode; in dark mode depth comes from the lighter
+ * surface + hairline border, so shadows are near-invisible by design.
+ * Android gets native `elevation` (cheap on low-end GPUs); iOS / web get a soft blurred shadow.
+ */
+export function shadow(t: AppTheme, level: 0 | 1 | 2 | 3 = 1, color?: string): ViewStyle {
+  if (!level) return {};
+  const c = color ?? t.custom.shadow;
+  const k = [0, 1, 2, 3][level];
+  return Platform.select<ViewStyle>({
+    android: { elevation: [0, 2, 5, 9][k], shadowColor: c },
+    default: {
+      shadowColor: c,
+      shadowOpacity: color ? 0.3 : t.dark ? 0.35 : [0, 0.08, 0.12, 0.18][k],
+      shadowRadius: [0, 10, 18, 24][k],
+      shadowOffset: { width: 0, height: [0, 3, 7, 10][k] },
+    },
+  }) as ViewStyle;
+}
+
+/** Soft coloured glow — only for the ONE thing on screen that needs attention (primary CTA, overdue, success). */
+export function glow(color: string, strong = false): ViewStyle {
+  return Platform.select<ViewStyle>({
+    android: { elevation: strong ? 8 : 5, shadowColor: color },
+    default: { shadowColor: color, shadowOpacity: strong ? 0.45 : 0.3, shadowRadius: strong ? 18 : 12, shadowOffset: { width: 0, height: 5 } },
+  }) as ViewStyle;
+}
+
+/** Hairline card edge: keeps white cards crisp on the grey page and gives dark cards their shape. */
+export function cardEdge(t: AppTheme): ViewStyle {
+  return { borderWidth: 1, borderColor: t.custom.cardBorder };
+}
 export const DAYS = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun']; // index 0=Mon … 6=Sun
 export const DAY_NAMES = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
 

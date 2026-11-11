@@ -39,7 +39,7 @@ export function Ring({ value, size = 104, label, low = 75, stroke = 11 }: { valu
         <AnimatedCircle cx={size / 2} cy={size / 2} r={r} stroke={col} strokeWidth={stroke} fill="none" strokeDasharray={`${c} ${c}`}
           strokeDashoffset={offset} strokeLinecap="round" rotation={-90} origin={`${size / 2}, ${size / 2}`} />
       </Svg>
-      <Text style={{ fontSize: size * 0.22, fontWeight: '800', color: col }}>{Math.round(value)}%</Text>
+      <Text style={{ fontSize: size * 0.22, fontWeight: '700', color: col }}>{Math.round(value)}%</Text>
       {label ? <Text variant="labelSmall" style={{ color: t.colors.onSurfaceVariant, marginTop: -2 }}>{label}</Text> : null}
     </View>
   );
@@ -62,7 +62,7 @@ export function ProgressRows({ data, low = 75, onPress }: {
               <Text variant="labelLarge" style={{ color: t.colors.onSurface }}>{d.label}
                 {d.caption ? <Text variant="labelSmall" style={{ color: t.colors.onSurfaceVariant }}>{`  ${d.caption}`}</Text> : null}
               </Text>
-              <Text variant="labelLarge" style={{ color: d.value == null ? t.colors.outline : tone.fg, fontWeight: '800' }}>
+              <Text variant="labelLarge" style={{ color: d.value == null ? t.colors.outline : tone.fg, fontWeight: '700' }}>
                 {d.value == null ? 'Not marked' : `${d.value}%`}
               </Text>
             </View>
@@ -158,7 +158,7 @@ export function TrendChart({ data, height = 180, threshold }: { data: { label: s
       </Svg>
       <View pointerEvents="none" style={{ position: 'absolute', left: tipX, top: Math.max(0, ay - 48), width: tipW,
         backgroundColor: t.colors.inverseSurface, borderRadius: radius.sm, paddingVertical: 4, alignItems: 'center' }}>
-        <Text variant="labelLarge" style={{ color: t.colors.inverseOnSurface, fontWeight: '800' }}>{data[ai].value}%</Text>
+        <Text variant="labelLarge" style={{ color: t.colors.inverseOnSurface, fontWeight: '700' }}>{data[ai].value}%</Text>
         <Text variant="labelSmall" style={{ color: t.colors.inverseOnSurface, opacity: 0.8 }}>{data[ai].label}</Text>
       </View>
       <Text variant="labelSmall" style={{ color: t.colors.outline, textAlign: 'center', marginTop: 2 }}>Drag across the chart to see each day</Text>
@@ -219,7 +219,7 @@ export function DayDots({ days }: { days: { date: string; present: boolean }[] }
           return (
             <Pressable key={d.date} onPress={() => { haptic.tap(); setSel(on ? null : i); }}
               style={{ width: 30, height: 30, borderRadius: 15, backgroundColor: on ? c.fg : c.bg, alignItems: 'center', justifyContent: 'center' }}>
-              <Text style={{ fontSize: 11, fontWeight: '800', color: on ? '#fff' : c.fg }}>{new Date(d.date + 'T00:00:00').getDate()}</Text>
+              <Text style={{ fontSize: 11, fontWeight: '700', color: on ? '#fff' : c.fg }}>{new Date(d.date + 'T00:00:00').getDate()}</Text>
             </Pressable>
           );
         })}

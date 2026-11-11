@@ -64,8 +64,8 @@ function MyFees() {
               shadowColor: late ? t.custom.danger : '#000', shadowOpacity: late ? 0.35 : 0.08, shadowRadius: late ? 18 : 10, elevation: late ? 8 : 3 }}>
               <Text variant="labelLarge" style={{ color: t.colors.onSurfaceVariant }}>Outstanding</Text>
               <View style={{ flexDirection: 'row', alignItems: 'baseline', gap: 2 }}>
-                <Text style={{ fontSize: 30, fontWeight: '900', color: late ? t.custom.danger : t.colors.onSurface }}>₹</Text>
-                <CountUp value={totals.outstanding} format={(n) => Math.round(n).toLocaleString('en-IN')} variant="displaySmall" style={{ fontWeight: '900', color: late ? t.custom.danger : t.colors.onSurface }} />
+                <Text style={{ fontSize: 30, fontWeight: '700', color: late ? t.custom.danger : t.colors.onSurface }}>₹</Text>
+                <CountUp value={totals.outstanding} format={(n) => Math.round(n).toLocaleString('en-IN')} variant="displaySmall" style={{ fontWeight: '700', color: late ? t.custom.danger : t.colors.onSurface }} />
               </View>
               <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: space.sm, marginTop: space.sm }}>
                 {late ? <ToneChip text={`${inr(totals.overdue)} overdue`} tone="danger" icon="alert-circle-outline" /> : null}
@@ -99,7 +99,7 @@ function MyFees() {
                     ) : <Icon name={KIND_ICON[i.kind] ?? 'receipt-text-outline'} size={22} color={t.colors.primary} />}
                     right={
                       <View style={{ alignItems: 'flex-end', gap: 4 }}>
-                        <Text variant="titleSmall" style={{ fontWeight: '800', color: t.colors.onSurface }}>{inr(i.balance)}</Text>
+                        <Text variant="titleSmall" style={{ fontWeight: '700', color: t.colors.onSurface }}>{inr(i.balance)}</Text>
                         <ToneChip text={ITEM_LABEL[i.status]} tone={ITEM_TONE[i.status]} />
                       </View>
                     } />

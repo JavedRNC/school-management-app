@@ -36,7 +36,7 @@ function BusCardInner({ studentId }: { studentId?: number }) {
               </View>
               {data.vehicle_number ? <PlateChip number={data.vehicle_number} kind={data.vehicle_kind} /> : null}
             </View>
-            <Text variant="titleMedium" style={{ color: '#fff', fontWeight: '800' }} numberOfLines={2}>{data.route}</Text>
+            <Text variant="titleMedium" style={{ color: '#fff', fontWeight: '700' }} numberOfLines={2}>{data.route}</Text>
             {data.stop ? (
               <View style={{ flexDirection: 'row', gap: space.md, marginTop: space.md }}>
                 <TimeBox label="Pickup" time={data.pickup_time} icon="weather-sunset-up" />
@@ -68,7 +68,7 @@ function TimeBox({ label, time, icon }: { label: string; time: string | null; ic
         <Icon name={icon} size={14} color="rgba(255,255,255,0.85)" />
         <Text variant="labelSmall" style={{ color: 'rgba(255,255,255,0.85)' }}>{label}</Text>
       </View>
-      <Text style={{ color: '#fff', fontSize: 26, fontWeight: '900', fontVariant: ['tabular-nums'] }}>{time || '--:--'}</Text>
+      <Text style={{ color: '#fff', fontSize: 26, fontWeight: '700', fontVariant: ['tabular-nums'] }}>{time || '--:--'}</Text>
     </View>
   );
 }

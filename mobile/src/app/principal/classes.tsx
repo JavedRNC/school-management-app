@@ -11,7 +11,7 @@ import {
 import { api } from '@/lib/api';
 import { useCan } from '@/lib/auth';
 import { haptic, useToast } from '@/lib/feedback';
-import { DAYS, radius, space, useAppTheme } from '@/lib/theme';
+import { cardEdge, shadow, fieldOutline, DAYS, radius, space, useAppTheme } from '@/lib/theme';
 import type { Assignment, Exam, SchoolClass, Slot, Subject, Usage, User } from '@/lib/types';
 import { useLoad } from '@/lib/useLoad';
 
@@ -40,8 +40,7 @@ export default function Classes() {
     <Screen onRefresh={base.refresh} refreshing={base.refreshing}
       header={
         <Hero title="Classes" subtitle="Teachers, timetable & school setup" compact>
-          <View style={{ backgroundColor: t.colors.elevation.level2, borderRadius: radius.xl, padding: 6, elevation: 3,
-            shadowColor: '#000', shadowOpacity: 0.08, shadowRadius: 12, shadowOffset: { width: 0, height: 4 } }}>
+          <View style={{ backgroundColor: t.colors.elevation.level2, borderRadius: radius.xl, padding: 6, ...shadow(t, 2), ...cardEdge(t) }}>
             <SegmentedButtons value={tab} onValueChange={(v) => { haptic.tap(); setTab(v as Tab); }} density="small"
               buttons={[{ value: 'subjects', label: 'Teachers' }, { value: 'timetable', label: 'Timetable' }, { value: 'setup', label: 'Setup' }]} />
           </View>
@@ -65,7 +64,7 @@ export default function Classes() {
                     <View style={{ flexDirection: 'row', alignItems: 'center', gap: space.sm, backgroundColor: t.colors.secondaryContainer, borderRadius: radius.lg, padding: space.md }}>
                       <Icon name={icon} size={22} color={t.colors.onSecondaryContainer} />
                       <View style={{ flex: 1 }}>
-                        <Text variant="labelLarge" style={{ fontWeight: '800', color: t.colors.onSecondaryContainer }}>{label}</Text>
+                        <Text variant="labelLarge" style={{ fontWeight: '700', color: t.colors.onSecondaryContainer }}>{label}</Text>
                         <Text variant="labelSmall" style={{ color: t.colors.onSecondaryContainer }}>View & edit</Text>
                       </View>
                       <Icon name="chevron-right" size={18} color={t.colors.onSecondaryContainer} />
@@ -138,7 +137,7 @@ function SubjectTeachers({ classId, data, onChange, canEdit }: { classId: number
             {ct ? <UserAvatar name={ct.name} size={52} /> : <IconBadge icon="account-question-outline" tone="warning" size={52} />}
             <View style={{ flex: 1 }}>
               <Text variant="labelLarge" style={{ color: t.colors.onSurfaceVariant }}>Class teacher · {cls.name}</Text>
-              <Text variant="titleMedium" style={{ fontWeight: '800', color: t.colors.onSurface }}>{ct?.name ?? 'Not assigned'}</Text>
+              <Text variant="titleMedium" style={{ fontWeight: '700', color: t.colors.onSurface }}>{ct?.name ?? 'Not assigned'}</Text>
               <Text variant="bodySmall" style={{ color: t.colors.onSurfaceVariant }}>{cls.student_count} students · {assigned}/{data.subjects.length} subjects staffed</Text>
             </View>
             {canEdit ? <Icon name="pencil-outline" size={20} color={t.colors.primary} /> : null}
@@ -334,12 +333,12 @@ function Setup({ data, onChange, canEdit }: { data: Base; onChange: () => void; 
         Archived items can be restored from Me → Archive.
       </Text>
       <Sheet visible={!!sheet} onDismiss={() => setSheet(null)} title={sheet === 'class' ? 'New class' : sheet === 'subject' ? 'New subject' : 'New exam'}>
-        <TextInput mode="outlined" autoFocus label={sheet === 'class' ? 'Class name (e.g. 10-B)' : sheet === 'subject' ? 'Subject (e.g. Computer Science)' : 'Exam name (e.g. Unit Test 2)'}
+        <TextInput mode="outlined" outlineStyle={fieldOutline} autoFocus label={sheet === 'class' ? 'Class name (e.g. 10-B)' : sheet === 'subject' ? 'Subject (e.g. Computer Science)' : 'Exam name (e.g. Unit Test 2)'}
           value={name} onChangeText={setName} style={{ marginBottom: space.md }} />
         {sheet === 'exam' ? (
           <View style={{ flexDirection: 'row', gap: space.sm, marginBottom: space.md }}>
-            <TextInput mode="outlined" label="Date (YYYY-MM-DD)" value={examDate} onChangeText={setExamDate} style={{ flex: 2 }} left={<TextInput.Icon icon="calendar" />} />
-            <TextInput mode="outlined" label="Max marks" value={max} onChangeText={(v) => setMax(v.replace(/\D/g, ''))} keyboardType="number-pad" style={{ flex: 1 }} />
+            <TextInput mode="outlined" outlineStyle={fieldOutline} label="Date (YYYY-MM-DD)" value={examDate} onChangeText={setExamDate} style={{ flex: 2 }} left={<TextInput.Icon icon="calendar" />} />
+            <TextInput mode="outlined" outlineStyle={fieldOutline} label="Max marks" value={max} onChangeText={(v) => setMax(v.replace(/\D/g, ''))} keyboardType="number-pad" style={{ flex: 1 }} />
           </View>
         ) : null}
         <Button mode="contained" icon="check" onPress={save} loading={busy} contentStyle={{ paddingVertical: 6 }}>Save</Button>
@@ -351,7 +350,7 @@ function Setup({ data, onChange, canEdit }: { data: Base; onChange: () => void; 
             <Text variant="bodyMedium" style={{ color: t.colors.onSurfaceVariant, marginBottom: space.md }}>
               {editing.student_count} student{editing.student_count === 1 ? '' : 's'} enrolled
             </Text>
-            <TextInput mode="outlined" label="Class name" value={rename} onChangeText={setRename} style={{ marginBottom: space.md }} />
+            <TextInput mode="outlined" outlineStyle={fieldOutline} label="Class name" value={rename} onChangeText={setRename} style={{ marginBottom: space.md }} />
             <Button mode="contained" icon="content-save-outline" onPress={saveRename} loading={busy} disabled={rename.trim() === editing.name}
               contentStyle={{ paddingVertical: 6 }}>Save name</Button>
             <View style={{ height: 1, backgroundColor: t.colors.outlineVariant, marginVertical: space.lg }} />
@@ -439,7 +438,7 @@ function SubjectEditor({ subject, onClose, onChange }: { subject: Subject | null
   return (
     <>
       <Sheet visible={!!subject} onDismiss={onClose} title={subject ? subject.name : ''}>
-        <TextInput mode="outlined" label="Subject name" value={name} onChangeText={setName} style={{ marginBottom: space.md }} />
+        <TextInput mode="outlined" outlineStyle={fieldOutline} label="Subject name" value={name} onChangeText={setName} style={{ marginBottom: space.md }} />
         <Button mode="contained" icon="content-save-outline" loading={busy} disabled={!name.trim() || name.trim() === subject?.name}
           onPress={() => subject && run(() => api(`/subjects/${subject.id}`, { method: 'PUT', body: { name: name.trim() } }), 'Subject renamed')}
           contentStyle={{ paddingVertical: 6 }}>Save name</Button>
@@ -490,10 +489,10 @@ function ExamEditor({ exam, onClose, onChange }: { exam: Exam | null; onClose: (
   return (
     <>
       <Sheet visible={!!exam} onDismiss={onClose} title={exam ? `Edit ${exam.name}` : ''}>
-        <TextInput mode="outlined" label="Exam name" value={name} onChangeText={setName} style={{ marginBottom: space.md }} />
+        <TextInput mode="outlined" outlineStyle={fieldOutline} label="Exam name" value={name} onChangeText={setName} style={{ marginBottom: space.md }} />
         <View style={{ flexDirection: 'row', gap: space.sm }}>
-          <TextInput mode="outlined" label="Date (YYYY-MM-DD)" value={date} onChangeText={setDate} style={{ flex: 2 }} left={<TextInput.Icon icon="calendar" />} error={!dateOk} />
-          <TextInput mode="outlined" label="Max marks" value={max} onChangeText={(v) => setMax(v.replace(/[^0-9.]/g, ''))} keyboardType="decimal-pad" style={{ flex: 1 }} />
+          <TextInput mode="outlined" outlineStyle={fieldOutline} label="Date (YYYY-MM-DD)" value={date} onChangeText={setDate} style={{ flex: 2 }} left={<TextInput.Icon icon="calendar" />} error={!dateOk} />
+          <TextInput mode="outlined" outlineStyle={fieldOutline} label="Max marks" value={max} onChangeText={(v) => setMax(v.replace(/[^0-9.]/g, ''))} keyboardType="decimal-pad" style={{ flex: 1 }} />
         </View>
         <Text variant="bodySmall" style={{ color: t.colors.onSurfaceVariant, marginVertical: space.sm }}>{plural(marks, 'mark')} entered for this exam</Text>
         <Button mode="contained" icon="content-save-outline" loading={busy} disabled={!valid}

@@ -12,7 +12,7 @@ import { SchoolPlanSection } from '@/components/admin/SchoolPlanSection';
 import { ErrorState, FadeIn, Hero, LoadingCards, Panel, Screen } from '@/components/ui';
 import { api } from '@/lib/api';
 import { haptic } from '@/lib/feedback';
-import { radius, space, useAppTheme } from '@/lib/theme';
+import { cardEdge, shadow, radius, space, useAppTheme } from '@/lib/theme';
 import type { AdminSchoolDetail, AuditEntry } from '@/lib/types';
 import { useLoad } from '@/lib/useLoad';
 
@@ -32,8 +32,7 @@ export default function AdminSchool() {
         <Hero eyebrow={d ? d.code : 'School'} title={d?.name ?? 'Loading…'} compact
           subtitle={d ? `${d.plan ?? 'No plan'} · ${d.students} students · ${d.teachers} teachers` : ' '}
           right={d ? <StatusChip status={d.status} /> : null}>
-          <View style={{ backgroundColor: t.colors.elevation.level2, borderRadius: radius.xl, padding: 6, elevation: 3,
-            shadowColor: '#000', shadowOpacity: 0.08, shadowRadius: 12, shadowOffset: { width: 0, height: 4 } }}>
+          <View style={{ backgroundColor: t.colors.elevation.level2, borderRadius: radius.xl, padding: 6, ...shadow(t, 2), ...cardEdge(t) }}>
             <SegmentedButtons value={section} onValueChange={(v) => { haptic.tap(); setSection(v as Section); }} density="small"
               buttons={[
                 { value: 'details', label: 'Info' }, { value: 'plan', label: 'Plan' }, { value: 'people', label: 'Users' },

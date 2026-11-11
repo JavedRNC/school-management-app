@@ -42,7 +42,7 @@ export default function ResultsScreen() {
                 <View style={{ flexDirection: 'row', alignItems: 'center', gap: space.lg }}>
                   <Ring value={card.percent} low={50} label={`Grade ${gradeOf(card.percent)}`} />
                   <View style={{ flex: 1 }}>
-                    <Text variant="headlineSmall" style={{ fontWeight: '800', color: t.colors.onSurface }}>{card.total} <Text variant="titleMedium" style={{ color: t.colors.onSurfaceVariant }}>/ {card.max_marks * card.subjects.length}</Text></Text>
+                    <Text variant="headlineSmall" style={{ fontWeight: '700', color: t.colors.onSurface }}>{card.total} <Text variant="titleMedium" style={{ color: t.colors.onSurfaceVariant }}>/ {card.max_marks * card.subjects.length}</Text></Text>
                     <Text variant="bodySmall" style={{ color: t.colors.onSurfaceVariant, marginBottom: space.sm }}>Total across {card.subjects.length} subjects</Text>
                     {delta != null ? (
                       <ToneChip text={`${delta >= 0 ? '+' : ''}${delta}% vs ${prev!.exam}`} tone={delta >= 0 ? 'success' : 'danger'} icon={delta >= 0 ? 'trending-up' : 'trending-down'} />
@@ -67,12 +67,12 @@ export default function ResultsScreen() {
                 <Panel style={{ flex: 1, marginBottom: 0 }} tone="success">
                   <Icon name="star-outline" size={22} color={t.custom.success} />
                   <Text variant="labelMedium" style={{ color: t.custom.onSuccessContainer, marginTop: 4 }}>Strongest</Text>
-                  <Text variant="titleMedium" style={{ fontWeight: '800', color: t.custom.onSuccessContainer }} numberOfLines={1}>{best.subject}</Text>
+                  <Text variant="titleMedium" style={{ fontWeight: '700', color: t.custom.onSuccessContainer }} numberOfLines={1}>{best.subject}</Text>
                 </Panel>
                 <Panel style={{ flex: 1, marginBottom: 0 }} tone="warning">
                   <Icon name="target" size={22} color={t.custom.warning} />
                   <Text variant="labelMedium" style={{ color: t.custom.onWarningContainer, marginTop: 4 }}>Focus area</Text>
-                  <Text variant="titleMedium" style={{ fontWeight: '800', color: t.custom.onWarningContainer }} numberOfLines={1}>{weak.subject}</Text>
+                  <Text variant="titleMedium" style={{ fontWeight: '700', color: t.custom.onWarningContainer }} numberOfLines={1}>{weak.subject}</Text>
                 </Panel>
               </View>
             </FadeIn>

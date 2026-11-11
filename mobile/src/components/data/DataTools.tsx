@@ -7,7 +7,7 @@ import { ActivityIndicator, Button, Dialog, Text, TextInput } from 'react-native
 
 import { ApiError, api, authHeaders, getBaseUrl } from '@/lib/api';
 import { haptic, useToast } from '@/lib/feedback';
-import { radius, space, useAppTheme } from '@/lib/theme';
+import { fieldOutline, radius, space, useAppTheme } from '@/lib/theme';
 import type { ImportReport, NewLogin } from '@/lib/types';
 
 import { FadeIn, Icon, IconBadge, Panel, PressScale, ToneChip, TopLayer } from '../ui';
@@ -315,9 +315,9 @@ export function DataTools({ base, schoolCode, schoolName }: { base: string; scho
             subtitle={mode === 'replace' ? 'All current data of this school is replaced by the file. Principal accounts are kept.' : 'New rows are added and changed rows updated. Nothing is deleted.'}>
             {mode === 'replace' ? (
               <>
-                <TextInput mode="outlined" label={`Type the school code (${schoolCode}) to confirm`} value={code} onChangeText={setCode}
+                <TextInput mode="outlined" outlineStyle={fieldOutline} label={`Type the school code (${schoolCode}) to confirm`} value={code} onChangeText={setCode}
                   autoCapitalize="characters" style={{ marginBottom: space.sm }} />
-                <TextInput mode="outlined" label="Your password" value={password} onChangeText={setPassword} secureTextEntry
+                <TextInput mode="outlined" outlineStyle={fieldOutline} label="Your password" value={password} onChangeText={setPassword} secureTextEntry
                   style={{ marginBottom: space.sm }} />
                 <Text variant="bodySmall" style={{ color: t.colors.onSurfaceVariant, marginBottom: space.md }}>
                   The app keeps a copy of the current data first, so you can undo this from "Undo the last Replace" below.
@@ -476,7 +476,7 @@ function DoneCard({ r, onShare }: { r: ImportReport; onShare: (asFile: boolean) 
                     <Text variant="bodyMedium" style={{ fontWeight: '600', color: t.colors.onSurface }} numberOfLines={1}>{c.name}</Text>
                     <Text variant="bodySmall" style={{ color: t.colors.onSurfaceVariant }}>{c.role.replace('_', ' ')}{c.class ? ` · ${c.class}` : ''} · ID {c.login_id}</Text>
                   </View>
-                  <Text variant="titleSmall" selectable style={{ fontFamily: 'monospace', fontWeight: '800', color: t.colors.primary }}>{c.password}</Text>
+                  <Text variant="titleSmall" selectable style={{ fontFamily: 'monospace', fontWeight: '700', color: t.colors.primary }}>{c.password}</Text>
                 </View>
               ))}
               {creds.length > 200 ? <Text variant="bodySmall" style={{ marginTop: space.sm, color: t.colors.onSurfaceVariant }}>+ {creds.length - 200} more in the downloaded list</Text> : null}

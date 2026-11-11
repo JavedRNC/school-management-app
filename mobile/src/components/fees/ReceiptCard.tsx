@@ -17,12 +17,12 @@ export function ReceiptCard({ r }: { r: FeeReceipt }) {
     <View style={{ borderRadius: radius.xl, backgroundColor: t.colors.elevation.level1, overflow: 'hidden',
       shadowColor: ok ? t.custom.success : '#000', shadowOpacity: ok ? 0.22 : 0.08, shadowRadius: 18, shadowOffset: { width: 0, height: 6 }, elevation: 4 }}>
       <LinearGradient colors={[t.custom.heroStart, t.custom.heroEnd]} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={{ padding: space.lg }}>
-        <Text variant="titleMedium" style={{ color: '#fff', fontWeight: '800' }} numberOfLines={2}>{r.school.name}</Text>
+        <Text variant="titleMedium" style={{ color: '#fff', fontWeight: '700' }} numberOfLines={2}>{r.school.name}</Text>
         {r.school.address ? <Text variant="bodySmall" style={{ color: 'rgba(255,255,255,0.8)' }} numberOfLines={2}>{r.school.address}</Text> : null}
         <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginTop: space.md }}>
           <View>
             <Text variant="labelSmall" style={{ color: 'rgba(255,255,255,0.75)', letterSpacing: 2 }}>FEE RECEIPT</Text>
-            <Text style={{ color: '#fff', fontWeight: '800', fontSize: 15, fontVariant: ['tabular-nums'] }}>{r.receipt_no}</Text>
+            <Text style={{ color: '#fff', fontWeight: '700', fontSize: 15, fontVariant: ['tabular-nums'] }}>{r.receipt_no}</Text>
           </View>
           <View style={{ alignItems: 'flex-end' }}>
             <Text variant="labelSmall" style={{ color: 'rgba(255,255,255,0.75)' }}>{fmtDate(r.paid_on)}</Text>
@@ -42,7 +42,7 @@ export function ReceiptCard({ r }: { r: FeeReceipt }) {
           <Text variant="bodySmall" style={{ color: t.custom.danger, marginTop: 6 }}>Reason: {r.cancel_reason}</Text>
         ) : null}
 
-        <Text variant="titleMedium" style={{ fontWeight: '800', color: t.colors.onSurface, marginTop: ok ? 0 : space.sm, paddingRight: 90 }}>{r.student.name}</Text>
+        <Text variant="titleMedium" style={{ fontWeight: '700', color: t.colors.onSurface, marginTop: ok ? 0 : space.sm, paddingRight: 90 }}>{r.student.name}</Text>
         <Text variant="bodySmall" style={{ color: t.colors.onSurfaceVariant }}>
           Adm. {r.student.admission_no}{r.student.class_name ? ` · ${r.student.class_name}` : ''}{r.student.roll_no != null ? ` · Roll ${r.student.roll_no}` : ''}
         </Text>

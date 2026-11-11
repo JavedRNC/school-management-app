@@ -5,7 +5,7 @@ import { Button, Text, TextInput } from 'react-native-paper';
 import { Icon, Sheet, ToneChip } from '@/components/ui';
 import { api } from '@/lib/api';
 import { haptic, useToast } from '@/lib/feedback';
-import { radius, space, useAppTheme } from '@/lib/theme';
+import { fieldOutline, radius, space, useAppTheme } from '@/lib/theme';
 import type { Poll } from '@/lib/types';
 
 import { deadlineText, rupees, shortDate } from './util';
@@ -88,7 +88,7 @@ export function AnswerSheet({ poll, visible, onDismiss, onAnswered }: {
             {tg.student_name ? (
               <View style={{ flexDirection: 'row', alignItems: 'center', gap: space.sm, marginBottom: space.sm }}>
                 <Icon name="account-school-outline" size={20} color={t.colors.primary} />
-                <Text variant="titleSmall" style={{ fontWeight: '800', flex: 1, color: t.colors.onSurface }}>For {tg.student_name}</Text>
+                <Text variant="titleSmall" style={{ fontWeight: '700', flex: 1, color: t.colors.onSurface }}>For {tg.student_name}</Text>
                 {saved ? <ToneChip text="Answered" tone="success" icon="check" /> : null}
               </View>
             ) : saved ? <View style={{ marginBottom: space.sm }}><ToneChip text="Your answer is saved — you can change it" tone="success" icon="check" /></View> : null}
@@ -112,7 +112,7 @@ export function AnswerSheet({ poll, visible, onDismiss, onAnswered }: {
             </View>
             {!readOnly ? (
               <>
-                <TextInput mode="outlined" dense label="Comment (optional)" value={comment[tg.student_id] ?? ''} maxLength={500}
+                <TextInput mode="outlined" outlineStyle={fieldOutline} dense label="Comment (optional)" value={comment[tg.student_id] ?? ''} maxLength={500}
                   onChangeText={(v) => setComment((m) => ({ ...m, [tg.student_id]: v }))} style={{ marginTop: space.sm }} />
                 <Button mode="contained" icon="send" style={{ marginTop: space.sm }} loading={busy === tg.student_id} disabled={busy !== null}
                   onPress={() => submit(tg)}>{saved ? 'Update answer' : 'Submit'}</Button>

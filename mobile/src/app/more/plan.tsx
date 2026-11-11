@@ -43,7 +43,7 @@ export default function PlanScreen() {
             <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
               <View>
                 <Text variant="labelLarge" style={{ color: t.colors.onSurfaceVariant }}>Estimated this month</Text>
-                <Text variant="headlineMedium" style={{ fontWeight: '800', color: t.colors.onSurface }}>{est.free ? 'Free' : inr(est.amount)}</Text>
+                <Text variant="headlineMedium" style={{ fontWeight: '700', color: t.colors.onSurface }}>{est.free ? 'Free' : inr(est.amount)}</Text>
               </View>
               <ToneChip text={st.label} tone={st.tone} compact={false} />
             </View>

@@ -1,10 +1,10 @@
 import { useState } from 'react';
 import { View } from 'react-native';
-import { AnimatedFAB } from 'react-native-paper';
+
 
 import { PostComposer } from '@/components/PostComposer';
 import { PostList } from '@/components/PostList';
-import { ErrorState, FilterChips, Hero, LoadingCards, Screen } from '@/components/ui';
+import { Fab, ErrorState, FilterChips, Hero, LoadingCards, Screen } from '@/components/ui';
 import { api } from '@/lib/api';
 import { useAuth } from '@/lib/auth';
 import { haptic } from '@/lib/feedback';
@@ -33,7 +33,7 @@ export default function TeacherPosts() {
         {error ? <ErrorState message={error} onRetry={reload} /> : null}
         {!data ? <LoadingCards /> : <PostList posts={posts} canDelete={(p) => p.author_id === user?.id} onDeleted={reload} onEdit={(p) => { setEditing(p); setComposing(true); }} />}
       </Screen>
-      <AnimatedFAB icon="book-plus-outline" label="New homework" extended onPress={() => { haptic.tap(); setEditing(null); setComposing(true); }}
+      <Fab icon="book-plus-outline" label="New homework" extended onPress={() => { haptic.tap(); setEditing(null); setComposing(true); }}
         style={{ position: 'absolute', right: space.lg, bottom: space.lg }} />
       {data ? (
         <PostComposer visible={composing} editing={editing} onDismiss={() => setComposing(false)} classes={data.classes} subjects={data.subjects}

@@ -54,7 +54,7 @@ export function LeaveSummaryCard() {
         right={pending ? (
           <View style={{ minWidth: 30, height: 30, borderRadius: 15, paddingHorizontal: 8, backgroundColor: t.custom.warning, alignItems: 'center', justifyContent: 'center',
             shadowColor: t.custom.amber, shadowOpacity: 0.6, shadowRadius: 8, elevation: 4 }}>
-            <Text style={{ color: '#fff', fontWeight: '800' }}>{pending}</Text>
+            <Text style={{ color: '#fff', fontWeight: '700' }}>{pending}</Text>
           </View>
         ) : <Icon name="chevron-right" size={22} color={t.colors.outline} />}>
         {onLeave.length ? (

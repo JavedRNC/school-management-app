@@ -1,12 +1,12 @@
 import { router } from 'expo-router';
 import { useMemo, useState } from 'react';
 import { NativeScrollEvent, NativeSyntheticEvent, RefreshControl, ScrollView, View } from 'react-native';
-import { AnimatedFAB, Button, Searchbar, Text } from 'react-native-paper';
+import { Button, Searchbar, Text } from 'react-native-paper';
 
 import { PersonRole } from '@/components/people/constants';
 import { CredentialsDialog, Credentials } from '@/components/people/CredentialsDialog';
 import { PersonSheet } from '@/components/people/PersonSheet';
-import {
+import { Fab,
   EmptyState, ErrorState, FadeIn, FilterChips, Hero, Icon, IconName, LoadingCards, Panel, Row, ToneChip, UserAvatar,
 } from '@/components/ui';
 import { api } from '@/lib/api';
@@ -178,7 +178,7 @@ export default function People() {
       </ScrollView>
 
       {showFab ? (
-        <AnimatedFAB icon="account-plus" label="Add person" extended={fabExtended} onPress={() => { haptic.tap(); setAdding(true); }}
+        <Fab icon="account-plus" label="Add person" extended={fabExtended} onPress={() => { haptic.tap(); setAdding(true); }}
           style={{ position: 'absolute', right: space.lg, bottom: space.lg }} />
       ) : null}
 

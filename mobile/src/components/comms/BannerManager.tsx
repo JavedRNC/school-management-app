@@ -1,8 +1,8 @@
 import { useState } from 'react';
 import { View } from 'react-native';
-import { AnimatedFAB, Button, Dialog, Text } from 'react-native-paper';
+import { Button, Dialog, Text } from 'react-native-paper';
 
-import { EmptyState, ErrorState, FadeIn, Hero, LoadingCards, Panel, Screen, SectionTitle, ToneChip, TopLayer } from '@/components/ui';
+import { Fab, EmptyState, ErrorState, FadeIn, Hero, LoadingCards, Panel, Screen, SectionTitle, ToneChip, TopLayer } from '@/components/ui';
 import { api } from '@/lib/api';
 import { haptic, useToast } from '@/lib/feedback';
 import { space, useAppTheme } from '@/lib/theme';
@@ -110,7 +110,7 @@ export function BannerManager({ endpoint, canEdit, allowImages, showClasses, tit
         )}
       </Screen>
       {canEdit ? (
-        <AnimatedFAB icon="plus" label="New banner" extended onPress={() => { haptic.tap(); setEditing(null); setOpen(true); }}
+        <Fab icon="plus" label="New banner" extended onPress={() => { haptic.tap(); setEditing(null); setOpen(true); }}
           style={{ position: 'absolute', right: space.lg, bottom: space.lg }} />
       ) : null}
       <BannerEditor visible={open} onDismiss={() => { setOpen(false); setEditing(null); }} initial={editing} allowImages={allowImages}

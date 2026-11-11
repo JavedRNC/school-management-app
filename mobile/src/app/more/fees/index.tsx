@@ -47,7 +47,6 @@ function Dashboard({ canEdit }: { canEdit: boolean }) {
                   <View style={{ flex: 1 }}>
                     <Text variant="labelLarge" style={{ color: t.colors.onSurfaceVariant }}>Collected in {d.period_label}</Text>
                     <View style={{ flexDirection: 'row', alignItems: 'baseline' }}>
-                      <Text variant="headlineSmall" style={{ fontWeight: '800', color: t.colors.primary }}>₹</Text>
                       <CountUp value={d.collected_month} format={(n) => inr(Math.round(n))} style={{ color: t.colors.primary }} />
                     </View>
                     <Text variant="bodySmall" style={{ color: t.colors.onSurfaceVariant }}>

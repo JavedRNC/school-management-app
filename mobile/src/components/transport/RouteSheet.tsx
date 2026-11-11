@@ -4,7 +4,7 @@ import { Button, HelperText, IconButton, Text, TextInput } from 'react-native-pa
 
 import { api } from '@/lib/api';
 import { haptic, useToast } from '@/lib/feedback';
-import { radius, space, useAppTheme } from '@/lib/theme';
+import { fieldOutline, radius, space, useAppTheme } from '@/lib/theme';
 import type { TransportRoute, Vehicle } from '@/lib/types';
 
 import { FilterChips, Sheet } from '../ui';
@@ -75,7 +75,7 @@ export function RouteSheet({ visible, route, vehicles, onDismiss, onSaved }: {
 
   return (
     <Sheet visible={visible} onDismiss={onDismiss} title={route ? 'Edit route' : 'New route'}>
-      <TextInput mode="outlined" label="Route name" value={name} onChangeText={setName} placeholder="Route 3 · Bariatu – Lalpur"
+      <TextInput mode="outlined" outlineStyle={fieldOutline} label="Route name" value={name} onChangeText={setName} placeholder="Route 3 · Bariatu – Lalpur"
         left={<TextInput.Icon icon="map-marker-path" />} />
       <HelperText type="error" visible={!name.trim()}>Name is required</HelperText>
       <FilterChips label="Vehicle" value={vehicleId} onChange={setVehicleId}
@@ -89,7 +89,7 @@ export function RouteSheet({ visible, route, vehicles, onDismiss, onSaved }: {
         <View key={s.key} style={{ borderWidth: 1, borderColor: t.colors.outlineVariant, borderRadius: radius.lg, padding: space.sm, marginBottom: space.sm }}>
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
             <View style={{ width: 26, height: 26, borderRadius: 13, backgroundColor: t.colors.primaryContainer, alignItems: 'center', justifyContent: 'center' }}>
-              <Text variant="labelMedium" style={{ color: t.colors.onPrimaryContainer, fontWeight: '800' }}>{i + 1}</Text>
+              <Text variant="labelMedium" style={{ color: t.colors.onPrimaryContainer, fontWeight: '700' }}>{i + 1}</Text>
             </View>
             <TextInput mode="flat" dense label="Stop name" value={s.name} onChangeText={(v) => patch(i, { name: v })} style={{ flex: 1, backgroundColor: 'transparent' }} />
             <IconButton icon="arrow-up" size={18} disabled={i === 0} onPress={() => move(i, -1)} style={{ margin: 0 }} />
@@ -98,9 +98,9 @@ export function RouteSheet({ visible, route, vehicles, onDismiss, onSaved }: {
               onPress={() => { haptic.tap(); setStops((ss) => ss.filter((_, j) => j !== i)); }} style={{ margin: 0 }} />
           </View>
           <View style={{ flexDirection: 'row', gap: space.sm, marginTop: 4 }}>
-            <TextInput mode="outlined" dense label="Pickup" value={s.pickup_time} placeholder="07:10" keyboardType="number-pad"
+            <TextInput mode="outlined" outlineStyle={fieldOutline} dense label="Pickup" value={s.pickup_time} placeholder="07:10" keyboardType="number-pad"
               onChangeText={(v) => patch(i, { pickup_time: fmtTime(v) })} error={!timeOk(s.pickup_time)} style={{ flex: 1 }} />
-            <TextInput mode="outlined" dense label="Drop" value={s.drop_time} placeholder="14:20" keyboardType="number-pad"
+            <TextInput mode="outlined" outlineStyle={fieldOutline} dense label="Drop" value={s.drop_time} placeholder="14:20" keyboardType="number-pad"
               onChangeText={(v) => patch(i, { drop_time: fmtTime(v) })} error={!timeOk(s.drop_time)} style={{ flex: 1 }} />
           </View>
         </View>

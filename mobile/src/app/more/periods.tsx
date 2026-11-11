@@ -203,7 +203,7 @@ export default function PeriodsScreen() {
                       <View style={{ width: 36, height: 36, borderRadius: 18, alignItems: 'center', justifyContent: 'center',
                         backgroundColor: brk ? t.colors.tertiary : t.colors.primary }}>
                         {brk ? <Icon name={/lunch/i.test(r.label) ? 'food-outline' : 'coffee-outline'} size={18} color={t.colors.onTertiary} />
-                          : <Text variant="labelLarge" style={{ color: t.colors.onPrimary, fontWeight: '800' }}>{n}</Text>}
+                          : <Text variant="labelLarge" style={{ color: t.colors.onPrimary, fontWeight: '700' }}>{n}</Text>}
                       </View>
                       <TextInput dense mode="outlined" editable={canEdit} value={r.label} onChangeText={(v) => change(i, { label: v.slice(0, 30) })}
                         placeholder={brk ? 'Break' : `Period ${n}`} style={{ flex: 1, backgroundColor: 'transparent' }} />

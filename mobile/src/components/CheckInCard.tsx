@@ -8,7 +8,7 @@ import { FadeIn, Icon, IconBadge, IconName, ToneChip } from '@/components/ui';
 import { api, ApiError } from '@/lib/api';
 import { useAuth, useModule } from '@/lib/auth';
 import { haptic, useToast } from '@/lib/feedback';
-import { radius, space, Tone, toneColors, useAppTheme } from '@/lib/theme';
+import { cardEdge, shadow as elev, radius, space, Tone, toneColors, useAppTheme } from '@/lib/theme';
 import type { MyStaffAttendance, StaffRecord } from '@/lib/types';
 import { useLoad } from '@/lib/useLoad';
 
@@ -99,7 +99,7 @@ function CheckInBody({ onChange }: { onChange?: () => void }) {
     <FadeIn>
       <View style={{ backgroundColor: t.colors.elevation.level1, borderRadius: radius.xl, padding: space.lg, marginBottom: space.md,
         borderWidth: 1, borderColor: actionable ? t.colors.primaryContainer : 'transparent',
-        shadowColor: '#000', shadowOpacity: 0.06, shadowRadius: 10, shadowOffset: { width: 0, height: 4 }, elevation: 1 }}>
+        ...elev(t, 1), ...cardEdge(t) }}>
         <Pressable onPress={() => { haptic.tap(); router.push('/more/staff-attendance' as never); }}
           style={{ flexDirection: 'row', alignItems: 'center', gap: space.md }}>
           {justDone ? (
@@ -109,7 +109,7 @@ function CheckInBody({ onChange }: { onChange?: () => void }) {
             </Animated.View>
           ) : <IconBadge icon={s.icon} tone={s.tone} />}
           <View style={{ flex: 1 }}>
-            <Text variant="titleMedium" style={{ fontWeight: '800', color: t.colors.onSurface }}>{s.title}</Text>
+            <Text variant="titleMedium" style={{ fontWeight: '700', color: t.colors.onSurface }}>{s.title}</Text>
             <Text variant="bodySmall" style={{ color: t.colors.onSurfaceVariant }}>{s.text}</Text>
           </View>
           {rec?.late ? <ToneChip text="Late" tone="warning" icon="clock-alert-outline" /> : null}
@@ -124,7 +124,7 @@ function CheckInBody({ onChange }: { onChange?: () => void }) {
           <Animated.View style={{ marginTop: space.md, borderRadius: radius.lg, shadowColor: t.colors.primary, shadowOpacity: shadow,
             shadowRadius: 14, shadowOffset: { width: 0, height: 4 }, elevation: 4 }}>
             <Button mode="contained" icon={state === 'in' ? 'map-marker-check' : 'logout-variant'} loading={!!busy} disabled={!!busy}
-              onPress={() => act(state === 'in' ? 'in' : 'out')} contentStyle={{ paddingVertical: 10 }} labelStyle={{ fontSize: 16, fontWeight: '800' }}
+              onPress={() => act(state === 'in' ? 'in' : 'out')} contentStyle={{ paddingVertical: 6 }} labelStyle={{ fontSize: 15, fontWeight: '700' }}
               buttonColor={state === 'out' ? t.custom.success : undefined}>
               {busy ? 'Getting your location…' : state === 'in' ? 'Check in' : 'Check out'}
             </Button>

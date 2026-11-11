@@ -6,7 +6,7 @@ import QRCode from 'react-native-qrcode-svg';
 import { api } from '@/lib/api';
 import { haptic, useToast } from '@/lib/feedback';
 import { inr, upiLink } from '@/lib/fees';
-import { radius, space, useAppTheme } from '@/lib/theme';
+import { fieldOutline, radius, space, useAppTheme } from '@/lib/theme';
 
 import { Icon, Sheet } from '../ui';
 
@@ -57,7 +57,7 @@ export function PaySheet({ visible, onDismiss, onDone, studentId, studentName, a
     <Sheet visible={visible} onDismiss={onDismiss} title={step === 1 ? 'Pay by UPI' : 'Confirm your payment'}>
       <View style={{ alignItems: 'center', marginBottom: space.md }}>
         <Text variant="labelLarge" style={{ color: t.colors.onSurfaceVariant }}>Amount for {studentName}</Text>
-        <Text style={{ fontSize: 38, fontWeight: '900', color: t.colors.primary }}>{inr(amount)}</Text>
+        <Text style={{ fontSize: 38, fontWeight: '700', color: t.colors.primary }}>{inr(amount)}</Text>
       </View>
       {step === 1 ? (
         <>
@@ -83,7 +83,7 @@ export function PaySheet({ visible, onDismiss, onDone, studentId, studentName, a
               Find the 12-digit UPI reference / UTR in your UPI app's payment details. The school checks it and then issues your receipt.
             </Text>
           </View>
-          <TextInput mode="outlined" label="UPI reference / UTR" value={utr} onChangeText={setUtr} autoCapitalize="characters"
+          <TextInput mode="outlined" outlineStyle={fieldOutline} label="UPI reference / UTR" value={utr} onChangeText={setUtr} autoCapitalize="characters"
             keyboardType="default" maxLength={34} error={bad} left={<TextInput.Icon icon="pound" />} />
           <HelperText type={bad ? 'error' : 'info'} visible>{bad ? 'Only letters and numbers, 6–30 characters' : 'Example: 634512987745'}</HelperText>
           <Button mode="contained" icon="send-check" onPress={submit} loading={busy} disabled={busy || !clean} contentStyle={{ paddingVertical: 6 }}>

@@ -5,7 +5,7 @@ import { Text } from 'react-native-paper';
 import { api } from '@/lib/api';
 import { useCan, useModule } from '@/lib/auth';
 import { inr, inrShort } from '@/lib/fees';
-import { radius, space, useAppTheme } from '@/lib/theme';
+import { cardEdge, shadow, radius, space, useAppTheme } from '@/lib/theme';
 import type { FeeSummary } from '@/lib/types';
 import { useLoad } from '@/lib/useLoad';
 
@@ -30,12 +30,12 @@ function Inner() {
       <SectionTitle title="Fees" action="Open" onAction={() => open()} />
       <PressScale onPress={() => open()}>
         <View style={{ backgroundColor: t.colors.elevation.level2, borderRadius: radius.xl, padding: space.lg,
-          shadowColor: t.colors.primary, shadowOpacity: 0.12, shadowRadius: 14, shadowOffset: { width: 0, height: 4 }, elevation: 3 }}>
+          ...shadow(t, 2), ...cardEdge(t) }}>
           {!data.configured ? (
             <View style={{ flexDirection: 'row', alignItems: 'center', gap: space.md }}>
               <IconBadge icon="cash-plus" />
               <View style={{ flex: 1 }}>
-                <Text variant="titleSmall" style={{ fontWeight: '800', color: t.colors.onSurface }}>Set up fees</Text>
+                <Text variant="titleSmall" style={{ fontWeight: '700', color: t.colors.onSurface }}>Set up fees</Text>
                 <Text variant="bodySmall" style={{ color: t.colors.onSurfaceVariant }}>Add the monthly fee to start billing and receipts</Text>
               </View>
               <Icon name="chevron-right" size={22} color={t.colors.outline} />
@@ -45,12 +45,12 @@ function Inner() {
               <View style={{ flexDirection: 'row', gap: space.md }}>
                 <View style={{ flex: 1 }}>
                   <Text variant="labelMedium" style={{ color: t.colors.onSurfaceVariant }}>Collected today</Text>
-                  <Text style={{ fontSize: 24, fontWeight: '900', color: t.custom.success }}>{inr(data.collected_today)}</Text>
+                  <Text style={{ fontSize: 22, lineHeight: 28, fontWeight: '700', fontVariant: ['tabular-nums'], color: t.custom.success }}>{inr(data.collected_today)}</Text>
                   <Text variant="labelSmall" style={{ color: t.colors.outline }}>{data.receipts_today} receipt{data.receipts_today === 1 ? '' : 's'}</Text>
                 </View>
                 <View style={{ flex: 1 }}>
                   <Text variant="labelMedium" style={{ color: t.colors.onSurfaceVariant }}>{data.period_label}</Text>
-                  <Text style={{ fontSize: 24, fontWeight: '900', color: t.colors.onSurface }}>{inrShort(data.collected_month)}</Text>
+                  <Text style={{ fontSize: 22, lineHeight: 28, fontWeight: '700', fontVariant: ['tabular-nums'], color: t.colors.onSurface }}>{inrShort(data.collected_month)}</Text>
                   <Text variant="labelSmall" style={{ color: t.colors.outline }}>of {inrShort(data.expected_month)} billed</Text>
                 </View>
               </View>
@@ -90,7 +90,7 @@ function Pill({ icon, label, value, tone, onPress, glow }: {
       <View style={{ backgroundColor: bg, borderRadius: radius.lg, padding: space.sm, alignItems: 'center',
         shadowColor: t.colors.primary, shadowOpacity: glow ? 0.45 : 0, shadowRadius: glow ? 10 : 0, elevation: glow ? 5 : 0 }}>
         <Icon name={icon} size={18} color={fg} />
-        <Text style={{ color: fg, fontWeight: '900', fontSize: 16 }}>{value}</Text>
+        <Text style={{ color: fg, fontWeight: '700', fontSize: 15, lineHeight: 20 }}>{value}</Text>
         <Text variant="labelSmall" style={{ color: fg }} numberOfLines={1}>{label}</Text>
       </View>
     </PressScale>

@@ -28,11 +28,11 @@ export default function AdminOverviewScreen() {
                 <View style={{ flexDirection: 'row' }}>
                   <View style={{ flex: 1 }}>
                     <Text variant="labelLarge" style={{ color: t.colors.onSurfaceVariant }}>Collected this month</Text>
-                    <Text variant="headlineSmall" style={{ fontWeight: '800', color: t.custom.success }}>{rupees(data.revenue_this_month)}</Text>
+                    <Text variant="headlineSmall" style={{ fontWeight: '700', color: t.custom.success }}>{rupees(data.revenue_this_month)}</Text>
                   </View>
                   <View style={{ flex: 1, alignItems: 'flex-end' }}>
                     <Text variant="labelLarge" style={{ color: t.colors.onSurfaceVariant }}>Expected / month</Text>
-                    <Text variant="headlineSmall" style={{ fontWeight: '800', color: t.colors.onSurface }}>{rupees(data.expected_monthly)}</Text>
+                    <Text variant="headlineSmall" style={{ fontWeight: '700', color: t.colors.onSurface }}>{rupees(data.expected_monthly)}</Text>
                   </View>
                 </View>
               </Panel>

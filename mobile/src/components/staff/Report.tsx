@@ -52,7 +52,7 @@ export function Report() {
                         {ROLE_LABEL[r.role]} · ✓ {r.present} · ⏰ {r.late} · ✈ {r.leave} · ✗ {r.absent}
                       </Text>
                     </View>
-                    <Text variant="titleMedium" style={{ fontWeight: '800', color: c.fg }}>{r.percent}%</Text>
+                    <Text variant="titleMedium" style={{ fontWeight: '700', color: c.fg }}>{r.percent}%</Text>
                   </View>
                   <View style={{ height: 6, borderRadius: 3, backgroundColor: t.custom.chartTrack, marginTop: 6, marginLeft: 48, overflow: 'hidden' }}>
                     <View style={{ width: `${Math.min(100, r.percent)}%`, height: 6, borderRadius: 3, backgroundColor: c.fg }} />

@@ -21,7 +21,7 @@ function Banner({ tone, icon, title, text }: { tone: Tone; icon: IconName; title
         padding: space.md, marginBottom: space.md }}>
         <Icon name={icon} size={22} color={c.fg} />
         <View style={{ flex: 1 }}>
-          <Text variant="titleSmall" style={{ fontWeight: '800', color: c.on }}>{title}</Text>
+          <Text variant="titleSmall" style={{ fontWeight: '700', color: c.on }}>{title}</Text>
           {text ? <Text variant="bodySmall" style={{ color: c.on, opacity: 0.9 }}>{text}</Text> : null}
         </View>
       </View>

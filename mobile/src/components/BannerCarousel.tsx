@@ -69,7 +69,8 @@ export function BannerCarousel({ style }: { style?: ViewStyle }) {
 
   if (!items.length) return null;
 
-  const onLayout = (e: LayoutChangeEvent) => setWidth(e.nativeEvent.layout.width);
+  // Pages bleed 16dp past the content column so the banner's glow isn't clipped by the pager.
+  const onLayout = (e: LayoutChangeEvent) => setWidth(e.nativeEvent.layout.width + 2 * space.lg);
   const onEnd = (e: NativeSyntheticEvent<NativeScrollEvent>) => {
     if (width) setIndex(Math.round(e.nativeEvent.contentOffset.x / width));
     paused.current = false;
@@ -79,18 +80,18 @@ export function BannerCarousel({ style }: { style?: ViewStyle }) {
   return (
     <View style={style} onLayout={onLayout}>
       {width ? (
-        <ScrollView ref={scroll as never} horizontal pagingEnabled showsHorizontalScrollIndicator={false} decelerationRate="fast"
+        <ScrollView ref={scroll as never} horizontal pagingEnabled style={{ marginHorizontal: -space.lg }} showsHorizontalScrollIndicator={false} decelerationRate="fast"
           onScrollBeginDrag={() => { paused.current = true; }} onMomentumScrollEnd={onEnd} scrollEventThrottle={16}
           onScroll={Animated.event([{ nativeEvent: { contentOffset: { x } } }], { useNativeDriver: false })}>
           {items.map((b) => (
-            <View key={b.id} style={{ width }}>
+            <View key={b.id} style={{ width, paddingHorizontal: space.lg, paddingTop: 2, paddingBottom: 12 }}>
               <BannerCard banner={b} onPress={() => setOpen(b)} />
             </View>
           ))}
         </ScrollView>
       ) : <View style={{ height: 150 }} />}
       {items.length > 1 && width ? (
-        <View style={{ flexDirection: 'row', justifyContent: 'center', gap: 6, marginTop: space.sm }}>
+        <View style={{ flexDirection: 'row', justifyContent: 'center', gap: 6, marginTop: 0, marginBottom: 4 }}>
           {items.map((b, i) => {
             const w = x.interpolate({ inputRange: [(i - 1) * width, i * width, (i + 1) * width], outputRange: [6, 18, 6], extrapolate: 'clamp' });
             const o = x.interpolate({ inputRange: [(i - 1) * width, i * width, (i + 1) * width], outputRange: [0.35, 1, 0.35], extrapolate: 'clamp' });

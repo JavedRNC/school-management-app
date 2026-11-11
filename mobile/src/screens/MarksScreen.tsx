@@ -1,14 +1,14 @@
 import { useLocalSearchParams } from 'expo-router';
 import { ReactNode, useEffect, useMemo, useRef, useState } from 'react';
 import { View } from 'react-native';
-import { AnimatedFAB, Text, TextInput } from 'react-native-paper';
+import { Text, TextInput } from 'react-native-paper';
 
 import { subjectIcon } from '@/components/TimetableView';
-import { EmptyState, ErrorState, FilterChips, Hero, LoadingCards, Panel, Screen, ToneChip, UserAvatar } from '@/components/ui';
+import { Fab, EmptyState, ErrorState, FilterChips, Hero, LoadingCards, Panel, Screen, ToneChip, UserAvatar } from '@/components/ui';
 import { api } from '@/lib/api';
 import { useAuth, usePerm } from '@/lib/auth';
 import { haptic, useToast } from '@/lib/feedback';
-import { gradeOf, pctTone, radius, space, toneColors, useAppTheme } from '@/lib/theme';
+import { cardEdge, shadow, fieldOutline, gradeOf, pctTone, radius, space, toneColors, useAppTheme } from '@/lib/theme';
 import type { Assignment, Exam, MarkRow } from '@/lib/types';
 import { useLoad } from '@/lib/useLoad';
 
@@ -100,8 +100,7 @@ function MarkSheet({ a, exam, pickers }: { a: Assignment; exam: Exam; pickers: R
   const header = (
     <>
       <Hero title="Marks" subtitle={`${exam.name} · ${a.subject_name} · Class ${a.class_name}`} compact>
-        <View style={{ backgroundColor: t.colors.elevation.level2, borderRadius: radius.xl, padding: space.md, flexDirection: 'row', elevation: 3,
-          shadowColor: '#000', shadowOpacity: 0.08, shadowRadius: 12, shadowOffset: { width: 0, height: 4 } }}>
+        <View style={{ backgroundColor: t.colors.elevation.level2, borderRadius: radius.xl, padding: space.md, flexDirection: 'row', ...shadow(t, 2), ...cardEdge(t) }}>
           {[
             { label: 'Entered', value: stats ? `${stats.n}/${data?.length ?? 0}` : `0/${data?.length ?? 0}` },
             { label: 'Average', value: stats ? stats.avg.toFixed(1) : '—' },
@@ -109,7 +108,7 @@ function MarkSheet({ a, exam, pickers }: { a: Assignment; exam: Exam; pickers: R
             { label: 'Passing', value: stats ? `${stats.pass}` : '—' },
           ].map((s, i) => (
             <View key={s.label} style={{ flex: 1, alignItems: 'center', borderLeftWidth: i ? 1 : 0, borderLeftColor: t.colors.outlineVariant }}>
-              <Text variant="titleLarge" style={{ fontWeight: '800', color: t.colors.onSurface }}>{s.value}</Text>
+              <Text variant="titleLarge" style={{ fontWeight: '700', color: t.colors.onSurface }}>{s.value}</Text>
               <Text variant="labelSmall" style={{ color: t.colors.onSurfaceVariant }}>{s.label}</Text>
             </View>
           ))}
@@ -140,7 +139,7 @@ function MarkSheet({ a, exam, pickers }: { a: Assignment; exam: Exam; pickers: R
                     <Text variant="labelSmall" style={{ color: t.colors.onSurfaceVariant }}>Roll {r.roll_no ?? '-'}</Text>
                   </View>
                   {pct != null ? <ToneChip text={gradeOf(pct)} tone={tone} /> : null}
-                  <TextInput mode="outlined" dense value={raw} editable={canEdit} placeholder="—" keyboardType="decimal-pad" returnKeyType={i < data.length - 1 ? 'next' : 'done'}
+                  <TextInput mode="outlined" outlineStyle={fieldOutline} dense value={raw} editable={canEdit} placeholder="—" keyboardType="decimal-pad" returnKeyType={i < data.length - 1 ? 'next' : 'done'}
                     ref={(el: unknown) => { refs.current[r.student_id] = el as { focus: () => void } | null; }}
                     onSubmitEditing={() => refs.current[data[i + 1]?.student_id]?.focus()}
                     blurOnSubmit={i === data.length - 1}
@@ -153,7 +152,7 @@ function MarkSheet({ a, exam, pickers }: { a: Assignment; exam: Exam; pickers: R
         )}
       </Screen>
       {data?.length && dirty && canEdit ? (
-        <AnimatedFAB icon="content-save-outline" label={busy ? 'Saving…' : 'Save marks'} extended onPress={save} disabled={busy}
+        <Fab icon="content-save-outline" label={busy ? 'Saving…' : 'Save marks'} extended onPress={save} disabled={busy}
           style={{ position: 'absolute', right: space.lg, bottom: space.lg }} />
       ) : null}
     </>

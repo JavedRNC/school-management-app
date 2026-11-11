@@ -20,7 +20,7 @@ export function MonthSwitcher({ month, onChange, max }: { month: string; onChang
   return (
     <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: space.sm }}>
       <IconButton icon="chevron-left" onPress={() => { haptic.tap(); onChange(shiftMonth(month, -1)); }} />
-      <Text variant="titleMedium" style={{ fontWeight: '800', color: t.colors.onSurface }}>{monthLabel(month)}</Text>
+      <Text variant="titleMedium" style={{ fontWeight: '700', color: t.colors.onSurface }}>{monthLabel(month)}</Text>
       <IconButton icon="chevron-right" disabled={atMax} onPress={() => { haptic.tap(); onChange(shiftMonth(month, 1)); }} />
     </View>
   );

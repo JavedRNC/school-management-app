@@ -1,11 +1,11 @@
 import { useState } from 'react';
 import { View } from 'react-native';
-import { AnimatedFAB, Button, Dialog, Text } from 'react-native-paper';
+import { Button, Dialog, Text } from 'react-native-paper';
 
 import { Bar, Glow } from '@/components/fees/setup/common';
 import { RolloutSheet } from '@/components/fees/setup/RolloutSheet';
 import { StatusBanner } from '@/components/StatusBanner';
-import { EmptyState, ErrorState, FadeIn, Hero, Icon, LoadingCards, Panel, Screen, StatTile, ToneChip, TopLayer } from '@/components/ui';
+import { Fab, EmptyState, ErrorState, FadeIn, Hero, Icon, LoadingCards, Panel, Screen, StatTile, ToneChip, TopLayer } from '@/components/ui';
 import { api } from '@/lib/api';
 import { useAuth, useCan, useModule } from '@/lib/auth';
 import { haptic, useToast } from '@/lib/feedback';
@@ -94,7 +94,7 @@ function ExtraFees() {
                   </View>
                   <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginBottom: 4 }}>
                     <Text variant="labelMedium" style={{ color: t.colors.onSurfaceVariant }}>{b.paid_count} of {b.count} paid</Text>
-                    <Text variant="labelMedium" style={{ color: t.custom.success, fontWeight: '800' }}>{Math.round(pct * 100)}%</Text>
+                    <Text variant="labelMedium" style={{ color: t.custom.success, fontWeight: '700' }}>{Math.round(pct * 100)}%</Text>
                   </View>
                   <Bar value={pct} color={pct >= 1 ? t.custom.success : overdue ? t.custom.warning : t.colors.primary} />
                   <View style={{ flexDirection: 'row', marginTop: space.md }}>
@@ -116,7 +116,7 @@ function ExtraFees() {
       </Screen>
 
       {canEdit ? (
-        <AnimatedFAB icon="cash-plus" label="Roll out fee" extended onPress={() => { haptic.tap(); setOpen(true); }}
+        <Fab icon="cash-plus" label="Roll out fee" extended onPress={() => { haptic.tap(); setOpen(true); }}
           style={{ position: 'absolute', right: space.lg, bottom: space.lg }} />
       ) : null}
 
@@ -148,7 +148,7 @@ function Money({ label, value, color }: { label: string; value: number; color: s
   return (
     <View style={{ flex: 1 }}>
       <Text variant="labelSmall" style={{ color: t.colors.onSurfaceVariant }}>{label}</Text>
-      <Text variant="titleSmall" style={{ color, fontWeight: '800' }}>{inr(value)}</Text>
+      <Text variant="titleSmall" style={{ color, fontWeight: '700' }}>{inr(value)}</Text>
     </View>
   );
 }

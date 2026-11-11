@@ -41,7 +41,7 @@ function ChildCard({ kid, cls, on, compact }: { kid: User; cls?: string; on: boo
       shadowColor: t.colors.primary, shadowOpacity: on ? 0.25 : 0, shadowRadius: 10, shadowOffset: { width: 0, height: 3 }, elevation: on ? 3 : 0 }}>
       <UserAvatar name={kid.name} size={34} />
       <View>
-        <Text variant="labelLarge" style={{ fontWeight: '800', color: on ? t.colors.onPrimaryContainer : t.colors.onSurface }}>{kid.name.split(' ')[0]}</Text>
+        <Text variant="labelLarge" style={{ fontWeight: '700', color: on ? t.colors.onPrimaryContainer : t.colors.onSurface }}>{kid.name.split(' ')[0]}</Text>
         <Text variant="labelSmall" style={{ color: on ? t.colors.onPrimaryContainer : t.colors.onSurfaceVariant }}>
           {cls ? `Class ${cls}` : 'Student'}{kid.roll_no ? ` · Roll ${kid.roll_no}` : ''}
         </Text>

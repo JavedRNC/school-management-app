@@ -66,7 +66,7 @@ export default function HomeScreen() {
                 <View style={{ flexDirection: 'row', alignItems: 'center', gap: space.lg }}>
                   <Ring value={data.att.percent} label="attendance" />
                   <View style={{ flex: 1 }}>
-                    <Text variant="titleMedium" style={{ fontWeight: '800', color: t.colors.onSurface }}>{data.att.present_days} of {data.att.total_days} days</Text>
+                    <Text variant="titleMedium" style={{ fontWeight: '700', color: t.colors.onSurface }}>{data.att.present_days} of {data.att.total_days} days</Text>
                     <Text variant="bodySmall" style={{ color: t.colors.onSurfaceVariant, marginBottom: space.sm }}>
                       {data.att.percent >= 75 ? `${pronoun} doing great — keep it up!` : 'Below 75% — try not to miss school.'}
                     </Text>
@@ -88,14 +88,14 @@ export default function HomeScreen() {
               <PressScale style={{ flex: 1 }} onPress={() => router.push(`${base}/homework` as never)}>
                 <View style={{ backgroundColor: t.colors.secondaryContainer, borderRadius: radius.xl, padding: space.lg }}>
                   <Icon name="book-clock-outline" size={26} color={t.colors.onSecondaryContainer} />
-                  <Text variant="headlineMedium" style={{ fontWeight: '800', color: t.colors.onSecondaryContainer, marginTop: space.sm }}>{pendingHw.length}</Text>
+                  <Text variant="headlineMedium" style={{ fontWeight: '700', color: t.colors.onSecondaryContainer, marginTop: space.sm }}>{pendingHw.length}</Text>
                   <Text variant="labelLarge" style={{ color: t.colors.onSecondaryContainer }}>Homework due</Text>
                 </View>
               </PressScale>
               <PressScale style={{ flex: 1 }} onPress={() => router.push(`${base}/marks` as never)}>
                 <View style={{ backgroundColor: t.colors.primaryContainer, borderRadius: radius.xl, padding: space.lg }}>
                   <Icon name="trophy-outline" size={26} color={t.colors.onPrimaryContainer} />
-                  <Text variant="headlineMedium" style={{ fontWeight: '800', color: t.colors.onPrimaryContainer, marginTop: space.sm }}>{latest ? `${latest.percent}%` : '—'}</Text>
+                  <Text variant="headlineMedium" style={{ fontWeight: '700', color: t.colors.onPrimaryContainer, marginTop: space.sm }}>{latest ? `${latest.percent}%` : '—'}</Text>
                   <Text variant="labelLarge" style={{ color: t.colors.onPrimaryContainer }} numberOfLines={1}>{latest ? latest.exam : 'No results yet'}</Text>
                 </View>
               </PressScale>
@@ -116,7 +116,7 @@ export default function HomeScreen() {
               <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: space.sm }}>
                 {today.map((s) => (
                   <View key={s.id} style={{ flexDirection: 'row', alignItems: 'center', gap: 6, backgroundColor: t.colors.elevation.level2, borderRadius: radius.pill, paddingHorizontal: 12, paddingVertical: 8 }}>
-                    <Text variant="labelMedium" style={{ color: t.colors.primary, fontWeight: '800' }}>P{s.period}</Text>
+                    <Text variant="labelMedium" style={{ color: t.colors.primary, fontWeight: '700' }}>P{s.period}</Text>
                     <Icon name={subjectIcon(s.subject_name)} size={16} color={t.colors.onSurfaceVariant} />
                     <Text variant="labelLarge" style={{ color: t.colors.onSurface }}>{s.subject_name}</Text>
                   </View>

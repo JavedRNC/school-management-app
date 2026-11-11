@@ -32,7 +32,7 @@ export const COLOR_KEYS: BannerColor[] = ['primary', 'amber', 'green', 'red', 'p
 /** Gradient pair for a banner colour. */
 export function bannerGradient(t: AppTheme, color: BannerColor): [string, string] {
   switch (color) {
-    case 'amber': return t.dark ? ['#7A4A00', '#B7791F'] : ['#E08E0B', '#F5B544'];
+    case 'amber': return t.dark ? ['#9A5B00', '#D08A1A'] : ['#E08E0B', '#F5B544'];
     case 'green': return t.dark ? ['#0B4D2B', '#1E7A46'] : ['#16794A', '#35A86B'];
     case 'red': return t.dark ? ['#6B1010', '#A52A2A'] : ['#B3261E', '#E25546'];
     case 'purple': return t.dark ? ['#3A1E6B', '#5B3BA0'] : ['#5B3BA0', '#8A63D2'];

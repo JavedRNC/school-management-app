@@ -1,11 +1,11 @@
 import { router, useLocalSearchParams } from 'expo-router';
 import { useState } from 'react';
 import { Linking, View } from 'react-native';
-import { AnimatedFAB, Button, IconButton, Menu, Text } from 'react-native-paper';
+import { Button, IconButton, Menu, Text } from 'react-native-paper';
 
 import { PaymentRow, useFeeGate } from '@/components/fees/staff/common';
 import { AddChargeSheet, ConcessionSheet, RecordPaymentSheet } from '@/components/fees/staff/LedgerSheets';
-import { EmptyState, ErrorState, FadeIn, Hero, Icon, LoadingCards, Panel, Screen, SectionTitle, ToneChip, UserAvatar } from '@/components/ui';
+import { Fab, EmptyState, ErrorState, FadeIn, Hero, Icon, LoadingCards, Panel, Screen, SectionTitle, ToneChip, UserAvatar } from '@/components/ui';
 import { api } from '@/lib/api';
 import { fmtDate, inr, ITEM_LABEL, ITEM_TONE, KIND_ICON } from '@/lib/fees';
 import { haptic } from '@/lib/feedback';
@@ -51,7 +51,7 @@ function Ledger({ canEdit }: { canEdit: boolean }) {
               </Text>
             </View>
             <View style={{ alignItems: 'flex-end', gap: 4 }}>
-              <Text variant="titleSmall" style={{ fontWeight: '800', color: t.colors.onSurface }}>{inr(i.balance > 0 ? i.balance : i.amount)}</Text>
+              <Text variant="titleSmall" style={{ fontWeight: '700', color: t.colors.onSurface }}>{inr(i.balance > 0 ? i.balance : i.amount)}</Text>
               <ToneChip text={ITEM_LABEL[i.status]} tone={ITEM_TONE[i.status]} />
             </View>
             {canEdit && i.balance > 0 ? (
@@ -85,7 +85,7 @@ function Ledger({ canEdit }: { canEdit: boolean }) {
                     <UserAvatar name={d.student.name} size={52} />
                     <View style={{ flex: 1 }}>
                       <Text variant="labelLarge" style={{ color: t.colors.onSurfaceVariant }}>Outstanding</Text>
-                      <Text variant="headlineSmall" style={{ fontWeight: '800', color: d.totals.outstanding ? (d.totals.overdue ? t.custom.danger : t.custom.warning) : t.custom.success }}>
+                      <Text variant="headlineSmall" style={{ fontWeight: '700', color: d.totals.outstanding ? (d.totals.overdue ? t.custom.danger : t.custom.warning) : t.custom.success }}>
                         {d.totals.outstanding ? inr(d.totals.outstanding) : 'All paid ✓'}
                       </Text>
                       <Text variant="bodySmall" style={{ color: t.colors.onSurfaceVariant }}>
@@ -131,7 +131,7 @@ function Ledger({ canEdit }: { canEdit: boolean }) {
         )}
       </Screen>
       {canEdit && d && pending.length ? (
-        <AnimatedFAB icon="cash-register" label="Record payment" extended onPress={() => { haptic.tap(); setPayOpen(true); }}
+        <Fab icon="cash-register" label="Record payment" extended onPress={() => { haptic.tap(); setPayOpen(true); }}
           style={{ position: 'absolute', right: space.lg, bottom: space.xl }} />
       ) : null}
       {d ? (

@@ -5,7 +5,7 @@ import { Button, Dialog, Switch, Text, TextInput } from 'react-native-paper';
 import { FadeIn, Panel, StatTile, TopLayer } from '@/components/ui';
 import { api } from '@/lib/api';
 import { haptic, useToast } from '@/lib/feedback';
-import { DAYS, space, useAppTheme } from '@/lib/theme';
+import { fieldOutline, DAYS, space, useAppTheme } from '@/lib/theme';
 import type { AdminSchoolDetail } from '@/lib/types';
 
 const DAY_NAMES = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
@@ -52,13 +52,13 @@ export function SchoolDetailsSection({ d, onSaved }: { d: AdminSchoolDetail; onS
       </FadeIn>
       <FadeIn index={1}>
         <Panel title="School information" icon="domain">
-          <TextInput mode="outlined" label="School name" value={name} onChangeText={setName} style={{ marginBottom: space.md }} />
-          <TextInput mode="outlined" label="Address" value={address} onChangeText={setAddress} multiline style={{ marginBottom: space.md }} />
+          <TextInput mode="outlined" outlineStyle={fieldOutline} label="School name" value={name} onChangeText={setName} style={{ marginBottom: space.md }} />
+          <TextInput mode="outlined" outlineStyle={fieldOutline} label="Address" value={address} onChangeText={setAddress} multiline style={{ marginBottom: space.md }} />
           <View style={{ flexDirection: 'row', gap: space.sm, marginBottom: space.md }}>
-            <TextInput mode="outlined" label="Phone" value={phone} onChangeText={setPhone} keyboardType="phone-pad" style={{ flex: 1 }} />
-            <TextInput mode="outlined" label="Board" value={board} onChangeText={setBoard} style={{ flex: 1 }} />
+            <TextInput mode="outlined" outlineStyle={fieldOutline} label="Phone" value={phone} onChangeText={setPhone} keyboardType="phone-pad" style={{ flex: 1 }} />
+            <TextInput mode="outlined" outlineStyle={fieldOutline} label="Board" value={board} onChangeText={setBoard} style={{ flex: 1 }} />
           </View>
-          <TextInput mode="outlined" label="Admin notes (only you see these)" value={notes} onChangeText={setNotes} multiline
+          <TextInput mode="outlined" outlineStyle={fieldOutline} label="Admin notes (only you see these)" value={notes} onChangeText={setNotes} multiline
             style={{ marginBottom: space.md, minHeight: 80 }} />
           <Text variant="bodySmall" style={{ color: t.colors.onSurfaceVariant, marginBottom: space.md }}>
             Working days (set by the principal): {workDays || '—'}

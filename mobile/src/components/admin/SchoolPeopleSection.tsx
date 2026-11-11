@@ -6,7 +6,7 @@ import { EmptyState, ErrorState, FadeIn, FilterChips, Icon, LoadingCards, Panel,
 import { api } from '@/lib/api';
 import { ROLE_LABEL } from '@/lib/auth';
 import { haptic, useToast } from '@/lib/feedback';
-import { space, useAppTheme } from '@/lib/theme';
+import { fieldOutline, space, useAppTheme } from '@/lib/theme';
 import type { AdminSchoolDetail, Role, SchoolClass, User } from '@/lib/types';
 import { useLoad } from '@/lib/useLoad';
 
@@ -166,7 +166,7 @@ function PersonSheet({ target, d, full, classes, defaultRole, onClose, onSaved, 
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: space.md, marginBottom: space.lg }}>
             <UserAvatar name={u.name} size={56} />
             <View style={{ flex: 1 }}>
-              <Text variant="titleLarge" style={{ fontWeight: '800', color: t.colors.onSurface }}>{u.name}</Text>
+              <Text variant="titleLarge" style={{ fontWeight: '700', color: t.colors.onSurface }}>{u.name}</Text>
               <View style={{ flexDirection: 'row', gap: 6, marginTop: 4, flexWrap: 'wrap' }}>
                 <ToneChip text={ROLE_LABEL[u.role]} tone={ROLE_TONE[u.role] ?? 'neutral'} />
                 {!active ? <ToneChip text="Removed" tone="danger" /> : null}
@@ -176,13 +176,13 @@ function PersonSheet({ target, d, full, classes, defaultRole, onClose, onSaved, 
         ) : (
           <FilterChips label="Role" value={role} onChange={setRole} options={ROLES.map((r) => ({ label: ROLE_LABEL[r], value: r }))} />
         )}
-        <TextInput mode="outlined" label="Full name" value={name} onChangeText={setName} left={<TextInput.Icon icon="account-outline" />} style={{ marginBottom: space.md }} />
-        <TextInput mode="outlined" label={role === 'parent' ? 'Login ID (mobile number)' : role === 'student' ? 'Login ID (admission no.)' : 'Login ID'}
+        <TextInput mode="outlined" outlineStyle={fieldOutline} label="Full name" value={name} onChangeText={setName} left={<TextInput.Icon icon="account-outline" />} style={{ marginBottom: space.md }} />
+        <TextInput mode="outlined" outlineStyle={fieldOutline} label={role === 'parent' ? 'Login ID (mobile number)' : role === 'student' ? 'Login ID (admission no.)' : 'Login ID'}
           value={loginId} onChangeText={setLoginId} autoCapitalize="none" left={<TextInput.Icon icon="card-account-details-outline" />} style={{ marginBottom: space.md }} />
         {showContact ? (
           <>
-            <TextInput mode="outlined" label="Phone" value={phone} onChangeText={setPhone} keyboardType="phone-pad" style={{ marginBottom: space.md }} />
-            <TextInput mode="outlined" label="Address" value={address} onChangeText={setAddress} style={{ marginBottom: space.md }} />
+            <TextInput mode="outlined" outlineStyle={fieldOutline} label="Phone" value={phone} onChangeText={setPhone} keyboardType="phone-pad" style={{ marginBottom: space.md }} />
+            <TextInput mode="outlined" outlineStyle={fieldOutline} label="Address" value={address} onChangeText={setAddress} style={{ marginBottom: space.md }} />
           </>
         ) : (
           <View style={{ flexDirection: 'row', gap: space.sm, alignItems: 'center', marginBottom: space.md }}>
@@ -195,7 +195,7 @@ function PersonSheet({ target, d, full, classes, defaultRole, onClose, onSaved, 
         {role === 'student' ? (
           <>
             <FilterChips label="Class" value={classId} onChange={setClassId} options={classes.map((c) => ({ label: c.name, value: c.id }))} />
-            <TextInput mode="outlined" label="Roll no." value={roll} onChangeText={(v) => setRoll(v.replace(/\D/g, ''))} keyboardType="number-pad" style={{ marginBottom: space.md }} />
+            <TextInput mode="outlined" outlineStyle={fieldOutline} label="Roll no." value={roll} onChangeText={(v) => setRoll(v.replace(/\D/g, ''))} keyboardType="number-pad" style={{ marginBottom: space.md }} />
           </>
         ) : null}
         {role === 'parent' ? (
@@ -208,7 +208,7 @@ function PersonSheet({ target, d, full, classes, defaultRole, onClose, onSaved, 
             {students.data && !students.data.length ? <Text variant="bodySmall">No students yet.</Text> : null}
           </Panel>
         ) : null}
-        <TextInput mode="outlined" label={isNew ? 'Temporary password' : 'Reset password (optional)'} value={password} onChangeText={setPassword}
+        <TextInput mode="outlined" outlineStyle={fieldOutline} label={isNew ? 'Temporary password' : 'Reset password (optional)'} value={password} onChangeText={setPassword}
           placeholder={isNew ? undefined : 'Leave empty to keep current'} left={<TextInput.Icon icon="lock-reset" />} error={!pwOk && !!password} />
         <HelperText type={!pwOk && (isNew || !!password) ? 'error' : 'info'} visible>
           Min 6 characters, not the same as the login ID. They'll be asked to set their own at next sign-in.

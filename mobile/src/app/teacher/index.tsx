@@ -39,11 +39,11 @@ export default function TeacherHome() {
               <Panel style={{ marginBottom: 0 }}>
                 <View style={{ flexDirection: 'row', alignItems: 'center', gap: space.md }}>
                   <View style={{ width: 56, height: 56, borderRadius: 18, backgroundColor: t.colors.secondaryContainer, alignItems: 'center', justifyContent: 'center' }}>
-                    <Text variant="titleLarge" style={{ fontWeight: '800', color: t.colors.onSecondaryContainer }}>{myClass.name}</Text>
+                    <Text variant="titleLarge" style={{ fontWeight: '700', color: t.colors.onSecondaryContainer }}>{myClass.name}</Text>
                   </View>
                   <View style={{ flex: 1 }}>
                     <Text variant="labelLarge" style={{ color: t.colors.onSurfaceVariant }}>Your class</Text>
-                    <Text variant="titleMedium" style={{ fontWeight: '800', color: t.colors.onSurface }}>{myClass.student_count} students</Text>
+                    <Text variant="titleMedium" style={{ fontWeight: '700', color: t.colors.onSurface }}>{myClass.student_count} students</Text>
                   </View>
                   <Button mode="contained" icon="clipboard-check-outline" onPress={() => router.push('/teacher/attendance')}>Attendance</Button>
                 </View>
@@ -66,7 +66,7 @@ export default function TeacherHome() {
               <View style={{ flexDirection: 'row', alignItems: 'center', gap: space.md, backgroundColor: t.colors.tertiaryContainer, borderRadius: radius.xl, padding: space.md }}>
                 <Icon name="calendar-month-outline" size={26} color={t.colors.onTertiaryContainer} />
                 <View style={{ flex: 1 }}>
-                  <Text variant="titleSmall" style={{ fontWeight: '800', color: t.colors.onTertiaryContainer }}>School calendar</Text>
+                  <Text variant="titleSmall" style={{ fontWeight: '700', color: t.colors.onTertiaryContainer }}>School calendar</Text>
                   <Text variant="bodySmall" style={{ color: t.colors.onTertiaryContainer }}>Holidays, vacations & events</Text>
                 </View>
                 <Icon name="chevron-right" size={20} color={t.colors.onTertiaryContainer} />

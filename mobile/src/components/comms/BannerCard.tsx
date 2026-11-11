@@ -46,7 +46,7 @@ export function BannerCard({ banner, onPress, height = 150, style }: {
               <Text variant="labelSmall" style={{ color: '#fff', fontWeight: '700' }}>School Hub</Text>
             </View>
           ) : null}
-          <Text variant="titleLarge" numberOfLines={2} style={{ color: '#fff', fontWeight: '800' }}>{banner.title || 'Banner title'}</Text>
+          <Text variant="titleLarge" numberOfLines={2} style={{ color: '#fff', fontWeight: '700' }}>{banner.title || 'Banner title'}</Text>
           {banner.text ? <Text variant="bodyMedium" numberOfLines={2} style={{ color: 'rgba(255,255,255,0.9)', marginTop: 2 }}>{banner.text}</Text> : null}
         </View>
       </View>

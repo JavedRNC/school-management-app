@@ -94,7 +94,7 @@ function List() {
                   </Text>
                 </View>
                 <View style={{ alignItems: 'flex-end', gap: 4 }}>
-                  <Text variant="titleSmall" style={{ fontWeight: '800', color: r.outstanding ? t.colors.onSurface : t.custom.success }}>
+                  <Text variant="titleSmall" style={{ fontWeight: '700', color: r.outstanding ? t.colors.onSurface : t.custom.success }}>
                     {r.outstanding ? inr(r.outstanding) : 'Paid up'}
                   </Text>
                   <ToneChip text={STATUS_LABEL[r.status]} tone={r.status === 'overdue' ? 'danger' : r.status === 'due' ? 'warning' : 'success'} />

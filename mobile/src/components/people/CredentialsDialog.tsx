@@ -14,7 +14,7 @@ export function CredentialsDialog({ creds, onDismiss }: { creds: Credentials | n
   const Line = ({ label, value }: { label: string; value: string }) => (
     <View style={{ flexDirection: 'row', justifyContent: 'space-between', paddingVertical: 6 }}>
       <Text variant="bodyMedium" style={{ color: t.colors.onSurfaceVariant }}>{label}</Text>
-      <Text variant="titleMedium" selectable style={{ fontWeight: '800', color: t.colors.onSurface, fontFamily: 'monospace' }}>{value}</Text>
+      <Text variant="titleMedium" selectable style={{ fontWeight: '700', color: t.colors.onSurface, fontFamily: 'monospace' }}>{value}</Text>
     </View>
   );
   return (

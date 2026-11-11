@@ -92,7 +92,7 @@ export function TimetableView({ slots, show, onSlotPress, periods = 5 }: {
                 <Text variant="labelLarge" style={{ fontWeight: '700', color: on ? t.colors.onPrimary : t.colors.onSurface }}>{d}</Text>
                 <View style={{ flexDirection: 'row', gap: 2, marginTop: 4, height: 5 }}>
                   {i === todayIdx ? <View style={{ width: 5, height: 5, borderRadius: 3, backgroundColor: t.custom.amber }} />
-                    : <Text style={{ fontSize: 9, lineHeight: 10, color: on ? t.colors.onPrimary : t.colors.outline }}>{count || ''}</Text>}
+                    : <Text style={{ fontSize: 10, lineHeight: 12, color: on ? t.colors.onPrimary : t.colors.outline }}>{count || ''}</Text>}
                 </View>
               </View>
             </TouchableRipple>
@@ -121,11 +121,11 @@ export function TimetableView({ slots, show, onSlotPress, periods = 5 }: {
           <FadeIn key={`${day}-${p}`} index={idx}>
             <View style={{ flexDirection: 'row', alignItems: 'stretch', marginBottom: space.sm }}>
               <View style={{ width: 64, alignItems: 'center', paddingTop: space.sm }}>
-                <Text variant="labelLarge" style={{ fontWeight: '800', color: live ? t.colors.primary : t.colors.onSurface }}>P{p}</Text>
+                <Text variant="labelLarge" style={{ fontWeight: '700', color: live ? t.colors.primary : t.colors.onSurface }}>P{p}</Text>
                 {tm ? (
                   <>
                     <Text variant="labelSmall" style={{ color: live ? t.colors.primary : t.colors.onSurfaceVariant, fontWeight: live ? '700' : '400' }}>{tm.start}</Text>
-                    <Text variant="labelSmall" style={{ color: t.colors.outline, fontSize: 10 }}>{tm.end}</Text>
+                    <Text variant="labelSmall" style={{ color: t.colors.outline, fontSize: 11 }}>{tm.end}</Text>
                   </>
                 ) : (
                   <Text variant="labelSmall" style={{ color: t.colors.onSurfaceVariant }}>{daySlots ? '' : TIMES[p - 1] ?? ''}</Text>
@@ -142,11 +142,11 @@ export function TimetableView({ slots, show, onSlotPress, periods = 5 }: {
                   </View>
                   {live ? (
                     <View style={{ backgroundColor: t.colors.primary, borderRadius: radius.pill, paddingHorizontal: 8, paddingVertical: 2 }}>
-                      <Text variant="labelSmall" style={{ color: t.colors.onPrimary, fontWeight: '800' }}>NOW</Text>
+                      <Text variant="labelSmall" style={{ color: t.colors.onPrimary, fontWeight: '700' }}>NOW</Text>
                     </View>
                   ) : next ? (
                     <View style={{ backgroundColor: t.colors.secondaryContainer, borderRadius: radius.pill, paddingHorizontal: 8, paddingVertical: 2 }}>
-                      <Text variant="labelSmall" style={{ color: t.colors.onSecondaryContainer, fontWeight: '800' }}>NEXT</Text>
+                      <Text variant="labelSmall" style={{ color: t.colors.onSecondaryContainer, fontWeight: '700' }}>NEXT</Text>
                     </View>
                   ) : null}
                 </View>

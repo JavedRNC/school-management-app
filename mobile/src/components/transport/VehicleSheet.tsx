@@ -4,7 +4,7 @@ import { Button, HelperText, Text, TextInput } from 'react-native-paper';
 
 import { api } from '@/lib/api';
 import { haptic, useToast } from '@/lib/feedback';
-import { space, useAppTheme } from '@/lib/theme';
+import { fieldOutline, space, useAppTheme } from '@/lib/theme';
 import type { Vehicle } from '@/lib/types';
 
 import { FilterChips, Sheet } from '../ui';
@@ -17,7 +17,7 @@ function DateField({ label, value, onChange }: { label: string; value: string; o
   const bad = !!value && !DATE_RE.test(value);
   return (
     <View style={{ marginBottom: space.sm }}>
-      <TextInput mode="outlined" label={`${label} (YYYY-MM-DD)`} value={value} onChangeText={onChange} error={bad}
+      <TextInput mode="outlined" outlineStyle={fieldOutline} label={`${label} (YYYY-MM-DD)`} value={value} onChangeText={onChange} error={bad}
         left={<TextInput.Icon icon="calendar" />} />
       <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 4, marginTop: 4 }}>
         {[['+6 months', 182], ['+1 year', 365], ['+2 years', 730]].map(([l, d]) => (
@@ -81,12 +81,12 @@ export function VehicleSheet({ visible, vehicle, onDismiss, onSaved, readOnly }:
 
   return (
     <Sheet visible={visible} onDismiss={onDismiss} title={vehicle ? `Edit ${vehicle.number}` : 'Add vehicle'}>
-      <TextInput mode="outlined" label="Vehicle number" value={number} onChangeText={setNumber} autoCapitalize="characters"
+      <TextInput mode="outlined" outlineStyle={fieldOutline} label="Vehicle number" value={number} onChangeText={setNumber} autoCapitalize="characters"
         placeholder="JH01 AB 1234" left={<TextInput.Icon icon="card-text-outline" />} disabled={readOnly} />
       <HelperText type="error" visible={!number.trim()}>Number is required</HelperText>
       <FilterChips label="Type" value={kind} onChange={setKind}
         options={(['bus', 'van', 'auto', 'other'] as Kind[]).map((k) => ({ label: k.charAt(0).toUpperCase() + k.slice(1), value: k, icon: KIND_ICON[k] }))} />
-      <TextInput mode="outlined" label="Seats (capacity)" value={capacity} onChangeText={(v) => setCapacity(v.replace(/\D/g, ''))}
+      <TextInput mode="outlined" outlineStyle={fieldOutline} label="Seats (capacity)" value={capacity} onChangeText={(v) => setCapacity(v.replace(/\D/g, ''))}
         keyboardType="number-pad" left={<TextInput.Icon icon="seat-passenger" />} error={!(cap >= 1 && cap <= 120)} disabled={readOnly} />
       <HelperText type="error" visible={!(cap >= 1 && cap <= 120)}>Between 1 and 120</HelperText>
 
@@ -95,16 +95,16 @@ export function VehicleSheet({ visible, vehicle, onDismiss, onSaved, readOnly }:
       <DateField label="Fitness certificate until" value={fitness} onChange={setFitness} />
 
       <Text variant="titleSmall" style={{ fontWeight: '700', color: t.colors.onSurface, marginVertical: space.sm }}>Driver</Text>
-      <TextInput mode="outlined" label="Driver name" value={driverName} onChangeText={setDriverName} left={<TextInput.Icon icon="steering" />} style={{ marginBottom: space.sm }} />
-      <TextInput mode="outlined" label="Driver phone" value={driverPhone} onChangeText={(v) => setDriverPhone(v.replace(/[^\d+]/g, ''))}
+      <TextInput mode="outlined" outlineStyle={fieldOutline} label="Driver name" value={driverName} onChangeText={setDriverName} left={<TextInput.Icon icon="steering" />} style={{ marginBottom: space.sm }} />
+      <TextInput mode="outlined" outlineStyle={fieldOutline} label="Driver phone" value={driverPhone} onChangeText={(v) => setDriverPhone(v.replace(/[^\d+]/g, ''))}
         keyboardType="phone-pad" left={<TextInput.Icon icon="phone" />} style={{ marginBottom: space.sm }} />
-      <TextInput mode="outlined" label="Licence number" value={licence} onChangeText={setLicence} autoCapitalize="characters"
+      <TextInput mode="outlined" outlineStyle={fieldOutline} label="Licence number" value={licence} onChangeText={setLicence} autoCapitalize="characters"
         left={<TextInput.Icon icon="card-account-details-outline" />} style={{ marginBottom: space.sm }} />
       <DateField label="Licence valid until" value={licenceUntil} onChange={setLicenceUntil} />
 
       <Text variant="titleSmall" style={{ fontWeight: '700', color: t.colors.onSurface, marginVertical: space.sm }}>Attendant (optional)</Text>
-      <TextInput mode="outlined" label="Attendant name" value={attName} onChangeText={setAttName} left={<TextInput.Icon icon="account-heart-outline" />} style={{ marginBottom: space.sm }} />
-      <TextInput mode="outlined" label="Attendant phone" value={attPhone} onChangeText={(v) => setAttPhone(v.replace(/[^\d+]/g, ''))}
+      <TextInput mode="outlined" outlineStyle={fieldOutline} label="Attendant name" value={attName} onChangeText={setAttName} left={<TextInput.Icon icon="account-heart-outline" />} style={{ marginBottom: space.sm }} />
+      <TextInput mode="outlined" outlineStyle={fieldOutline} label="Attendant phone" value={attPhone} onChangeText={(v) => setAttPhone(v.replace(/[^\d+]/g, ''))}
         keyboardType="phone-pad" left={<TextInput.Icon icon="phone" />} style={{ marginBottom: space.md }} />
 
       {!readOnly ? (

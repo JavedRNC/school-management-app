@@ -12,7 +12,7 @@ import { EmptyState, FadeIn, FilterChips, Hero, Icon, IconName, Panel, Row, Shee
 import { api } from '@/lib/api';
 import { ROLE_LABEL, useAuth, useCan, useModule } from '@/lib/auth';
 import { haptic, useToast } from '@/lib/feedback';
-import { radius, space, useAppTheme } from '@/lib/theme';
+import { fieldOutline, radius, space, useAppTheme } from '@/lib/theme';
 import type { BulkResult, NewLogin, SchoolClass } from '@/lib/types';
 import { useLoad } from '@/lib/useLoad';
 
@@ -283,7 +283,7 @@ export default function AddMany() {
                     <Row key={c.login_id} title={c.name} divider={i < creds.length - 1}
                       subtitle={`${ROLE_LABEL[c.role as PersonRole] ?? c.role}${c.class ? ` · ${c.class}` : ''} · ID ${c.login_id}`}
                       left={<UserAvatar name={c.name} size={40} />}
-                      right={<Text selectable variant="titleSmall" style={{ fontFamily: 'monospace', fontWeight: '800', color: t.colors.primary }}>{c.password}</Text>} />
+                      right={<Text selectable variant="titleSmall" style={{ fontFamily: 'monospace', fontWeight: '700', color: t.colors.primary }}>{c.password}</Text>} />
                   ))}
                 </Panel>
               </FadeIn>
@@ -372,7 +372,7 @@ export default function AddMany() {
         <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 6, marginBottom: space.md }}>
           {fields.map((f, i) => <ToneChip key={f.key} text={`${i + 1}. ${f.label}${f.required ? ' *' : ''}`} tone={f.required ? 'primary' : 'neutral'} />)}
         </View>
-        <TextInput mode="outlined" multiline value={pasteText} onChangeText={setPasteText} style={{ minHeight: 160, marginBottom: space.md }}
+        <TextInput mode="outlined" outlineStyle={fieldOutline} multiline value={pasteText} onChangeText={setPasteText} style={{ minHeight: 160, marginBottom: space.md }}
           placeholder={role === 'student' ? 'Riya Sen, 2026101, 8-A, 12, 31/05/2013, Amit Sen, 9811122233' : role === 'parent' ? 'Amit Sen, 9811122233' : 'Sunita Verma, T006, 9876500101'}
           autoCapitalize="none" />
         <Button mode="contained" icon="table-arrow-down" onPress={applyPaste} contentStyle={{ paddingVertical: 6 }}>Add these rows</Button>

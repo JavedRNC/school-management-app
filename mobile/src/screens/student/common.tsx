@@ -70,7 +70,7 @@ export function UpcomingCard({ items }: { items: Holiday[] }) {
               borderTopWidth: i ? 0.5 : 0, borderTopColor: t.colors.outlineVariant }}>
               <View style={{ width: 46, alignItems: 'center', backgroundColor: h.is_off ? t.custom.successContainer : t.colors.primaryContainer,
                 borderRadius: 12, paddingVertical: 4 }}>
-                <Text variant="titleMedium" style={{ fontWeight: '800', color: h.is_off ? t.custom.onSuccessContainer : t.colors.onPrimaryContainer }}>
+                <Text variant="titleMedium" style={{ fontWeight: '700', color: h.is_off ? t.custom.onSuccessContainer : t.colors.onPrimaryContainer }}>
                   {new Date(h.start_date + 'T00:00:00').getDate()}
                 </Text>
                 <Text variant="labelSmall" style={{ color: h.is_off ? t.custom.onSuccessContainer : t.colors.onPrimaryContainer }}>

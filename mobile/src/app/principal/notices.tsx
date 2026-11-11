@@ -1,10 +1,10 @@
 import { useState } from 'react';
 import { View } from 'react-native';
-import { AnimatedFAB } from 'react-native-paper';
+
 
 import { PostComposer } from '@/components/PostComposer';
 import { PostList } from '@/components/PostList';
-import { ErrorState, FilterChips, Hero, LoadingCards, Screen } from '@/components/ui';
+import { Fab, ErrorState, FilterChips, Hero, LoadingCards, Screen } from '@/components/ui';
 import { api } from '@/lib/api';
 import { useAuth, useCan } from '@/lib/auth';
 import { haptic } from '@/lib/feedback';
@@ -34,7 +34,7 @@ export default function Notices() {
         {!data ? <LoadingCards /> : <PostList posts={posts} canDelete={(p) => canEdit || (p.author_id === user?.id && school?.can_write !== false)} onDeleted={reload} onEdit={(p) => { setEditing(p); setComposing(true); }} />}
       </Screen>
       {canEdit ? (
-        <AnimatedFAB icon="plus" label="New notice" extended onPress={() => { haptic.tap(); setEditing(null); setComposing(true); }}
+        <Fab icon="plus" label="New notice" extended onPress={() => { haptic.tap(); setEditing(null); setComposing(true); }}
           style={{ position: 'absolute', right: space.lg, bottom: space.lg }} />
       ) : null}
       {data ? (

@@ -1,19 +1,20 @@
 import { router } from 'expo-router';
 import { useState } from 'react';
 import { View } from 'react-native';
-import { Button, Dialog, List, Text, TextInput } from 'react-native-paper';
+import { Button, Dialog, Text, TextInput } from 'react-native-paper';
 
 import { api, getBaseUrl } from '@/lib/api';
 import { ROLE_LABEL, useAuth, useCan } from '@/lib/auth';
 import { haptic, useToast } from '@/lib/feedback';
-import { radius, space, useAppTheme } from '@/lib/theme';
+import { fieldOutline, space, Tone, useAppTheme } from '@/lib/theme';
 import type { User } from '@/lib/types';
 
 import { useOps } from './OpsGrid';
 import { StatusBanner } from './StatusBanner';
-import { FadeIn, Hero, IconName, Panel, Screen, Sheet, UserAvatar, TopLayer } from './ui';
+import { FadeIn, Hero, IconBadge, IconName, Panel, Row, Screen, Sheet, ToneChip, UserAvatar, TopLayer } from './ui';
 
 type Link = { title: string; desc: string; icon: IconName; to: string };
+const LINK_TONES: Tone[] = ['primary', 'warning', 'success'];
 
 /** "Me" hub: profile card, school status, links to settings/calendar/etc., password and logout. */
 const OP_DESC: Record<string, string> = {
@@ -80,17 +81,11 @@ export function ProfileView({ extra }: { extra?: string }) {
             <View style={{ flexDirection: 'row', alignItems: 'center', gap: space.md }}>
               <UserAvatar name={user.name} size={64} />
               <View style={{ flex: 1 }}>
-                <Text variant="titleLarge" style={{ fontWeight: '800', color: t.colors.onSurface }} numberOfLines={2}>{user.name}</Text>
+                <Text variant="titleLarge" style={{ fontWeight: '700', color: t.colors.onSurface }} numberOfLines={2}>{user.name}</Text>
                 <Text variant="bodyMedium" style={{ color: t.colors.onSurfaceVariant }}>Login ID: {user.login_id}</Text>
-                <View style={{ flexDirection: 'row', gap: space.sm, marginTop: 6, flexWrap: 'wrap' }}>
-                  <View style={{ backgroundColor: t.colors.secondaryContainer, borderRadius: radius.pill, paddingHorizontal: 12, paddingVertical: 4 }}>
-                    <Text variant="labelLarge" style={{ color: t.colors.onSecondaryContainer, fontWeight: '700' }}>{ROLE_LABEL[user.role]}</Text>
-                  </View>
-                  {extra ? (
-                    <View style={{ backgroundColor: t.colors.primaryContainer, borderRadius: radius.pill, paddingHorizontal: 12, paddingVertical: 4 }}>
-                      <Text variant="labelLarge" style={{ color: t.colors.onPrimaryContainer, fontWeight: '700' }}>{extra}</Text>
-                    </View>
-                  ) : null}
+                <View style={{ flexDirection: 'row', gap: 6, marginTop: 6, flexWrap: 'wrap' }}>
+                  <ToneChip text={ROLE_LABEL[user.role]} tone="warning" icon="shield-account-outline" compact={false} />
+                  {extra ? <ToneChip text={extra} tone="primary" compact={false} /> : null}
                 </View>
               </View>
             </View>
@@ -109,10 +104,11 @@ export function ProfileView({ extra }: { extra?: string }) {
       {links.length ? (
         <FadeIn index={1}>
           <Panel style={{ paddingVertical: 0 }}>
-            <View style={{ marginHorizontal: -space.lg, marginVertical: -space.sm }}>
-              {links.map((l) => (
-                <List.Item key={l.to} title={l.title} description={l.desc} left={(p) => <List.Icon {...p} icon={l.icon} />}
-                  right={(p) => <List.Icon {...p} icon="chevron-right" />} onPress={() => { haptic.tap(); router.push(l.to as '/more/calendar'); }} />
+            <View style={{ marginVertical: -space.sm }}>
+              {links.map((l, i) => (
+                <Row key={l.to} title={l.title} subtitle={l.desc} divider={i < links.length - 1}
+                  left={<IconBadge icon={l.icon} tone={LINK_TONES[i % LINK_TONES.length]} size={38} />}
+                  onPress={() => router.push(l.to as '/more/calendar')} />
               ))}
             </View>
           </Panel>
@@ -120,10 +116,10 @@ export function ProfileView({ extra }: { extra?: string }) {
       ) : null}
       <FadeIn index={2}>
         <Panel style={{ paddingVertical: 0 }}>
-          <View style={{ marginHorizontal: -space.lg, marginVertical: -space.sm }}>
-            <List.Item title="Change password" left={(p) => <List.Icon {...p} icon="lock-reset" />} right={(p) => <List.Icon {...p} icon="chevron-right" />} onPress={() => setPwOpen(true)} />
-            <List.Item title="Server" description={getBaseUrl()} left={(p) => <List.Icon {...p} icon="server-network" />} />
-            <List.Item title="Theme" description="Follows your phone's light / dark setting" left={(p) => <List.Icon {...p} icon="theme-light-dark" />} />
+          <View style={{ marginVertical: -space.sm }}>
+            <Row title="Change password" left={<IconBadge icon="lock-reset" tone="neutral" size={38} />} onPress={() => setPwOpen(true)} />
+            <Row title="Server" subtitle={getBaseUrl()} left={<IconBadge icon="server-network" tone="neutral" size={38} />} />
+            <Row title="Theme" subtitle="Follows your phone's light / dark setting" divider={false} left={<IconBadge icon="theme-light-dark" tone="neutral" size={38} />} />
           </View>
         </Panel>
       </FadeIn>
@@ -134,8 +130,8 @@ export function ProfileView({ extra }: { extra?: string }) {
       <Text variant="labelSmall" style={{ textAlign: 'center', color: t.colors.outline, marginTop: space.lg }}>School Hub v0.5</Text>
 
       <Sheet visible={pwOpen} onDismiss={() => setPwOpen(false)} title="Change password">
-        <TextInput mode="outlined" label="Current password" value={oldPw} onChangeText={setOld} secureTextEntry={!show} style={{ marginBottom: space.md }} />
-        <TextInput mode="outlined" label="New password" value={newPw} onChangeText={setNew} secureTextEntry={!show}
+        <TextInput mode="outlined" outlineStyle={fieldOutline} label="Current password" value={oldPw} onChangeText={setOld} secureTextEntry={!show} style={{ marginBottom: space.md }} />
+        <TextInput mode="outlined" outlineStyle={fieldOutline} label="New password" value={newPw} onChangeText={setNew} secureTextEntry={!show}
           right={<TextInput.Icon icon={show ? 'eye-off' : 'eye'} onPress={() => setShow((s) => !s)} />} />
         <Text variant="bodySmall" style={{ color: t.colors.onSurfaceVariant, marginVertical: space.sm }}>At least 6 characters, not the same as your login ID.</Text>
         <Button mode="contained" onPress={change} loading={busy} contentStyle={{ paddingVertical: 6 }}>Update password</Button>

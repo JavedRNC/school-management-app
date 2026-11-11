@@ -1,13 +1,13 @@
 import { useLocalSearchParams } from 'expo-router';
 import { ReactNode, useEffect, useRef, useState } from 'react';
 import { Animated, Pressable, View } from 'react-native';
-import { AnimatedFAB, Button, ProgressBar, Switch, Text } from 'react-native-paper';
+import { Button, ProgressBar, Switch, Text } from 'react-native-paper';
 
-import { EmptyState, ErrorState, FilterChips, Hero, Icon, LoadingCards, Panel, Screen, ToneChip, UserAvatar } from '@/components/ui';
+import { Fab, EmptyState, ErrorState, FilterChips, Hero, Icon, LoadingCards, Panel, Screen, ToneChip, UserAvatar } from '@/components/ui';
 import { api } from '@/lib/api';
 import { useAuth } from '@/lib/auth';
 import { haptic, useToast } from '@/lib/feedback';
-import { radius, space, useAppTheme } from '@/lib/theme';
+import { cardEdge, shadow, radius, space, useAppTheme } from '@/lib/theme';
 import type { AttendanceRow, AttendanceSheet as Sheet, Holiday, SchoolClass } from '@/lib/types';
 import { useLoad } from '@/lib/useLoad';
 
@@ -123,13 +123,12 @@ function AttendanceSheet({ classId, day, header, classTeacherId }: {
   }
 
   const summary = sheet ? (
-    <View style={{ backgroundColor: t.colors.elevation.level2, borderRadius: radius.xl, padding: space.lg, elevation: 3,
-      shadowColor: '#000', shadowOpacity: 0.08, shadowRadius: 12, shadowOffset: { width: 0, height: 4 } }}>
+    <View style={{ backgroundColor: t.colors.elevation.level2, borderRadius: radius.xl, padding: space.lg, ...shadow(t, 2), ...cardEdge(t) }}>
       <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: space.sm }}>
         <View style={{ flexDirection: 'row', alignItems: 'baseline', gap: 6 }}>
-          <Text variant="headlineMedium" style={{ fontWeight: '800', color: t.custom.success }}>{present}</Text>
+          <Text variant="headlineMedium" style={{ fontWeight: '700', color: t.custom.success }}>{present}</Text>
           <Text variant="bodyMedium" style={{ color: t.colors.onSurfaceVariant }}>present</Text>
-          <Text variant="headlineMedium" style={{ fontWeight: '800', color: t.custom.danger, marginLeft: space.md }}>{total - present}</Text>
+          <Text variant="headlineMedium" style={{ fontWeight: '700', color: t.custom.danger, marginLeft: space.md }}>{total - present}</Text>
           <Text variant="bodyMedium" style={{ color: t.colors.onSurfaceVariant }}>absent</Text>
         </View>
         {already ? <ToneChip text={changed ? 'Edited' : 'Saved'} tone={changed ? 'warning' : 'success'} icon={changed ? 'pencil' : 'check'} /> : <ToneChip text="Not saved" tone="warning" />}
@@ -182,7 +181,7 @@ function AttendanceSheet({ classId, day, header, classTeacherId }: {
         )}
       </Screen>
       {rows.length && canEdit ? (
-        <AnimatedFAB icon={already ? 'content-save-edit-outline' : 'content-save-check-outline'} label={busy ? 'Saving…' : already ? 'Update attendance' : 'Save attendance'}
+        <Fab icon={already ? 'content-save-edit-outline' : 'content-save-check-outline'} label={busy ? 'Saving…' : already ? 'Update attendance' : 'Save attendance'}
           extended onPress={save} disabled={busy} style={{ position: 'absolute', right: space.lg, bottom: space.lg }} />
       ) : null}
     </>

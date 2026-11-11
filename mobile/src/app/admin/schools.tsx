@@ -1,13 +1,13 @@
 import { router } from 'expo-router';
 import { useMemo, useState } from 'react';
 import { NativeScrollEvent, NativeSyntheticEvent, RefreshControl, ScrollView, View } from 'react-native';
-import { AnimatedFAB, Button, HelperText, Searchbar, TextInput } from 'react-native-paper';
+import { Button, HelperText, Searchbar, TextInput } from 'react-native-paper';
 
 import { SchoolRow } from '@/components/admin/common';
-import { EmptyState, ErrorState, FadeIn, FilterChips, Hero, LoadingCards, Panel, Sheet } from '@/components/ui';
+import { Fab, EmptyState, ErrorState, FadeIn, FilterChips, Hero, LoadingCards, Panel, Sheet } from '@/components/ui';
 import { api } from '@/lib/api';
 import { haptic, useToast } from '@/lib/feedback';
-import { space, useAppTheme } from '@/lib/theme';
+import { fieldOutline, space, useAppTheme } from '@/lib/theme';
 import type { AdminSchoolDetail, AdminSchoolRow, Plan, SchoolStatus } from '@/lib/types';
 import { useLoad } from '@/lib/useLoad';
 
@@ -51,7 +51,7 @@ export default function Schools() {
           ) : null}
         </View>
       </ScrollView>
-      <AnimatedFAB icon="domain-plus" label="Add school" extended={fabExtended} onPress={() => { haptic.tap(); setAdding(true); }}
+      <Fab icon="domain-plus" label="Add school" extended={fabExtended} onPress={() => { haptic.tap(); setAdding(true); }}
         style={{ position: 'absolute', right: space.lg, bottom: space.lg }} />
       <AddSchool visible={adding} onDismiss={() => setAdding(false)} onAdded={(d) => {
         setAdding(false);
@@ -103,26 +103,26 @@ function AddSchool({ visible, onDismiss, onAdded }: { visible: boolean; onDismis
 
   return (
     <Sheet visible={visible} onDismiss={onDismiss} title="Add school">
-      <TextInput mode="outlined" label="School code (used to sign in)" value={code} autoCapitalize="characters" autoCorrect={false}
+      <TextInput mode="outlined" outlineStyle={fieldOutline} label="School code (used to sign in)" value={code} autoCapitalize="characters" autoCorrect={false}
         onChangeText={(v) => setCode(v.toUpperCase().replace(/[^A-Z0-9-]/g, ''))} left={<TextInput.Icon icon="domain" />} error={touched && !codeOk} />
       <HelperText type={touched && !codeOk ? 'error' : 'info'} visible>3–20 letters/numbers, e.g. DPS042</HelperText>
-      <TextInput mode="outlined" label="School name" value={name} onChangeText={setName} error={touched && !name.trim()} style={{ marginBottom: space.md }} />
-      <TextInput mode="outlined" label="Address" value={address} onChangeText={setAddress} style={{ marginBottom: space.md }} />
+      <TextInput mode="outlined" outlineStyle={fieldOutline} label="School name" value={name} onChangeText={setName} error={touched && !name.trim()} style={{ marginBottom: space.md }} />
+      <TextInput mode="outlined" outlineStyle={fieldOutline} label="Address" value={address} onChangeText={setAddress} style={{ marginBottom: space.md }} />
       <View style={{ flexDirection: 'row', gap: space.sm, marginBottom: space.md }}>
-        <TextInput mode="outlined" label="Phone" value={phone} onChangeText={setPhone} keyboardType="phone-pad" style={{ flex: 1 }} />
-        <TextInput mode="outlined" label="Board" value={board} onChangeText={setBoard} placeholder="CBSE" style={{ flex: 1 }} />
+        <TextInput mode="outlined" outlineStyle={fieldOutline} label="Phone" value={phone} onChangeText={setPhone} keyboardType="phone-pad" style={{ flex: 1 }} />
+        <TextInput mode="outlined" outlineStyle={fieldOutline} label="Board" value={board} onChangeText={setBoard} placeholder="CBSE" style={{ flex: 1 }} />
       </View>
       {plans.data ? (
         <FilterChips label="Plan" value={planId} onChange={setPlanId}
           options={[{ label: 'No plan', value: 0 }, ...plans.data.map((p) => ({ label: p.name, value: p.id }))]} />
       ) : null}
       <Panel title="Principal account" icon="account-tie" style={{ marginTop: space.sm }}>
-        <TextInput mode="outlined" label="Principal name" value={pName} onChangeText={setPName} error={touched && !pName.trim()} style={{ marginBottom: space.md }} />
-        <TextInput mode="outlined" label="Login ID" value={pLogin} onChangeText={setPLogin} autoCapitalize="none" style={{ marginBottom: space.md }} />
-        <TextInput mode="outlined" label="Temporary password" value={pPw} onChangeText={setPPw} left={<TextInput.Icon icon="lock-outline" />}
+        <TextInput mode="outlined" outlineStyle={fieldOutline} label="Principal name" value={pName} onChangeText={setPName} error={touched && !pName.trim()} style={{ marginBottom: space.md }} />
+        <TextInput mode="outlined" outlineStyle={fieldOutline} label="Login ID" value={pLogin} onChangeText={setPLogin} autoCapitalize="none" style={{ marginBottom: space.md }} />
+        <TextInput mode="outlined" outlineStyle={fieldOutline} label="Temporary password" value={pPw} onChangeText={setPPw} left={<TextInput.Icon icon="lock-outline" />}
           error={touched && (pPw.length < 6 || pPw.toLowerCase() === pLogin.toLowerCase())} />
         <HelperText type="info" visible>Min 6 characters. They must change it on first sign-in.</HelperText>
-        <TextInput mode="outlined" label="Principal phone" value={pPhone} onChangeText={setPPhone} keyboardType="phone-pad" />
+        <TextInput mode="outlined" outlineStyle={fieldOutline} label="Principal phone" value={pPhone} onChangeText={setPPhone} keyboardType="phone-pad" />
       </Panel>
       <Button mode="contained" icon="check" onPress={save} loading={busy} contentStyle={{ paddingVertical: 6 }}>Create school</Button>
     </Sheet>

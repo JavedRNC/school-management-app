@@ -1,17 +1,17 @@
 import { useLocalSearchParams } from 'expo-router';
 import { useEffect, useMemo, useState } from 'react';
 import { View } from 'react-native';
-import { AnimatedFAB, Button, Dialog, SegmentedButtons, Text, TextInput } from 'react-native-paper';
+import { Button, Dialog, SegmentedButtons, Text, TextInput } from 'react-native-paper';
 
 import { ApplyLeaveSheet } from '@/components/leaves/ApplyLeaveSheet';
 import { fmtDay, STAFF_ROLES, TYPE_ICON, TYPE_LABEL } from '@/components/leaves/common';
 import { LeaveCard } from '@/components/leaves/LeaveCard';
-import {
+import { Fab,
   EmptyState, ErrorState, FadeIn, FilterChips, Hero, LoadingCards, Panel, Row, Screen, Sheet, StatTile, ToneChip, UserAvatar, TopLayer } from '@/components/ui';
 import { api, ApiError } from '@/lib/api';
 import { useAuth, useCan, useModule } from '@/lib/auth';
 import { haptic, useToast } from '@/lib/feedback';
-import { space, useAppTheme } from '@/lib/theme';
+import { fieldOutline, space, useAppTheme } from '@/lib/theme';
 import type { LeaveBalance, LeaveRequest, LeaveStatus, OnLeaveToday, User } from '@/lib/types';
 import { useLoad } from '@/lib/useLoad';
 
@@ -114,7 +114,7 @@ export default function Leaves() {
         ) : null}
       </Screen>
       {showFab ? (
-        <AnimatedFAB icon="calendar-plus" label={fabLabel} extended onPress={() => { haptic.tap(); setApplyOpen(true); }}
+        <Fab icon="calendar-plus" label={fabLabel} extended onPress={() => { haptic.tap(); setApplyOpen(true); }}
           style={{ position: 'absolute', right: space.lg, bottom: space.lg }} />
       ) : null}
       <ApplyLeaveSheet visible={applyOpen} onDismiss={() => setApplyOpen(false)} child={isParent ? child : null}
@@ -183,7 +183,7 @@ function Approvals({ inbox, today, onChanged, readOnly }: {
               {rejecting.user_name} · {TYPE_LABEL[rejecting.leave_type]} · {fmtDay(rejecting.start_date)}
               {rejecting.end_date !== rejecting.start_date ? ` – ${fmtDay(rejecting.end_date)}` : ''}
             </Text>
-            <TextInput mode="outlined" label="Reason (shared with them)" value={comment} onChangeText={setComment} multiline numberOfLines={3}
+            <TextInput mode="outlined" outlineStyle={fieldOutline} label="Reason (shared with them)" value={comment} onChangeText={setComment} multiline numberOfLines={3}
               style={{ minHeight: 84, marginBottom: space.md }} placeholder="e.g. Exams that week — please choose other dates" />
             <Button mode="contained" icon="close" buttonColor={t.custom.danger} loading={busyId === rejecting.id}
               onPress={() => { const lr = rejecting; setRejecting(null); decide(lr, false, comment); }}>Reject request</Button>

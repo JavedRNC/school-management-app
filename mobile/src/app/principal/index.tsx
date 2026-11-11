@@ -76,7 +76,7 @@ function TodayCard({ d }: { d: Dashboard }) {
           {o.attendance_today_percent != null ? <Ring value={o.attendance_today_percent} label="present" low={d.thresholds.low_attendance} />
             : <IconBadge icon="clipboard-text-clock-outline" size={72} tone="warning" />}
           <View style={{ flex: 1 }}>
-            <Text variant="titleMedium" style={{ fontWeight: '800', color: t.colors.onSurface }}>
+            <Text variant="titleMedium" style={{ fontWeight: '700', color: t.colors.onSurface }}>
               {d.today_is_school_day ? "Today's attendance" : `Last school day · ${fmtDate(d.date)}`}
             </Text>
             <Text variant="bodySmall" style={{ color: t.colors.onSurfaceVariant, marginBottom: space.sm }}>
@@ -151,10 +151,10 @@ function Body({ d, examId, setExamId }: { d: Dashboard; examId: number | null; s
       </FadeIn>
       <FadeIn index={5}>
         <Panel title={`Below ${low}%`} subtitle="Last 30 days" icon="account-alert-outline" tone={d.low_attendance.length ? 'warning' : 'success'}
-          right={<Text variant="headlineSmall" style={{ fontWeight: '800', color: d.low_attendance.length ? t.custom.warning : t.custom.success }}>{d.low_attendance.length}</Text>}>
+          right={<Text variant="headlineSmall" style={{ fontWeight: '700', color: d.low_attendance.length ? t.custom.warning : t.custom.success }}>{d.low_attendance.length}</Text>}>
           {d.low_attendance.slice(0, 6).map((s, i, arr) => (
             <Row key={s.student_id} title={s.name} subtitle={`Class ${s.class_name}`} divider={i < arr.length - 1} onPress={() => setStudent({ ...s, attendance_percent: s.percent })}
-              right={<Text variant="titleMedium" style={{ fontWeight: '800', color: t.custom.danger }}>{s.percent}%</Text>} />
+              right={<Text variant="titleMedium" style={{ fontWeight: '700', color: t.custom.danger }}>{s.percent}%</Text>} />
           ))}
           {!d.low_attendance.length ? <Text variant="bodyMedium" style={{ color: t.custom.onSuccessContainer }}>Everyone is above target 🎯</Text> : null}
         </Panel>
@@ -195,9 +195,9 @@ function Body({ d, examId, setExamId }: { d: Dashboard; examId: number | null; s
                   onPress={() => setStudent({ ...s, marks_percent: s.percent })}
                   left={<View style={{ width: 32, height: 32, borderRadius: 16, alignItems: 'center', justifyContent: 'center',
                     backgroundColor: rank === 'top' && i < 3 ? ['#F5C542', '#C9CED6', '#D9A36A'][i] : t.colors.surfaceVariant }}>
-                    <Text variant="labelLarge" style={{ fontWeight: '800', color: rank === 'top' && i < 3 ? '#2B2100' : t.colors.onSurfaceVariant }}>{i + 1}</Text>
+                    <Text variant="labelLarge" style={{ fontWeight: '700', color: rank === 'top' && i < 3 ? '#2B2100' : t.colors.onSurfaceVariant }}>{i + 1}</Text>
                   </View>}
-                  right={<Text variant="titleMedium" style={{ fontWeight: '800', color: rank === 'top' ? t.custom.success : t.custom.danger }}>{s.percent}%</Text>} />
+                  right={<Text variant="titleMedium" style={{ fontWeight: '700', color: rank === 'top' ? t.custom.success : t.custom.danger }}>{s.percent}%</Text>} />
               ))}
             </Panel>
           </FadeIn>
@@ -211,7 +211,7 @@ function Body({ d, examId, setExamId }: { d: Dashboard; examId: number | null; s
             <View style={{ flexDirection: 'row', alignItems: 'center', gap: space.md, marginBottom: space.lg }}>
               <UserAvatar name={student.name} size={56} />
               <View style={{ flex: 1 }}>
-                <Text variant="titleLarge" style={{ fontWeight: '800', color: t.colors.onSurface }}>{student.name}</Text>
+                <Text variant="titleLarge" style={{ fontWeight: '700', color: t.colors.onSurface }}>{student.name}</Text>
                 <Text variant="bodyMedium" style={{ color: t.colors.onSurfaceVariant }}>Class {student.class_name}</Text>
               </View>
             </View>
@@ -254,7 +254,7 @@ function Body({ d, examId, setExamId }: { d: Dashboard; examId: number | null; s
             <Text variant="titleSmall" style={{ fontWeight: '700', marginBottom: space.xs, color: t.colors.onSurface }}>Low attendance in this class</Text>
             {d.low_attendance.filter((s) => s.class_name === selClass.class_name).map((s, i, arr) => (
               <Row key={s.student_id} title={s.name} divider={i < arr.length - 1}
-                right={<Text variant="titleSmall" style={{ fontWeight: '800', color: t.custom.danger }}>{s.percent}%</Text>} />
+                right={<Text variant="titleSmall" style={{ fontWeight: '700', color: t.custom.danger }}>{s.percent}%</Text>} />
             ))}
             {!d.low_attendance.some((s) => s.class_name === selClass.class_name) ? (
               <Text variant="bodyMedium" style={{ color: t.colors.onSurfaceVariant }}>No one below {low}% 👏</Text>

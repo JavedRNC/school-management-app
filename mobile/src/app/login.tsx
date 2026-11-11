@@ -11,7 +11,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { getBaseUrl, loadStored, setBaseUrl } from '@/lib/api';
 import { homeFor, KEY_SCHOOL_CODE, useAuth } from '@/lib/auth';
 import { haptic } from '@/lib/feedback';
-import { radius, space, useAppTheme } from '@/lib/theme';
+import { cardEdge, fieldOutline, glow, radius, shadow, space, useAppTheme } from '@/lib/theme';
 
 const DEMO: { label: string; code: string; id: string; pw: string; icon: IconName; desc: string }[] = [
   { label: 'Principal', code: 'DEMO01', id: 'principal', pw: 'demo123', icon: 'school', desc: 'Insights & admin' },
@@ -75,37 +75,40 @@ export default function Login() {
     <KeyboardAvoidingView style={{ flex: 1, backgroundColor: t.colors.background }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
       <ScrollView keyboardShouldPersistTaps="handled" contentContainerStyle={{ flexGrow: 1 }}>
         <LinearGradient colors={[t.custom.heroStart, t.custom.heroEnd]} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }}
-          style={{ paddingTop: insets.top + space.xxl, paddingBottom: 90, alignItems: 'center', borderBottomLeftRadius: 40, borderBottomRightRadius: 40, overflow: 'hidden' }}>
+          style={{ paddingTop: insets.top + space.xl, paddingBottom: 84, alignItems: 'center', borderBottomLeftRadius: 40, borderBottomRightRadius: 40, overflow: 'hidden' }}>
           <View style={{ position: 'absolute', width: 260, height: 260, borderRadius: 130, backgroundColor: 'rgba(255,255,255,0.06)', top: -80, left: -80 }} />
           <View style={{ position: 'absolute', width: 180, height: 180, borderRadius: 90, backgroundColor: 'rgba(245,166,35,0.18)', bottom: -40, right: -30 }} />
           <Animated.View style={{ transform: [{ translateY: float.interpolate({ inputRange: [0, 1], outputRange: [0, -8] }) }] }}>
-            <View style={{ width: 84, height: 84, borderRadius: 26, backgroundColor: t.custom.amber, alignItems: 'center', justifyContent: 'center',
-              shadowColor: '#000', shadowOpacity: 0.25, shadowRadius: 16, shadowOffset: { width: 0, height: 8 }, elevation: 8 }}>
-              <Icon name="school" size={46} color="#1A1300" />
+            <View style={{ width: 72, height: 72, borderRadius: 22, backgroundColor: t.custom.amber, alignItems: 'center', justifyContent: 'center',
+              ...glow(t.custom.amber, true) }}>
+              <Icon name="school" size={40} color="#1A1300" />
             </View>
           </Animated.View>
-          <Text variant="headlineLarge" style={{ color: '#fff', fontWeight: '800', marginTop: space.lg }}>School Hub</Text>
-          <Text variant="bodyLarge" style={{ color: 'rgba(255,255,255,0.8)' }}>Everything your school needs, in one place</Text>
+          <Text variant="headlineLarge" style={{ color: '#fff', fontWeight: '700', marginTop: space.md }}>School Hub</Text>
+          <Text variant="bodyMedium" style={{ color: 'rgba(255,255,255,0.82)' }}>Everything your school needs, in one place</Text>
         </LinearGradient>
 
         <View style={{ paddingHorizontal: space.lg, marginTop: -60 }}>
           <FadeIn>
-            <Animated.View style={{ transform: [{ translateX: shake }], backgroundColor: t.colors.elevation.level1, borderRadius: radius.xxl, padding: space.xl,
-              shadowColor: '#000', shadowOpacity: 0.1, shadowRadius: 20, shadowOffset: { width: 0, height: 8 }, elevation: 4 }}>
-              <Text variant="titleLarge" style={{ fontWeight: '800', color: t.colors.onSurface }}>Welcome back 👋</Text>
+            <Animated.View style={{ transform: [{ translateX: shake }], backgroundColor: t.colors.elevation.level1, borderRadius: radius.xxl, padding: space.lg + 4,
+              ...shadow(t, 2), ...cardEdge(t) }}>
+              <Text variant="titleLarge" style={{ fontWeight: '700', color: t.colors.onSurface }}>Welcome back 👋</Text>
               <Text variant="bodyMedium" style={{ color: t.colors.onSurfaceVariant, marginBottom: space.lg }}>Use the details your school gave you</Text>
-              <TextInput mode="outlined" label="School code" value={code} onChangeText={(v) => { setCode(v.toUpperCase()); setPicked(null); }} autoCapitalize="characters"
+              <TextInput mode="outlined" outlineStyle={fieldOutline} label="School code" value={code} onChangeText={(v) => { setCode(v.toUpperCase()); setPicked(null); }} autoCapitalize="characters"
                 autoCorrect={false} left={<TextInput.Icon icon="domain" />} style={{ marginBottom: space.md }} />
-              <TextInput mode="outlined" label="Login ID" value={email} onChangeText={(v) => { setEmail(v); setPicked(null); }} autoCapitalize="none"
+              <TextInput mode="outlined" outlineStyle={fieldOutline} label="Login ID" value={email} onChangeText={(v) => { setEmail(v); setPicked(null); }} autoCapitalize="none"
                 autoCorrect={false} left={<TextInput.Icon icon="account-outline" />} style={{ marginBottom: space.md }}
                 placeholder="Employee code, admission no. or mobile" />
-              <TextInput mode="outlined" label="Password" value={password} onChangeText={setPassword} secureTextEntry={!showPw}
+              <TextInput mode="outlined" outlineStyle={fieldOutline} label="Password" value={password} onChangeText={setPassword} secureTextEntry={!showPw}
                 left={<TextInput.Icon icon="lock-outline" />} right={<TextInput.Icon icon={showPw ? 'eye-off' : 'eye'} onPress={() => setShowPw((s) => !s)} />}
                 onSubmitEditing={() => submit()} />
               <HelperText type="error" visible={!!error}>{error}</HelperText>
-              <Button mode="contained" onPress={() => submit()} loading={busy} contentStyle={{ paddingVertical: 8 }} labelStyle={{ fontSize: 16, fontWeight: '700' }}>
-                Sign in
-              </Button>
+              <View style={[{ borderRadius: radius.pill, backgroundColor: t.colors.primary }, t.dark ? null : glow(t.colors.primary)]}>
+                <Button mode="contained" icon="login-variant" onPress={() => submit()} loading={busy} contentStyle={{ paddingVertical: 6, flexDirection: 'row-reverse' }}
+                  labelStyle={{ fontSize: 15, fontWeight: '700' }}>
+                  Sign in
+                </Button>
+              </View>
             </Animated.View>
           </FadeIn>
 
@@ -120,10 +123,12 @@ export default function Login() {
                 return (
                   <PressScale key={key} style={{ width: '31.5%' }}
                     onPress={() => { setPicked(key); setCode(d.code); setEmail(d.id); setPassword(d.pw); submit(d.id, d.pw, d.code); }}>
-                    <View style={{ backgroundColor: on ? t.colors.primaryContainer : t.colors.elevation.level2, borderRadius: radius.xl, padding: space.md,
-                      alignItems: 'center', borderWidth: 1, borderColor: on ? t.colors.primary : 'transparent', minHeight: 104 }}>
-                      <Icon name={d.icon} size={28} color={t.colors.primary} />
-                      <Text variant="labelLarge" style={{ fontWeight: '800', marginTop: 6, color: t.colors.onSurface, textAlign: 'center' }} numberOfLines={1}>{d.label}</Text>
+                    <View style={{ backgroundColor: on ? t.colors.primaryContainer : t.colors.elevation.level2, borderRadius: radius.lg, padding: space.md,
+                      alignItems: 'center', borderWidth: 1, borderColor: on ? t.colors.primary : t.custom.cardBorder, minHeight: 100 }}>
+                      <View style={{ width: 40, height: 40, borderRadius: 13, backgroundColor: t.colors.primaryContainer, alignItems: 'center', justifyContent: 'center' }}>
+                        <Icon name={d.icon} size={22} color={t.colors.primary} />
+                      </View>
+                      <Text variant="labelLarge" style={{ fontWeight: '700', marginTop: 6, color: t.colors.onSurface, textAlign: 'center' }} numberOfLines={1}>{d.label}</Text>
                       <Text variant="labelSmall" style={{ color: t.colors.onSurfaceVariant, textAlign: 'center' }} numberOfLines={2}>{d.desc}</Text>
                     </View>
                   </PressScale>
@@ -144,7 +149,7 @@ export default function Login() {
           </TouchableRipple>
           {showServer ? (
             <FadeIn>
-              <TextInput mode="outlined" label="Server address" value={server} onChangeText={setServer} autoCapitalize="none" autoCorrect={false}
+              <TextInput mode="outlined" outlineStyle={fieldOutline} label="Server address" value={server} onChangeText={setServer} autoCapitalize="none" autoCorrect={false}
                 placeholder="https://school-api.onrender.com" left={<TextInput.Icon icon="link-variant" />} />
               <HelperText type="info">Saved when you sign in</HelperText>
             </FadeIn>

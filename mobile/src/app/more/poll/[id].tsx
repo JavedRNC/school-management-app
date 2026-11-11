@@ -81,7 +81,7 @@ export default function PollResultsScreen() {
               <View style={{ flexDirection: 'row', alignItems: 'center', gap: space.lg }}>
                 <Ring value={pct} size={96} label="answered" low={50} />
                 <View style={{ flex: 1, gap: 6 }}>
-                  <Text variant="headlineSmall" style={{ fontWeight: '800', color: t.colors.onSurface }}>
+                  <Text variant="headlineSmall" style={{ fontWeight: '700', color: t.colors.onSurface }}>
                     {data.responded}<Text variant="titleMedium" style={{ color: t.colors.onSurfaceVariant }}> / {data.eligible}</Text>
                   </Text>
                   <Text variant="bodySmall" style={{ color: t.colors.onSurfaceVariant }}>
@@ -110,7 +110,7 @@ export default function PollResultsScreen() {
               <View key={i} style={{ marginBottom: space.md }}>
                 <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginBottom: 4 }}>
                   <Text variant="titleSmall" style={{ fontWeight: '700', color: t.colors.onSurface, flex: 1 }}>{o}</Text>
-                  <Text variant="titleSmall" style={{ fontWeight: '800', color: c }}>{n} · {p}%</Text>
+                  <Text variant="titleSmall" style={{ fontWeight: '700', color: c }}>{n} · {p}%</Text>
                 </View>
                 <View style={{ height: 14, borderRadius: 7, backgroundColor: t.custom.chartTrack, overflow: 'hidden' }}>
                   <View style={{ width: `${p}%`, height: 14, borderRadius: 7, backgroundColor: c }} />

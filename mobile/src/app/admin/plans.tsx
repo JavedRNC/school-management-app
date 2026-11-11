@@ -1,12 +1,12 @@
 import { useEffect, useState } from 'react';
 import { View } from 'react-native';
-import { AnimatedFAB, Button, Switch, Text, TextInput } from 'react-native-paper';
+import { Button, Switch, Text, TextInput } from 'react-native-paper';
 
 import { rupees, useModules } from '@/components/admin/common';
-import { EmptyState, ErrorState, FadeIn, Hero, LoadingCards, Panel, Screen, Sheet, ToneChip } from '@/components/ui';
+import { Fab, EmptyState, ErrorState, FadeIn, Hero, LoadingCards, Panel, Screen, Sheet, ToneChip } from '@/components/ui';
 import { api } from '@/lib/api';
 import { haptic, useToast } from '@/lib/feedback';
-import { space, useAppTheme } from '@/lib/theme';
+import { fieldOutline, space, useAppTheme } from '@/lib/theme';
 import type { Plan } from '@/lib/types';
 import { useLoad } from '@/lib/useLoad';
 
@@ -28,7 +28,7 @@ export default function Plans() {
             <Panel title={p.name} icon="tag-outline" onPress={() => { haptic.tap(); setEditing(p); }}
               subtitle={`${p.modules.length} modules`}
               right={<View style={{ alignItems: 'flex-end' }}>
-                <Text variant="titleMedium" style={{ fontWeight: '800', color: t.colors.primary }}>{rupees(p.price_per_student)}</Text>
+                <Text variant="titleMedium" style={{ fontWeight: '700', color: t.colors.primary }}>{rupees(p.price_per_student)}</Text>
                 <Text variant="labelSmall" style={{ color: t.colors.onSurfaceVariant }}>per student / month</Text>
               </View>}>
               <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 6 }}>
@@ -44,7 +44,7 @@ export default function Plans() {
           Price changes apply to schools on that plan from the next bill. Per-school prices can be overridden in each school.
         </Text>
       </Screen>
-      <AnimatedFAB icon="plus" label="New plan" extended onPress={() => { haptic.tap(); setEditing('new'); }}
+      <Fab icon="plus" label="New plan" extended onPress={() => { haptic.tap(); setEditing('new'); }}
         style={{ position: 'absolute', right: space.lg, bottom: space.lg }} />
       <PlanEditor plan={editing} modules={modules.data ?? {}} onClose={() => setEditing(null)} onSaved={() => { setEditing(null); reload(); }} />
     </View>
@@ -90,11 +90,11 @@ function PlanEditor({ plan, modules, onClose, onSaved }: {
 
   return (
     <Sheet visible={!!plan} onDismiss={onClose} title={plan === 'new' ? 'New plan' : 'Edit plan'}>
-      <TextInput mode="outlined" label="Plan name" value={name} onChangeText={setName} style={{ marginBottom: space.md }} />
+      <TextInput mode="outlined" outlineStyle={fieldOutline} label="Plan name" value={name} onChangeText={setName} style={{ marginBottom: space.md }} />
       <View style={{ flexDirection: 'row', gap: space.sm, marginBottom: space.md }}>
-        <TextInput mode="outlined" label="₹ / student / month" value={price} onChangeText={(v) => setPrice(v.replace(/[^0-9.]/g, ''))}
+        <TextInput mode="outlined" outlineStyle={fieldOutline} label="₹ / student / month" value={price} onChangeText={(v) => setPrice(v.replace(/[^0-9.]/g, ''))}
           keyboardType="decimal-pad" style={{ flex: 1 }} />
-        <TextInput mode="outlined" label="Minimum ₹ / month" value={min} onChangeText={(v) => setMin(v.replace(/[^0-9.]/g, ''))}
+        <TextInput mode="outlined" outlineStyle={fieldOutline} label="Minimum ₹ / month" value={min} onChangeText={(v) => setMin(v.replace(/[^0-9.]/g, ''))}
           keyboardType="decimal-pad" style={{ flex: 1 }} />
       </View>
       <Text variant="labelLarge" style={{ color: t.colors.onSurfaceVariant, marginBottom: space.xs }}>Modules</Text>

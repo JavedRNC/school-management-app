@@ -1,12 +1,12 @@
 import { router } from 'expo-router';
 import { useState } from 'react';
 import { View } from 'react-native';
-import { AnimatedFAB, SegmentedButtons } from 'react-native-paper';
+import { SegmentedButtons } from 'react-native-paper';
 
 import { AnswerSheet } from '@/components/comms/AnswerSheet';
 import { PollCard } from '@/components/comms/PollCard';
 import { PollEditor } from '@/components/comms/PollEditor';
-import { EmptyState, ErrorState, FadeIn, Hero, LoadingCards, Screen } from '@/components/ui';
+import { Fab, EmptyState, ErrorState, FadeIn, Hero, LoadingCards, Screen } from '@/components/ui';
 import { api } from '@/lib/api';
 import { useAuth, useCan, useModule } from '@/lib/auth';
 import { haptic } from '@/lib/feedback';
@@ -78,7 +78,7 @@ export default function PollsScreen() {
         )}
       </Screen>
       {canCreate ? (
-        <AnimatedFAB icon="plus" label="New form" extended onPress={() => { haptic.tap(); setCreating(true); }}
+        <Fab icon="plus" label="New form" extended onPress={() => { haptic.tap(); setCreating(true); }}
           style={{ position: 'absolute', right: space.lg, bottom: space.lg }} />
       ) : null}
       <AnswerSheet poll={active} visible={!!active} onDismiss={() => setActive(null)}

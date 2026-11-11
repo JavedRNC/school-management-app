@@ -5,7 +5,7 @@ import { Chip, Text, TextInput } from 'react-native-paper';
 import { Row, ToneChip } from '@/components/ui';
 import { api } from '@/lib/api';
 import { haptic } from '@/lib/feedback';
-import { space, Tone, useAppTheme } from '@/lib/theme';
+import { fieldOutline, space, Tone, useAppTheme } from '@/lib/theme';
 import type { AdminSchoolRow, SchoolStatus } from '@/lib/types';
 import { useLoad } from '@/lib/useLoad';
 
@@ -54,7 +54,7 @@ export function DateField({ label, value, onChange, quick = true }: { label: str
   const base = value && value > today ? value : today;
   return (
     <View style={{ marginBottom: space.md }}>
-      <TextInput mode="outlined" label={`${label} (YYYY-MM-DD)`} value={value} onChangeText={onChange} error={!dateOk(value)}
+      <TextInput mode="outlined" outlineStyle={fieldOutline} label={`${label} (YYYY-MM-DD)`} value={value} onChangeText={onChange} error={!dateOk(value)}
         left={<TextInput.Icon icon="calendar" />} placeholder="Not set" />
       {quick ? (
         <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 6, marginTop: 6 }}>
@@ -80,7 +80,7 @@ export function SchoolRow({ s, divider = true }: { s: AdminSchoolRow; divider?: 
       subtitle={`${s.code} · ${s.plan ?? 'No plan'} · ${s.students} students · ${s.is_free ? 'Free' : `${rupees(s.monthly_amount)}/mo`}`}
       onPress={() => router.push({ pathname: '/admin-school/[id]', params: { id: String(s.id) } })}
       left={<View style={{ width: 42, height: 42, borderRadius: 14, backgroundColor: t.colors.primaryContainer, alignItems: 'center', justifyContent: 'center' }}>
-        <Text variant="labelLarge" style={{ fontWeight: '800', color: t.colors.onPrimaryContainer }}>{s.code.slice(0, 3)}</Text>
+        <Text variant="labelLarge" style={{ fontWeight: '700', color: t.colors.onPrimaryContainer }}>{s.code.slice(0, 3)}</Text>
       </View>}
       right={<StatusChip status={s.status} />} />
   );

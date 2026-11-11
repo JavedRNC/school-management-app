@@ -1,12 +1,12 @@
 import { useMemo, useState } from 'react';
 import { Pressable, View } from 'react-native';
-import { AnimatedFAB, Button, Dialog, HelperText, IconButton, SegmentedButtons, Switch, Text, TextInput } from 'react-native-paper';
+import { Button, Dialog, HelperText, IconButton, SegmentedButtons, Switch, Text, TextInput } from 'react-native-paper';
 
-import { ErrorState, FadeIn, FilterChips, Hero, Icon, IconName, LoadingCards, Panel, Screen, SectionTitle, Sheet, TopLayer } from '@/components/ui';
+import { Fab, ErrorState, FadeIn, FilterChips, Hero, Icon, IconName, LoadingCards, Panel, Screen, SectionTitle, Sheet, TopLayer } from '@/components/ui';
 import { api } from '@/lib/api';
 import { useAuth, useCan } from '@/lib/auth';
 import { haptic, useToast } from '@/lib/feedback';
-import { AppTheme, DAYS, isoDate, radius, space, useAppTheme, weekdayIdx } from '@/lib/theme';
+import { fieldOutline, AppTheme, DAYS, isoDate, radius, space, useAppTheme, weekdayIdx } from '@/lib/theme';
 import type { Holiday } from '@/lib/types';
 import { useLoad } from '@/lib/useLoad';
 
@@ -103,7 +103,7 @@ export default function CalendarScreen() {
               <Panel>
                 <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: space.sm }}>
                   <IconButton icon="chevron-left" onPress={() => shift(-1)} />
-                  <Text variant="titleMedium" style={{ flex: 1, textAlign: 'center', fontWeight: '800', color: t.colors.onSurface }}>
+                  <Text variant="titleMedium" style={{ flex: 1, textAlign: 'center', fontWeight: '700', color: t.colors.onSurface }}>
                     {month.toLocaleDateString('en-IN', { month: 'long', year: 'numeric' })}
                   </Text>
                   <IconButton icon="chevron-right" onPress={() => shift(1)} />
@@ -174,7 +174,7 @@ export default function CalendarScreen() {
         )}
       </Screen>
       {canEdit ? (
-        <AnimatedFAB icon="calendar-plus" label="Add" extended onPress={() => { haptic.tap(); setEditing('new'); }}
+        <Fab icon="calendar-plus" label="Add" extended onPress={() => { haptic.tap(); setEditing('new'); }}
           style={{ position: 'absolute', right: space.lg, bottom: space.lg }} />
       ) : null}
       <Editor entry={editing} defaultDate={selected} onClose={() => setEditing(null)} onSaved={() => { setEditing(null); reload(); }} />
@@ -206,7 +206,7 @@ function EntryCard({ h, onPress }: { h: Holiday; onPress?: () => void }) {
             <Icon name={k.icon} size={22} color={kindColor(t, h.kind)} />
           </View>
           <View style={{ flex: 1 }}>
-            <Text variant="titleSmall" style={{ fontWeight: '800', color: t.colors.onSurface }}>{h.name}</Text>
+            <Text variant="titleSmall" style={{ fontWeight: '700', color: t.colors.onSurface }}>{h.name}</Text>
             <Text variant="bodySmall" style={{ color: t.colors.onSurfaceVariant }}>
               {rangeText(h)} · {k.label}{h.is_off ? ' · School closed' : ' · School open'}
             </Text>
@@ -283,16 +283,16 @@ function Editor({ entry, defaultDate, onClose, onSaved }: { entry: Holiday | 'ne
   return (
     <>
       <Sheet visible={!!entry} onDismiss={onClose} title={existing ? 'Edit calendar entry' : 'Add to calendar'}>
-        <TextInput mode="outlined" label="Name" value={name} onChangeText={setName} placeholder="e.g. Diwali, Summer vacation" style={{ marginBottom: space.md }} />
+        <TextInput mode="outlined" outlineStyle={fieldOutline} label="Name" value={name} onChangeText={setName} placeholder="e.g. Diwali, Summer vacation" style={{ marginBottom: space.md }} />
         <FilterChips label="Type" options={KINDS} value={kind} onChange={(v) => { setKind(v); if (v === 'event') setIsOff(false); else if (kind === 'event') setIsOff(true); }} />
         <SegmentedButtons value={mode} onValueChange={(v) => setMode(v as 'day' | 'range')} density="small" style={{ marginBottom: space.md }}
           buttons={[{ value: 'day', label: 'Single day', icon: 'calendar-today' }, { value: 'range', label: 'Date range', icon: 'calendar-range' }]} />
         <FilterChips options={quick} value={start} onChange={(v) => { setStart(v); if (end < v) setEnd(v); }} />
         <View style={{ flexDirection: 'row', gap: space.sm }}>
-          <TextInput mode="outlined" label={mode === 'day' ? 'Date (YYYY-MM-DD)' : 'From (YYYY-MM-DD)'} value={start} onChangeText={setStart}
+          <TextInput mode="outlined" outlineStyle={fieldOutline} label={mode === 'day' ? 'Date (YYYY-MM-DD)' : 'From (YYYY-MM-DD)'} value={start} onChangeText={setStart}
             style={{ flex: 1 }} error={!DATE_RE.test(start)} />
           {mode === 'range' ? (
-            <TextInput mode="outlined" label="To (YYYY-MM-DD)" value={end} onChangeText={setEnd} style={{ flex: 1 }} error={!DATE_RE.test(end) || end < start} />
+            <TextInput mode="outlined" outlineStyle={fieldOutline} label="To (YYYY-MM-DD)" value={end} onChangeText={setEnd} style={{ flex: 1 }} error={!DATE_RE.test(end) || end < start} />
           ) : null}
         </View>
         <HelperText type="error" visible={!datesOk}>Use YYYY-MM-DD; the end can't be before the start.</HelperText>
@@ -305,7 +305,7 @@ function Editor({ entry, defaultDate, onClose, onSaved }: { entry: Holiday | 'ne
           </View>
           <Switch value={kind === 'event' ? false : isOff} disabled={kind === 'event'} onValueChange={setIsOff} />
         </View>
-        <TextInput mode="outlined" label="Note (optional)" value={note} onChangeText={setNote} multiline style={{ marginBottom: space.md }} />
+        <TextInput mode="outlined" outlineStyle={fieldOutline} label="Note (optional)" value={note} onChangeText={setNote} multiline style={{ marginBottom: space.md }} />
         <Button mode="contained" icon="content-save-outline" onPress={save} loading={busy} disabled={!valid} contentStyle={{ paddingVertical: 6 }}>
           {existing ? 'Save changes' : 'Add to calendar'}
         </Button>

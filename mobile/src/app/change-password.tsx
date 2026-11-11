@@ -8,7 +8,7 @@ import { FadeIn, Hero, Icon, Panel, Screen } from '@/components/ui';
 import { api } from '@/lib/api';
 import { homeFor, useAuth } from '@/lib/auth';
 import { haptic, useToast } from '@/lib/feedback';
-import { space, useAppTheme } from '@/lib/theme';
+import { fieldOutline, space, useAppTheme } from '@/lib/theme';
 import type { User } from '@/lib/types';
 
 /** First sign-in with a temporary password (F3): the user must choose their own. */
@@ -60,15 +60,15 @@ export default function ChangePassword() {
               Passwords are stored encrypted — nobody at the school can see yours.
             </Text>
           </View>
-          <TextInput mode="outlined" label="Temporary password" value={oldPw} onChangeText={setOld} secureTextEntry={!show}
+          <TextInput mode="outlined" outlineStyle={fieldOutline} label="Temporary password" value={oldPw} onChangeText={setOld} secureTextEntry={!show}
             left={<TextInput.Icon icon="key-outline" />} style={{ marginBottom: space.md }} />
-          <TextInput mode="outlined" label="New password" value={pw} onChangeText={setPw} secureTextEntry={!show}
+          <TextInput mode="outlined" outlineStyle={fieldOutline} label="New password" value={pw} onChangeText={setPw} secureTextEntry={!show}
             left={<TextInput.Icon icon="lock-outline" />} right={<TextInput.Icon icon={show ? 'eye-off' : 'eye'} onPress={() => setShow((s) => !s)} />}
             error={tooShort || sameAsId} />
           <HelperText type={tooShort || sameAsId ? 'error' : 'info'} visible>
             {sameAsId ? "Can't be the same as your login ID" : 'At least 6 characters'}
           </HelperText>
-          <TextInput mode="outlined" label="Confirm new password" value={pw2} onChangeText={setPw2} secureTextEntry={!show}
+          <TextInput mode="outlined" outlineStyle={fieldOutline} label="Confirm new password" value={pw2} onChangeText={setPw2} secureTextEntry={!show}
             left={<TextInput.Icon icon="lock-check-outline" />} error={mismatch} />
           <HelperText type="error" visible={mismatch || !!error}>{mismatch ? "Passwords don't match" : error}</HelperText>
           <Button mode="contained" icon="check" onPress={save} loading={busy} disabled={!valid} contentStyle={{ paddingVertical: 8 }}>
