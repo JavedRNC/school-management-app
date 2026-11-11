@@ -582,3 +582,25 @@ export interface FeeSummary {
   by_class: { class_id: number | null; class_name: string; students: number; outstanding: number; overdue: number; defaulters: number; collected_month: number }[];
   recent: FeePayment[]; configured: boolean; upi_enabled: boolean; billed_this_month: boolean;
 }
+
+// ================================================================ Phase 4 — period timings, add many, import/backup
+export interface BellSlot { kind: 'period' | 'break'; label: string; start: string; end: string; period: number | null }
+/** GET/PUT /school/bell · DELETE /school/bell/{day}. overrides keyed "0".."6" (Mon..Sun). */
+export interface BellSchedule { default: BellSlot[]; overrides: Record<string, BellSlot[]>; configured: boolean }
+
+export interface ImportIssue { sheet: string; row: number; field: string; message: string }
+export interface NewLogin { name: string; role: string; login_id: string; password: string; class?: string }
+
+/** POST /users/bulk {role, rows, dry_run} */
+export interface BulkResult {
+  ok: boolean; errors: ImportIssue[]; by_role: Record<string, { add: number; update: number }>; links: number; count: number;
+  credentials?: NewLogin[];
+}
+
+/** POST /data/import (multipart: file, mode=merge|replace, confirm, confirm_code) */
+export interface ImportReport {
+  ok: boolean; saved: boolean; mode: 'merge' | 'replace'; kind: 'template' | 'backup';
+  errors: ImportIssue[]; error_count: number; warnings: string[]; passwords_kept: boolean;
+  sheets: { sheet: string; add: number; update: number; skip: number }[]; new_logins: number;
+  credentials?: NewLogin[];
+}

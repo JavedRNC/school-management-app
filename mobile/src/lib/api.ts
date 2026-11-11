@@ -54,6 +54,11 @@ export async function setToken(t: string | null) {
   else await AsyncStorage.removeItem(KEY_TOKEN);
 }
 
+/** Headers for requests made outside api() (file downloads). */
+export function authHeaders(): Record<string, string> {
+  return token ? { Authorization: `Bearer ${token}` } : {};
+}
+
 export function setUnauthorizedHandler(fn: () => void) {
   onUnauthorized = fn;
 }
@@ -77,14 +82,15 @@ export async function api<T = unknown>(
         .join('&')
     : '';
   let res: Response;
+  const isForm = typeof FormData !== 'undefined' && opts.body instanceof FormData;   // file uploads
   try {
     res = await fetch(baseUrl + path + qs, {
       method: opts.method || (opts.body ? 'POST' : 'GET'),
       headers: {
-        'Content-Type': 'application/json',
+        ...(isForm ? {} : { 'Content-Type': 'application/json' }),
         ...(token ? { Authorization: `Bearer ${token}` } : {}),
       },
-      body: opts.body ? JSON.stringify(opts.body) : undefined,
+      body: opts.body ? (isForm ? (opts.body as FormData) : JSON.stringify(opts.body)) : undefined,
     });
   } catch {
     throw new ApiError(0, `Can't reach the server at ${baseUrl}. If you haven't used the app for a while the free server may be waking up — wait a minute and try again. Also check your internet.`);
