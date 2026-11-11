@@ -196,6 +196,8 @@ function StudentToggle({ row, present, onToggle, disabled }: { row: AttendanceRo
     Animated.spring(anim, { toValue: present ? 1 : 0, useNativeDriver: false, speed: 20, bounciness: 8 }).start();
   }, [present, anim]);
   const bg = anim.interpolate({ inputRange: [0, 1], outputRange: [t.custom.dangerContainer, t.custom.successContainer] });
+  const onCol = t.dark ? '#2FA866' : t.custom.success;
+  const offCol = t.dark ? '#E5484D' : t.custom.danger;
   const knob = anim.interpolate({ inputRange: [0, 1], outputRange: [2, 30] });
   return (
     <Pressable disabled={disabled} onPress={() => { haptic.light(); onToggle(); }}
@@ -208,9 +210,9 @@ function StudentToggle({ row, present, onToggle, disabled }: { row: AttendanceRo
           <Text variant="bodyLarge" style={{ fontWeight: '600', color: t.colors.onSurface }}>{row.name}</Text>
           <Text variant="labelMedium" style={{ color: t.colors.onSurfaceVariant }}>Roll no. {row.roll_no ?? '-'}</Text>
         </View>
-        <View style={{ width: 60, height: 32, borderRadius: 16, backgroundColor: present ? t.custom.success : t.custom.danger, justifyContent: 'center' }}>
+        <View style={{ width: 60, height: 32, borderRadius: 16, backgroundColor: present ? onCol : offCol, justifyContent: 'center' }}>
           <Animated.View style={{ position: 'absolute', left: knob, width: 28, height: 28, borderRadius: 14, backgroundColor: '#fff', alignItems: 'center', justifyContent: 'center' }}>
-            <Icon name={present ? 'check' : 'close'} size={16} color={present ? t.custom.success : t.custom.danger} />
+            <Icon name={present ? 'check' : 'close'} size={16} color={present ? onCol : offCol} />
           </Animated.View>
         </View>
       </Animated.View>

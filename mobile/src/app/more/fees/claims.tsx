@@ -1,14 +1,15 @@
 import { router } from 'expo-router';
 import { useState } from 'react';
 import { View } from 'react-native';
-import { Button, HelperText, Text, TextInput } from 'react-native-paper';
+import { Button, HelperText, Text } from 'react-native-paper';
+import { TextInput } from '@/components/Field';
 
 import { useFeeGate } from '@/components/fees/staff/common';
 import { EmptyState, ErrorState, FadeIn, FilterChips, Hero, Icon, LoadingCards, Panel, Screen, Sheet, ToneChip, UserAvatar } from '@/components/ui';
 import { api } from '@/lib/api';
 import { fmtDate, inr, PAY_LABEL, PAY_TONE } from '@/lib/fees';
 import { useToast } from '@/lib/feedback';
-import { fieldOutline, radius, space, useAppTheme } from '@/lib/theme';
+import { radius, space, useAppTheme } from '@/lib/theme';
 import type { FeePayment, FeeReceipt } from '@/lib/types';
 import { useLoad } from '@/lib/useLoad';
 
@@ -133,7 +134,7 @@ function Inbox({ canEdit }: { canEdit: boolean }) {
             <Text variant="bodyMedium" style={{ color: t.colors.onSurfaceVariant, marginBottom: space.md }}>
               {confirm.student_name} · UTR <Text style={{ fontWeight: '700' }}>{confirm.reference}</Text>
             </Text>
-            <TextInput mode="outlined" outlineStyle={fieldOutline} label="Amount received (₹)" keyboardType="decimal-pad" value={amount}
+            <TextInput mode="outlined" label="Amount received (₹)" keyboardType="decimal-pad" value={amount}
               onChangeText={(v) => setAmount(v.replace(/[^0-9.]/g, ''))} left={<TextInput.Affix text="₹" />} />
             <HelperText type="info">{Number(amount) !== confirm.amount ? `Parent reported ${inr(confirm.amount)}` : 'Change it only if the bank shows a different amount'}</HelperText>
             <Button mode="contained" icon="receipt-text-check-outline" onPress={doConfirm} loading={busy} disabled={busy}
@@ -143,7 +144,7 @@ function Inbox({ canEdit }: { canEdit: boolean }) {
       </Sheet>
       <Sheet visible={!!reject} onDismiss={() => setReject(null)} title="Reject payment claim">
         <FilterChips value={reason} onChange={setReason} options={REASONS.map((r) => ({ label: r, value: r }))} />
-        <TextInput mode="outlined" outlineStyle={fieldOutline} label="Reason for the parent" value={reason} onChangeText={setReason} multiline />
+        <TextInput mode="outlined" label="Reason for the parent" value={reason} onChangeText={setReason} multiline />
         <Button mode="contained" icon="close" buttonColor={t.custom.danger} textColor="#fff" onPress={doReject} loading={busy} disabled={busy}
           style={{ marginTop: space.lg }} contentStyle={{ paddingVertical: 6 }}>Reject</Button>
       </Sheet>

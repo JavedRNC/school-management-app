@@ -1,11 +1,12 @@
 import { useState } from 'react';
 import { View } from 'react-native';
-import { Button, Switch, Text, TextInput } from 'react-native-paper';
+import { Button, Switch, Text } from 'react-native-paper';
+import { TextInput } from '@/components/Field';
 
 import { EmptyState, ErrorState, FadeIn, FilterChips, LoadingCards, Panel, Row, Sheet } from '@/components/ui';
 import { api } from '@/lib/api';
 import { haptic, useToast } from '@/lib/feedback';
-import { fieldOutline, space, useAppTheme } from '@/lib/theme';
+import { space, useAppTheme } from '@/lib/theme';
 import type { AdminSchoolDetail, Payment } from '@/lib/types';
 import { useLoad } from '@/lib/useLoad';
 
@@ -74,14 +75,14 @@ function RecordPayment({ visible, d, onDismiss, onSaved }: { visible: boolean; d
 
   return (
     <Sheet visible={visible} onDismiss={onDismiss} title="Record payment">
-      <TextInput mode="outlined" outlineStyle={fieldOutline} label="Amount (₹)" value={amount} onChangeText={(v) => setAmount(v.replace(/[^0-9.]/g, ''))} keyboardType="decimal-pad"
+      <TextInput mode="outlined" label="Amount (₹)" value={amount} onChangeText={(v) => setAmount(v.replace(/[^0-9.]/g, ''))} keyboardType="decimal-pad"
         left={<TextInput.Icon icon="currency-inr" />} style={{ marginBottom: space.md }} />
       <DateField label="Paid on" value={paidOn} onChange={setPaidOn} quick={false} />
       <FilterChips label="Method" value={method} onChange={setMethod} options={METHODS.map((m) => ({ label: m, value: m }))} />
-      <TextInput mode="outlined" outlineStyle={fieldOutline} label="Reference / UTR (optional)" value={ref} onChangeText={setRef} style={{ marginBottom: space.md }} />
+      <TextInput mode="outlined" label="Reference / UTR (optional)" value={ref} onChangeText={setRef} style={{ marginBottom: space.md }} />
       <DateField label="Period from (optional)" value={from} onChange={setFrom} quick={false} />
       <DateField label="Period to (optional)" value={to} onChange={setTo} />
-      <TextInput mode="outlined" outlineStyle={fieldOutline} label="Note (optional)" value={note} onChangeText={setNote} style={{ marginBottom: space.md }} />
+      <TextInput mode="outlined" label="Note (optional)" value={note} onChangeText={setNote} style={{ marginBottom: space.md }} />
       <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: space.md }}>
         <View style={{ flex: 1 }}>
           <Text variant="bodyLarge" style={{ color: t.colors.onSurface, fontWeight: '600' }}>Extend "paid until"</Text>

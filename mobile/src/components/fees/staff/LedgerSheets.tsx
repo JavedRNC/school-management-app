@@ -1,13 +1,14 @@
 import { router } from 'expo-router';
 import { useEffect, useMemo, useState } from 'react';
 import { View } from 'react-native';
-import { Button, Checkbox, HelperText, Text, TextInput } from 'react-native-paper';
+import { Button, Checkbox, HelperText, Text } from 'react-native-paper';
+import { TextInput } from '@/components/Field';
 
 import { FilterChips, Sheet } from '@/components/ui';
 import { api } from '@/lib/api';
 import { fmtDate, inr, MODE_ICON, MODE_LABEL, MODE_REF } from '@/lib/fees';
 import { useToast } from '@/lib/feedback';
-import { fieldOutline, space, useAppTheme } from '@/lib/theme';
+import { space, useAppTheme } from '@/lib/theme';
 import type { FeeItem, FeeReceipt, PayMode } from '@/lib/types';
 
 import { ISO_RE, isoToday } from './common';
@@ -80,17 +81,17 @@ export function RecordPaymentSheet({ visible, onDismiss, studentId, studentName,
             style={{ paddingVertical: 2, paddingHorizontal: 0 }} />
         );
       })}
-      <TextInput mode="outlined" outlineStyle={fieldOutline} label="Amount received (₹)" keyboardType="decimal-pad" value={amount}
+      <TextInput mode="outlined" label="Amount received (₹)" keyboardType="decimal-pad" value={amount}
         onChangeText={(v) => { setTouched(true); setAmount(v.replace(/[^0-9.]/g, '')); }} style={{ marginTop: space.sm }}
         left={<TextInput.Affix text="₹" />} right={touchedAmount ? <TextInput.Icon icon="restore" onPress={() => setTouched(false)} /> : undefined} />
       <HelperText type={amtErr ? 'error' : 'info'}>{amtErr || `Selected dues ${inr(selTotal)} · part payments are fine`}</HelperText>
       <FilterChips label="Mode" value={mode} onChange={setMode} options={MODES.map((m) => ({ label: MODE_LABEL[m], value: m, icon: MODE_ICON[m] }))} />
-      {refLabel ? <TextInput mode="outlined" outlineStyle={fieldOutline} label={`${refLabel}${needRef ? '' : ' (optional)'}`} value={ref} onChangeText={setRef} autoCapitalize="characters" style={{ marginBottom: space.md }} /> : null}
+      {refLabel ? <TextInput mode="outlined" label={`${refLabel}${needRef ? '' : ' (optional)'}`} value={ref} onChangeText={setRef} autoCapitalize="characters" style={{ marginBottom: space.md }} /> : null}
       <View style={{ flexDirection: 'row', gap: space.sm }}>
-        <TextInput mode="outlined" outlineStyle={fieldOutline} label="Date (YYYY-MM-DD)" value={date} onChangeText={setDate} style={{ flex: 1 }} error={!!date && !ISO_RE.test(date)} />
+        <TextInput mode="outlined" label="Date (YYYY-MM-DD)" value={date} onChangeText={setDate} style={{ flex: 1 }} error={!!date && !ISO_RE.test(date)} />
         <Button mode="text" compact onPress={() => setDate(isoToday())} style={{ alignSelf: 'center' }}>Today</Button>
       </View>
-      <TextInput mode="outlined" outlineStyle={fieldOutline} label="Note (optional)" value={note} onChangeText={setNote} style={{ marginTop: space.md }} />
+      <TextInput mode="outlined" label="Note (optional)" value={note} onChangeText={setNote} style={{ marginTop: space.md }} />
       <Button mode="contained" icon="receipt-text-check-outline" onPress={save} loading={busy} disabled={busy}
         style={{ marginTop: space.lg }} contentStyle={{ paddingVertical: 6 }}>
         {amt > 0 ? `Receive ${inr(amt)} & issue receipt` : 'Issue receipt'}
@@ -127,10 +128,10 @@ export function AddChargeSheet({ visible, onDismiss, studentId, onDone }: { visi
   return (
     <Sheet visible={visible} onDismiss={onDismiss} title="Add a charge">
       <FilterChips value={title} onChange={setTitle} options={['Late fee', 'Library fine', 'Books', 'Uniform', 'ID card'].map((x) => ({ label: x, value: x }))} />
-      <TextInput mode="outlined" outlineStyle={fieldOutline} label="What is it for?" value={title} onChangeText={setTitle} style={{ marginBottom: space.md }} />
-      <TextInput mode="outlined" outlineStyle={fieldOutline} label="Amount (₹)" keyboardType="decimal-pad" value={amount} onChangeText={(v) => setAmount(v.replace(/[^0-9.]/g, ''))}
+      <TextInput mode="outlined" label="What is it for?" value={title} onChangeText={setTitle} style={{ marginBottom: space.md }} />
+      <TextInput mode="outlined" label="Amount (₹)" keyboardType="decimal-pad" value={amount} onChangeText={(v) => setAmount(v.replace(/[^0-9.]/g, ''))}
         left={<TextInput.Affix text="₹" />} style={{ marginBottom: space.md }} />
-      <TextInput mode="outlined" outlineStyle={fieldOutline} label="Due date (YYYY-MM-DD)" value={due} onChangeText={setDue} error={!!due && !ISO_RE.test(due)} />
+      <TextInput mode="outlined" label="Due date (YYYY-MM-DD)" value={due} onChangeText={setDue} error={!!due && !ISO_RE.test(due)} />
       <Button mode="contained" icon="plus" onPress={save} loading={busy} disabled={busy} style={{ marginTop: space.lg }} contentStyle={{ paddingVertical: 6 }}>Add charge</Button>
     </Sheet>
   );
@@ -169,10 +170,10 @@ export function ConcessionSheet({ item, onDismiss, onDone }: { item: FeeItem | n
       <Text variant="bodySmall" style={{ color: t.colors.onSurfaceVariant, marginBottom: space.md }}>
         Charged {inr(item.amount)} · paid {inr(item.paid)} · due {fmtDate(item.due_date)}
       </Text>
-      <TextInput mode="outlined" outlineStyle={fieldOutline} label="New amount (₹)" keyboardType="decimal-pad" value={amount} onChangeText={(v) => setAmount(v.replace(/[^0-9.]/g, ''))}
+      <TextInput mode="outlined" label="New amount (₹)" keyboardType="decimal-pad" value={amount} onChangeText={(v) => setAmount(v.replace(/[^0-9.]/g, ''))}
         left={<TextInput.Affix text="₹" />} error={!!err} />
       <HelperText type={err ? 'error' : 'info'}>{err || (a < item.amount ? `Concession of ${inr(item.amount - a)}` : ' ')}</HelperText>
-      <TextInput mode="outlined" outlineStyle={fieldOutline} label="Reason (shown in audit log)" value={reason} onChangeText={setReason} />
+      <TextInput mode="outlined" label="Reason (shown in audit log)" value={reason} onChangeText={setReason} />
       <Button mode="contained" icon="content-save-outline" onPress={() => save()} loading={busy} disabled={busy || !!err}
         style={{ marginTop: space.lg }} contentStyle={{ paddingVertical: 6 }}>Save</Button>
       {item.paid === 0 ? (

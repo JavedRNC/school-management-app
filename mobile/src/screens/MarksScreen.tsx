@@ -1,14 +1,15 @@
 import { useLocalSearchParams } from 'expo-router';
 import { ReactNode, useEffect, useMemo, useRef, useState } from 'react';
 import { View } from 'react-native';
-import { Text, TextInput } from 'react-native-paper';
+import { Text } from 'react-native-paper';
+import { TextInput } from '@/components/Field';
 
 import { subjectIcon } from '@/components/TimetableView';
 import { Fab, EmptyState, ErrorState, FilterChips, Hero, LoadingCards, Panel, Screen, ToneChip, UserAvatar } from '@/components/ui';
 import { api } from '@/lib/api';
 import { useAuth, usePerm } from '@/lib/auth';
 import { haptic, useToast } from '@/lib/feedback';
-import { cardEdge, shadow, fieldOutline, gradeOf, pctTone, radius, space, toneColors, useAppTheme } from '@/lib/theme';
+import { cardEdge, shadow, gradeOf, pctTone, radius, space, toneColors, useAppTheme } from '@/lib/theme';
 import type { Assignment, Exam, MarkRow } from '@/lib/types';
 import { useLoad } from '@/lib/useLoad';
 
@@ -139,7 +140,7 @@ function MarkSheet({ a, exam, pickers }: { a: Assignment; exam: Exam; pickers: R
                     <Text variant="labelSmall" style={{ color: t.colors.onSurfaceVariant }}>Roll {r.roll_no ?? '-'}</Text>
                   </View>
                   {pct != null ? <ToneChip text={gradeOf(pct)} tone={tone} /> : null}
-                  <TextInput mode="outlined" outlineStyle={fieldOutline} dense value={raw} editable={canEdit} placeholder="—" keyboardType="decimal-pad" returnKeyType={i < data.length - 1 ? 'next' : 'done'}
+                  <TextInput mode="outlined" dense value={raw} editable={canEdit} placeholder="—" keyboardType="decimal-pad" returnKeyType={i < data.length - 1 ? 'next' : 'done'}
                     ref={(el: unknown) => { refs.current[r.student_id] = el as { focus: () => void } | null; }}
                     onSubmitEditing={() => refs.current[data[i + 1]?.student_id]?.focus()}
                     blurOnSubmit={i === data.length - 1}

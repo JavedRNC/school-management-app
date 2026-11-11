@@ -83,7 +83,7 @@ export function AssignSheet({ visible, routes, riders, students, classes, presel
             <ToneChip text={cap !== null ? `${after} / ${cap} seats after saving` : 'No vehicle on this route'}
               tone={cap === null ? 'neutral' : over ? 'danger' : after > cap * 0.85 ? 'warning' : 'success'} icon="seat-passenger" compact={false} />
           </View>
-          <Searchbar placeholder="Search students" value={q} onChangeText={setQ} style={{ marginBottom: space.sm }} />
+          <Searchbar placeholder="Search students" value={q} onChangeText={setQ} style={{ marginBottom: space.sm, backgroundColor: t.custom.inset }} elevation={0} />
           <FilterChips value={classId} onChange={setClassId} options={[{ label: 'All classes', value: 0 }, ...classes.map((c) => ({ label: c.name, value: c.id }))]} />
           <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
             <Text variant="labelLarge" style={{ color: t.colors.onSurfaceVariant }}>{sel.size} selected</Text>

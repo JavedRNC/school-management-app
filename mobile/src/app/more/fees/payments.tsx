@@ -1,14 +1,15 @@
 import { router, useLocalSearchParams } from 'expo-router';
 import { useMemo, useState } from 'react';
 import { View } from 'react-native';
-import { Button, Dialog, IconButton, Switch, Text, TextInput } from 'react-native-paper';
+import { Button, Dialog, IconButton, Switch, Text } from 'react-native-paper';
+import { TextInput } from '@/components/Field';
 
 import { ISO_RE, iso, isoToday, ModeSplit, PaymentRow, useFeeGate } from '@/components/fees/staff/common';
 import { EmptyState, ErrorState, FadeIn, FilterChips, Hero, LoadingCards, Panel, Screen, SectionTitle, TopLayer } from '@/components/ui';
 import { api } from '@/lib/api';
 import { fmtDate, inr, MODE_ICON, MODE_LABEL } from '@/lib/fees';
 import { useToast } from '@/lib/feedback';
-import { fieldOutline, space, useAppTheme } from '@/lib/theme';
+import { space, useAppTheme } from '@/lib/theme';
 import type { FeePayment, PaymentReport, PayMode } from '@/lib/types';
 import { useLoad } from '@/lib/useLoad';
 
@@ -103,8 +104,8 @@ function Report({ canEdit }: { canEdit: boolean }) {
       ]} />
       {range === 'custom' ? (
         <View style={{ flexDirection: 'row', gap: space.sm, marginBottom: space.md }}>
-          <TextInput mode="outlined" outlineStyle={fieldOutline} dense label="From (YYYY-MM-DD)" value={from} onChangeText={setFrom} style={{ flex: 1 }} error={!ISO_RE.test(from)} />
-          <TextInput mode="outlined" outlineStyle={fieldOutline} dense label="To" value={to} onChangeText={setTo} style={{ flex: 1 }} error={!ISO_RE.test(to) || from > to} />
+          <TextInput mode="outlined" dense label="From (YYYY-MM-DD)" value={from} onChangeText={setFrom} style={{ flex: 1 }} error={!ISO_RE.test(from)} />
+          <TextInput mode="outlined" dense label="To" value={to} onChangeText={setTo} style={{ flex: 1 }} error={!ISO_RE.test(to) || from > to} />
         </View>
       ) : null}
       <FilterChips value={mode} onChange={setMode} options={[{ label: 'All modes', value: '' as const },
@@ -146,7 +147,7 @@ function Report({ canEdit }: { canEdit: boolean }) {
             <Text variant="bodyMedium" style={{ marginBottom: space.md }}>
               {cancel ? `${inr(cancel.amount)} from ${cancel.student_name} goes back to their dues. The receipt number stays in records as cancelled.` : ''}
             </Text>
-            <TextInput mode="outlined" outlineStyle={fieldOutline} label="Reason" value={reason} onChangeText={setReason} />
+            <TextInput mode="outlined" label="Reason" value={reason} onChangeText={setReason} />
           </Dialog.Content>
           <Dialog.Actions>
             <Button onPress={() => setCancel(null)}>Keep</Button>

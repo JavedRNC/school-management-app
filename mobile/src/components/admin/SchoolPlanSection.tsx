@@ -1,11 +1,12 @@
 import { useEffect, useState } from 'react';
 import { View } from 'react-native';
-import { Button, SegmentedButtons, Switch, Text, TextInput } from 'react-native-paper';
+import { Button, SegmentedButtons, Switch, Text } from 'react-native-paper';
+import { TextInput } from '@/components/Field';
 
 import { FadeIn, FilterChips, Panel, ToneChip } from '@/components/ui';
 import { api } from '@/lib/api';
 import { haptic, useToast } from '@/lib/feedback';
-import { fieldOutline, space, useAppTheme } from '@/lib/theme';
+import { space, useAppTheme } from '@/lib/theme';
 import type { AdminSchoolDetail, Plan } from '@/lib/types';
 import { useLoad } from '@/lib/useLoad';
 
@@ -133,9 +134,9 @@ export function SchoolPlanSection({ d, onSaved }: { d: AdminSchoolDetail; onSave
           </View>
           {customPrice ? (
             <View style={{ flexDirection: 'row', gap: space.sm, marginBottom: space.md }}>
-              <TextInput mode="outlined" outlineStyle={fieldOutline} label="₹ / student / month" value={price} onChangeText={(v) => setPrice(v.replace(/[^0-9.]/g, ''))}
+              <TextInput mode="outlined" label="₹ / student / month" value={price} onChangeText={(v) => setPrice(v.replace(/[^0-9.]/g, ''))}
                 keyboardType="decimal-pad" style={{ flex: 1 }} />
-              <TextInput mode="outlined" outlineStyle={fieldOutline} label="Minimum ₹ / month" value={min} onChangeText={(v) => setMin(v.replace(/[^0-9.]/g, ''))}
+              <TextInput mode="outlined" label="Minimum ₹ / month" value={min} onChangeText={(v) => setMin(v.replace(/[^0-9.]/g, ''))}
                 keyboardType="decimal-pad" style={{ flex: 1 }} />
             </View>
           ) : (
@@ -143,7 +144,7 @@ export function SchoolPlanSection({ d, onSaved }: { d: AdminSchoolDetail; onSave
               Using plan price{selectedPlan ? `: ${rupees(selectedPlan.price_per_student)}/student, minimum ${rupees(selectedPlan.min_monthly)}` : ''}.
             </Text>
           )}
-          <TextInput mode="outlined" outlineStyle={fieldOutline} label="Discount %" value={discount} onChangeText={(v) => setDiscount(v.replace(/[^0-9.]/g, ''))}
+          <TextInput mode="outlined" label="Discount %" value={discount} onChangeText={(v) => setDiscount(v.replace(/[^0-9.]/g, ''))}
             keyboardType="decimal-pad" error={!discountOk} style={{ marginBottom: space.md }} />
           <Text variant="labelLarge" style={{ color: t.colors.onSurfaceVariant, marginBottom: 6 }}>Billing cycle</Text>
           <SegmentedButtons value={cycle} onValueChange={(v) => setCycle(v as 'monthly' | 'yearly')}
@@ -164,8 +165,8 @@ export function SchoolPlanSection({ d, onSaved }: { d: AdminSchoolDetail; onSave
           <DateField label="Trial until" value={trialUntil} onChange={setTrialUntil} />
           <DateField label="Paid until" value={validUntil} onChange={setValidUntil} />
           <View style={{ flexDirection: 'row', gap: space.sm }}>
-            <TextInput mode="outlined" outlineStyle={fieldOutline} label="Grace days" value={grace} onChangeText={(v) => setGrace(v.replace(/\D/g, ''))} keyboardType="number-pad" style={{ flex: 1 }} />
-            <TextInput mode="outlined" outlineStyle={fieldOutline} label="Max students (empty = no limit)" value={maxStudents} onChangeText={(v) => setMaxStudents(v.replace(/\D/g, ''))}
+            <TextInput mode="outlined" label="Grace days" value={grace} onChangeText={(v) => setGrace(v.replace(/\D/g, ''))} keyboardType="number-pad" style={{ flex: 1 }} />
+            <TextInput mode="outlined" label="Max students (empty = no limit)" value={maxStudents} onChangeText={(v) => setMaxStudents(v.replace(/\D/g, ''))}
               keyboardType="number-pad" style={{ flex: 2 }} />
           </View>
           <View style={{ flexDirection: 'row', gap: 6, marginTop: space.md, flexWrap: 'wrap' }}>

@@ -1,12 +1,13 @@
 import { useState } from 'react';
 import { View } from 'react-native';
-import { Button, SegmentedButtons, Text, TextInput } from 'react-native-paper';
+import { Button, SegmentedButtons, Text } from 'react-native-paper';
+import { TextInput } from '@/components/Field';
 
 import { EmptyState, ErrorState, FadeIn, FilterChips, LoadingCards, Panel, Row, Sheet, StatTile, ToneChip, UserAvatar } from '@/components/ui';
 import { api } from '@/lib/api';
 import { ROLE_LABEL, useAuth, useCan } from '@/lib/auth';
 import { useToast } from '@/lib/feedback';
-import { fieldOutline, space, useAppTheme } from '@/lib/theme';
+import { space, useAppTheme } from '@/lib/theme';
 import type { StaffDayBoard } from '@/lib/types';
 import { useLoad } from '@/lib/useLoad';
 
@@ -98,7 +99,7 @@ function ManualSheet({ row, day, onDismiss, onSaved }: { row: Row_ | null; day: 
     <Sheet visible={!!row} onDismiss={onDismiss} title={row ? `Correct · ${row.name}` : ''}>
       <SegmentedButtons value={present} onValueChange={(v) => setPresent(v as 'yes' | 'no')} style={{ marginBottom: space.md }}
         buttons={[{ value: 'yes', label: 'Mark present', icon: 'check' }, { value: 'no', label: 'Mark absent', icon: 'close' }]} />
-      <TextInput mode="outlined" outlineStyle={fieldOutline} label="Note (e.g. phone problem)" value={note} onChangeText={setNote} style={{ marginBottom: space.md }} />
+      <TextInput mode="outlined" label="Note (e.g. phone problem)" value={note} onChangeText={setNote} style={{ marginBottom: space.md }} />
       <Button mode="contained" icon="content-save-outline" onPress={save} loading={busy} contentStyle={{ paddingVertical: 6 }}>Save</Button>
     </Sheet>
   );

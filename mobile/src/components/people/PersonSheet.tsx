@@ -1,12 +1,13 @@
 import { useEffect, useState } from 'react';
 import { View } from 'react-native';
-import { Button, Dialog, HelperText, Text, TextInput } from 'react-native-paper';
+import { Button, Dialog, HelperText, Text } from 'react-native-paper';
+import { TextInput } from '@/components/Field';
 
 import { FilterChips, Sheet, ToneChip, UserAvatar, TopLayer } from '@/components/ui';
 import { api } from '@/lib/api';
 import { ROLE_LABEL, useAuth } from '@/lib/auth';
 import { haptic, useToast } from '@/lib/feedback';
-import { fieldOutline, space, useAppTheme } from '@/lib/theme';
+import { space, useAppTheme } from '@/lib/theme';
 import type { Area, Level, SchoolClass, User } from '@/lib/types';
 
 import { ChildrenPicker } from './ChildrenPicker';
@@ -147,10 +148,10 @@ export function PersonSheet({
           </Text>
         ) : null}
 
-        <TextInput mode="outlined" outlineStyle={fieldOutline} label="Full name" value={name} onChangeText={setName} disabled={readOnly}
+        <TextInput mode="outlined" label="Full name" value={name} onChangeText={setName} disabled={readOnly}
           left={<TextInput.Icon icon="account-outline" />} error={touched && !name.trim()} />
         <HelperText type="error" visible={touched && !name.trim()}>Name is required</HelperText>
-        <TextInput mode="outlined" outlineStyle={fieldOutline} label={hint.label} placeholder={hint.placeholder} value={loginId} disabled={readOnly}
+        <TextInput mode="outlined" label={hint.label} placeholder={hint.placeholder} value={loginId} disabled={readOnly}
           onChangeText={(v) => { const x = hint.numeric ? v.replace(/\D/g, '') : v; setLoginId(x); if (role === 'parent' && adding) setPhone(x); }}
           keyboardType={hint.numeric ? 'phone-pad' : 'default'} autoCapitalize="none" autoCorrect={false}
           left={<TextInput.Icon icon="card-account-details-outline" />} error={touched && !loginId.trim()} />
@@ -161,21 +162,21 @@ export function PersonSheet({
         {role === 'student' ? (
           <>
             <FilterChips label="Class" options={classes.map((c) => ({ label: c.name, value: c.id }))} value={classId} onChange={readOnly ? () => {} : setClassId} />
-            <TextInput mode="outlined" outlineStyle={fieldOutline} label="Roll no." value={roll} onChangeText={(v) => setRoll(v.replace(/\D/g, ''))} keyboardType="number-pad"
+            <TextInput mode="outlined" label="Roll no." value={roll} onChangeText={(v) => setRoll(v.replace(/\D/g, ''))} keyboardType="number-pad"
               disabled={readOnly} left={<TextInput.Icon icon="pound" />} style={{ marginBottom: space.md }} />
           </>
         ) : null}
 
-        <TextInput mode="outlined" outlineStyle={fieldOutline} label="Mobile number" value={phone} onChangeText={(v) => setPhone(v.replace(/[^\d+ ]/g, ''))} keyboardType="phone-pad"
+        <TextInput mode="outlined" label="Mobile number" value={phone} onChangeText={(v) => setPhone(v.replace(/[^\d+ ]/g, ''))} keyboardType="phone-pad"
           disabled={readOnly} left={<TextInput.Icon icon="phone-outline" />} style={{ marginBottom: space.md }} />
-        <TextInput mode="outlined" outlineStyle={fieldOutline} label="Email (optional)" value={email} onChangeText={setEmail} autoCapitalize="none" keyboardType="email-address"
+        <TextInput mode="outlined" label="Email (optional)" value={email} onChangeText={setEmail} autoCapitalize="none" keyboardType="email-address"
           disabled={readOnly} left={<TextInput.Icon icon="email-outline" />} error={!emailOk(email)} />
         <HelperText type="error" visible={!emailOk(email)}>Enter a valid email or leave empty</HelperText>
-        <TextInput mode="outlined" outlineStyle={fieldOutline} label="Address" value={address} onChangeText={setAddress} multiline disabled={readOnly}
+        <TextInput mode="outlined" label="Address" value={address} onChangeText={setAddress} multiline disabled={readOnly}
           left={<TextInput.Icon icon="map-marker-outline" />} style={{ marginBottom: space.md }} />
         {role === 'student' || role === 'teacher' ? (
           <>
-            <TextInput mode="outlined" outlineStyle={fieldOutline} label="Date of birth (YYYY-MM-DD)" value={dob} onChangeText={setDob} disabled={readOnly}
+            <TextInput mode="outlined" label="Date of birth (YYYY-MM-DD)" value={dob} onChangeText={setDob} disabled={readOnly}
               left={<TextInput.Icon icon="cake-variant-outline" />} error={!isDate(dob)} placeholder="2012-05-14" />
             <HelperText type="error" visible={!isDate(dob)}>Use the format YYYY-MM-DD</HelperText>
             <FilterChips label="Blood group" options={BLOOD.map((b) => ({ label: b, value: b }))} value={blood}
@@ -216,7 +217,7 @@ export function PersonSheet({
         {!readOnly ? (
           adding || resetting ? (
             <View style={{ marginBottom: space.sm }}>
-              <TextInput mode="outlined" outlineStyle={fieldOutline} label={adding ? 'Temporary password' : 'New temporary password'} value={password} onChangeText={setPassword}
+              <TextInput mode="outlined" label={adding ? 'Temporary password' : 'New temporary password'} value={password} onChangeText={setPassword}
                 autoCapitalize="none" autoCorrect={false} left={<TextInput.Icon icon="key-outline" />} error={touched && pwErr}
                 style={{ fontFamily: 'monospace' }}
                 right={<TextInput.Icon icon="dice-multiple-outline" onPress={() => { haptic.tap(); setPassword(genPassword()); }} />} />

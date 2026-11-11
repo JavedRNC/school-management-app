@@ -1,12 +1,13 @@
 import { router } from 'expo-router';
 import { useState } from 'react';
 import { View } from 'react-native';
-import { Button, Dialog, Text, TextInput } from 'react-native-paper';
+import { Button, Dialog, Text } from 'react-native-paper';
+import { TextInput } from '@/components/Field';
 
 import { api, getBaseUrl } from '@/lib/api';
 import { ROLE_LABEL, useAuth, useCan } from '@/lib/auth';
 import { haptic, useToast } from '@/lib/feedback';
-import { fieldOutline, space, Tone, useAppTheme } from '@/lib/theme';
+import { space, Tone, useAppTheme } from '@/lib/theme';
 import type { User } from '@/lib/types';
 
 import { useOps } from './OpsGrid';
@@ -130,8 +131,8 @@ export function ProfileView({ extra }: { extra?: string }) {
       <Text variant="labelSmall" style={{ textAlign: 'center', color: t.colors.outline, marginTop: space.lg }}>School Hub v0.5</Text>
 
       <Sheet visible={pwOpen} onDismiss={() => setPwOpen(false)} title="Change password">
-        <TextInput mode="outlined" outlineStyle={fieldOutline} label="Current password" value={oldPw} onChangeText={setOld} secureTextEntry={!show} style={{ marginBottom: space.md }} />
-        <TextInput mode="outlined" outlineStyle={fieldOutline} label="New password" value={newPw} onChangeText={setNew} secureTextEntry={!show}
+        <TextInput mode="outlined" label="Current password" value={oldPw} onChangeText={setOld} secureTextEntry={!show} style={{ marginBottom: space.md }} />
+        <TextInput mode="outlined" label="New password" value={newPw} onChangeText={setNew} secureTextEntry={!show}
           right={<TextInput.Icon icon={show ? 'eye-off' : 'eye'} onPress={() => setShow((s) => !s)} />} />
         <Text variant="bodySmall" style={{ color: t.colors.onSurfaceVariant, marginVertical: space.sm }}>At least 6 characters, not the same as your login ID.</Text>
         <Button mode="contained" onPress={change} loading={busy} contentStyle={{ paddingVertical: 6 }}>Update password</Button>

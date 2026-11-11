@@ -1,10 +1,11 @@
 import { useEffect, useState } from 'react';
 import { View } from 'react-native';
-import { Button, HelperText, IconButton, Text, TextInput } from 'react-native-paper';
+import { Button, HelperText, IconButton, Text } from 'react-native-paper';
+import { TextInput } from '@/components/Field';
 
 import { api } from '@/lib/api';
 import { haptic, useToast } from '@/lib/feedback';
-import { fieldOutline, radius, space, useAppTheme } from '@/lib/theme';
+import { radius, space, useAppTheme } from '@/lib/theme';
 import type { TransportRoute, Vehicle } from '@/lib/types';
 
 import { FilterChips, Sheet } from '../ui';
@@ -75,7 +76,7 @@ export function RouteSheet({ visible, route, vehicles, onDismiss, onSaved }: {
 
   return (
     <Sheet visible={visible} onDismiss={onDismiss} title={route ? 'Edit route' : 'New route'}>
-      <TextInput mode="outlined" outlineStyle={fieldOutline} label="Route name" value={name} onChangeText={setName} placeholder="Route 3 · Bariatu – Lalpur"
+      <TextInput mode="outlined" label="Route name" value={name} onChangeText={setName} placeholder="Route 3 · Bariatu – Lalpur"
         left={<TextInput.Icon icon="map-marker-path" />} />
       <HelperText type="error" visible={!name.trim()}>Name is required</HelperText>
       <FilterChips label="Vehicle" value={vehicleId} onChange={setVehicleId}
@@ -98,9 +99,9 @@ export function RouteSheet({ visible, route, vehicles, onDismiss, onSaved }: {
               onPress={() => { haptic.tap(); setStops((ss) => ss.filter((_, j) => j !== i)); }} style={{ margin: 0 }} />
           </View>
           <View style={{ flexDirection: 'row', gap: space.sm, marginTop: 4 }}>
-            <TextInput mode="outlined" outlineStyle={fieldOutline} dense label="Pickup" value={s.pickup_time} placeholder="07:10" keyboardType="number-pad"
+            <TextInput mode="outlined" dense label="Pickup" value={s.pickup_time} placeholder="07:10" keyboardType="number-pad"
               onChangeText={(v) => patch(i, { pickup_time: fmtTime(v) })} error={!timeOk(s.pickup_time)} style={{ flex: 1 }} />
-            <TextInput mode="outlined" outlineStyle={fieldOutline} dense label="Drop" value={s.drop_time} placeholder="14:20" keyboardType="number-pad"
+            <TextInput mode="outlined" dense label="Drop" value={s.drop_time} placeholder="14:20" keyboardType="number-pad"
               onChangeText={(v) => patch(i, { drop_time: fmtTime(v) })} error={!timeOk(s.drop_time)} style={{ flex: 1 }} />
           </View>
         </View>

@@ -41,7 +41,7 @@ export function ChildrenPicker({ students, classes, value, onChange, disabled }:
       </View>
       {!disabled ? (
         <>
-          <Searchbar placeholder="Search student by name or admission no." value={q} onChangeText={setQ} style={{ borderRadius: 16 }} inputStyle={{ fontSize: 14 }} />
+          <Searchbar placeholder="Search student by name or admission no." value={q} onChangeText={setQ} style={{ borderRadius: 16, backgroundColor: t.custom.inset }} elevation={0} inputStyle={{ fontSize: 14 }} />
           {matches.length ? (
             <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 6, marginTop: space.sm }}>
               {matches.map((s) => (

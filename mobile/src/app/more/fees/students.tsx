@@ -84,7 +84,8 @@ function List() {
       ) : list.map((r, i) => (
         <FadeIn key={r.id} index={Math.min(i, 8)}>
           <PressScale onPress={() => router.push(`/more/fees/student/${r.id}` as never)}>
-            <Panel style={{ marginBottom: space.sm, borderLeftWidth: 4, borderLeftColor: statusColor(t, r.status) }}>
+            <Panel style={{ marginBottom: space.sm }}>
+              <View style={{ position: 'absolute', left: 0, top: 16, bottom: 16, width: 4, backgroundColor: statusColor(t, r.status), borderTopRightRadius: 4, borderBottomRightRadius: 4 }} />
               <View style={{ flexDirection: 'row', alignItems: 'center', gap: space.md }}>
                 <UserAvatar name={r.name} size={42} />
                 <View style={{ flex: 1 }}>

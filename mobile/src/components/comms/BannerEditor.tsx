@@ -1,11 +1,12 @@
 import { useEffect, useState } from 'react';
 import { Pressable, View } from 'react-native';
-import { Button, HelperText, Switch, Text, TextInput } from 'react-native-paper';
+import { Button, HelperText, Switch, Text } from 'react-native-paper';
+import { TextInput } from '@/components/Field';
 
 import { FilterChips, Icon, Sheet } from '@/components/ui';
 import { api } from '@/lib/api';
 import { haptic } from '@/lib/feedback';
-import { fieldOutline, radius, space, useAppTheme } from '@/lib/theme';
+import { radius, space, useAppTheme } from '@/lib/theme';
 import type { Banner, BannerColor, SchoolClass } from '@/lib/types';
 
 import { BannerCard } from './BannerCard';
@@ -82,9 +83,9 @@ export function BannerEditor({ visible, onDismiss, initial, allowImages, showCla
     <Sheet visible={visible} onDismiss={onDismiss} title={initial ? 'Edit banner' : 'New banner'}>
       <BannerCard banner={{ title: title.trim(), text: text.trim(), image_url: allowImages ? image.trim() : '', color }} height={140}
         style={{ marginBottom: space.md }} />
-      <TextInput mode="outlined" outlineStyle={fieldOutline} label="Title" value={title} onChangeText={setTitle} maxLength={120} error={touched && !title.trim()} />
+      <TextInput mode="outlined" label="Title" value={title} onChangeText={setTitle} maxLength={120} error={touched && !title.trim()} />
       <HelperText type="error" visible={touched && !title.trim()}>Title is required</HelperText>
-      <TextInput mode="outlined" outlineStyle={fieldOutline} label="Message (optional)" value={text} onChangeText={setText} multiline maxLength={600}
+      <TextInput mode="outlined" label="Message (optional)" value={text} onChangeText={setText} multiline maxLength={600}
         style={{ minHeight: 80, marginBottom: space.md }} />
 
       <Text variant="labelLarge" style={{ color: t.colors.onSurfaceVariant, marginBottom: 6 }}>Colour</Text>
@@ -104,7 +105,7 @@ export function BannerEditor({ visible, onDismiss, initial, allowImages, showCla
 
       {allowImages ? (
         <>
-          <TextInput mode="outlined" outlineStyle={fieldOutline} label="Image link (optional)" value={image} onChangeText={setImage} autoCapitalize="none" autoCorrect={false}
+          <TextInput mode="outlined" label="Image link (optional)" value={image} onChangeText={setImage} autoCapitalize="none" autoCorrect={false}
             placeholder="https://…" left={<TextInput.Icon icon="image-outline" />} error={imageBad} />
           <HelperText type={imageBad ? 'error' : 'info'} visible>
             {imageBad ? 'Link must start with https://' : 'Paste an https image link. Photo upload will come once image storage is connected.'}
@@ -140,8 +141,8 @@ export function BannerEditor({ visible, onDismiss, initial, allowImages, showCla
       ) : null}
 
       <View style={{ flexDirection: 'row', gap: space.sm }}>
-        <TextInput mode="outlined" outlineStyle={fieldOutline} label="Show from" value={start} onChangeText={setStart} placeholder="YYYY-MM-DD" style={{ flex: 1 }} error={startBad} />
-        <TextInput mode="outlined" outlineStyle={fieldOutline} label="Until" value={end} onChangeText={setEnd} placeholder="YYYY-MM-DD" style={{ flex: 1 }} error={endBad} />
+        <TextInput mode="outlined" label="Show from" value={start} onChangeText={setStart} placeholder="YYYY-MM-DD" style={{ flex: 1 }} error={startBad} />
+        <TextInput mode="outlined" label="Until" value={end} onChangeText={setEnd} placeholder="YYYY-MM-DD" style={{ flex: 1 }} error={endBad} />
       </View>
       <HelperText type={startBad || endBad ? 'error' : 'info'} visible>
         {startBad || endBad ? 'Use YYYY-MM-DD; "Until" can’t be before "Show from"' : 'Leave empty to show right away / with no end date'}
@@ -160,7 +161,7 @@ export function BannerEditor({ visible, onDismiss, initial, allowImages, showCla
         </View>
         <Switch value={popup} onValueChange={setPopup} />
       </View>
-      <TextInput mode="outlined" outlineStyle={fieldOutline} label="Order (lower shows first)" value={sort} onChangeText={(v) => setSort(v.replace(/[^0-9]/g, ''))}
+      <TextInput mode="outlined" label="Order (lower shows first)" value={sort} onChangeText={(v) => setSort(v.replace(/[^0-9]/g, ''))}
         keyboardType="number-pad" style={{ marginBottom: space.md }} />
       <Button mode="contained" icon="check" onPress={save} loading={busy} disabled={busy} contentStyle={{ paddingVertical: 6 }}>
         {initial ? 'Save changes' : 'Publish banner'}

@@ -1,12 +1,13 @@
 import { useEffect, useRef, useState } from 'react';
 import { Animated, Easing, View } from 'react-native';
-import { Button, HelperText, SegmentedButtons, Switch, Text, TextInput } from 'react-native-paper';
+import { Button, HelperText, SegmentedButtons, Switch, Text } from 'react-native-paper';
+import { TextInput } from '@/components/Field';
 
 import { FilterChips, Icon, Sheet } from '@/components/ui';
 import { api } from '@/lib/api';
 import { useAuth } from '@/lib/auth';
 import { haptic, useToast } from '@/lib/feedback';
-import { fieldOutline, radius, space, useAppTheme } from '@/lib/theme';
+import { radius, space, useAppTheme } from '@/lib/theme';
 import type { LeaveRequest, User } from '@/lib/types';
 
 import { addDays, daysLabel, estimateDays, isISO, STAFF_TYPES, STUDENT_TYPES, TYPE_ICON, TYPE_LABEL } from './common';
@@ -93,13 +94,13 @@ export function ApplyLeaveSheet({ visible, onDismiss, child, onDone }: {
         style={{ marginBottom: space.md }}
         buttons={[{ value: 'single', label: 'One day', icon: 'calendar-today' }, { value: 'range', label: 'Several days', icon: 'calendar-range' }]} />
       <FilterChips label={mode === 'single' ? 'Date' : 'From'} value={start} onChange={(v) => { setStart(v); if (end < v) setEnd(v); }} options={quick} />
-      <TextInput mode="outlined" outlineStyle={fieldOutline} label={mode === 'single' ? 'Date (YYYY-MM-DD)' : 'From (YYYY-MM-DD)'} value={start} onChangeText={setStart}
+      <TextInput mode="outlined" label={mode === 'single' ? 'Date (YYYY-MM-DD)' : 'From (YYYY-MM-DD)'} value={start} onChangeText={setStart}
         left={<TextInput.Icon icon="calendar" />} error={!isISO(start)} style={{ marginBottom: space.md }} />
       {mode === 'range' ? (
         <>
           <FilterChips label="To" value={end} onChange={setEnd}
             options={[1, 2, 3, 5, 7].map((n) => ({ label: `${n + 1} days`, value: addDays(new Date(start + 'T00:00:00'), n) })).filter((o) => isISO(start))} />
-          <TextInput mode="outlined" outlineStyle={fieldOutline} label="To (YYYY-MM-DD)" value={end} onChangeText={setEnd} left={<TextInput.Icon icon="calendar-end" />}
+          <TextInput mode="outlined" label="To (YYYY-MM-DD)" value={end} onChangeText={setEnd} left={<TextInput.Icon icon="calendar-end" />}
             error={!isISO(end) || end < start} style={{ marginBottom: space.md }} />
         </>
       ) : (
@@ -118,7 +119,7 @@ export function ApplyLeaveSheet({ visible, onDismiss, child, onDone }: {
           {validDates ? `${daysLabel(days)} of school${days === 0 ? ' — these are off days' : ''}` : 'Check the dates'}
         </Text>
       </View>
-      <TextInput mode="outlined" outlineStyle={fieldOutline} label="Reason" value={reason} onChangeText={setReason} multiline numberOfLines={3} style={{ minHeight: 84 }}
+      <TextInput mode="outlined" label="Reason" value={reason} onChangeText={setReason} multiline numberOfLines={3} style={{ minHeight: 84 }}
         placeholder={isParent ? 'e.g. Fever, doctor advised rest' : 'e.g. Family function'} />
       <HelperText type="error" visible={!!error}>{error}</HelperText>
       <Button mode="contained" icon="send" onPress={submit} loading={busy} disabled={!validDates || busy || readOnly}

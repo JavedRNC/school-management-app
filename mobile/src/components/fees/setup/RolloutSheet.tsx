@@ -1,12 +1,13 @@
 import { useEffect, useMemo, useState } from 'react';
 import { View } from 'react-native';
-import { Button, Checkbox, Chip, HelperText, ProgressBar, Searchbar, SegmentedButtons, Text, TextInput } from 'react-native-paper';
+import { Button, Checkbox, Chip, HelperText, ProgressBar, Searchbar, SegmentedButtons, Text } from 'react-native-paper';
+import { TextInput } from '@/components/Field';
 
 import { Icon, Sheet, ToneChip } from '@/components/ui';
 import { api } from '@/lib/api';
 import { haptic, useToast } from '@/lib/feedback';
 import { fmtDate, inr } from '@/lib/fees';
-import { fieldOutline, radius, space, useAppTheme } from '@/lib/theme';
+import { radius, space, useAppTheme } from '@/lib/theme';
 import type { BatchPreview, FeeBatch, FeeConfig, FeeStudentRow } from '@/lib/types';
 
 import { DATE_RE, isoIn, KV, MoneyInput, parseAmount } from './common';
@@ -117,7 +118,7 @@ export function RolloutSheet({ visible, onDismiss, onDone, classes }: {
 
       {step === 0 ? (
         <View>
-          <TextInput mode="outlined" outlineStyle={fieldOutline} label="Fee name" value={title} onChangeText={setTitle} maxLength={120} />
+          <TextInput mode="outlined" label="Fee name" value={title} onChangeText={setTitle} maxLength={120} />
           <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 6, marginVertical: space.sm }}>
             {SUGGEST.map((s) => (
               <Chip key={s} compact selected={title === s} onPress={() => { haptic.tap(); setTitle(s); }}>{s}</Chip>
@@ -125,13 +126,13 @@ export function RolloutSheet({ visible, onDismiss, onDone, classes }: {
           </View>
           <View style={{ flexDirection: 'row', gap: space.sm }}>
             <MoneyInput label="Amount per student" value={amount} onChange={setAmount} style={{ flex: 1 }} />
-            <TextInput mode="outlined" outlineStyle={fieldOutline} label="Due date" value={due} onChangeText={setDue} placeholder="YYYY-MM-DD" error={!dueOk} style={{ flex: 1 }} />
+            <TextInput mode="outlined" label="Due date" value={due} onChangeText={setDue} placeholder="YYYY-MM-DD" error={!dueOk} style={{ flex: 1 }} />
           </View>
           <HelperText type={dueOk ? 'info' : 'error'}>{dueOk ? (due ? `Due ${fmtDate(due)}` : 'No due date — never overdue') : 'Use YYYY-MM-DD'}</HelperText>
           <View style={{ flexDirection: 'row', gap: 6, marginBottom: space.sm }}>
             {[7, 14, 30].map((d) => <Chip key={d} compact onPress={() => { haptic.tap(); setDue(isoIn(d)); }}>In {d} days</Chip>)}
           </View>
-          <TextInput mode="outlined" outlineStyle={fieldOutline} label="Note for parents (optional)" value={note} onChangeText={setNote} multiline maxLength={500} />
+          <TextInput mode="outlined" label="Note for parents (optional)" value={note} onChangeText={setNote} multiline maxLength={500} />
           <Button mode="contained" icon="arrow-right" onPress={() => { haptic.tap(); setStep(1); }} disabled={!step0Ok} style={{ marginTop: space.lg }}
             contentStyle={{ paddingVertical: 6, flexDirection: 'row-reverse' }}>Next: who pays</Button>
         </View>
@@ -168,7 +169,7 @@ export function RolloutSheet({ visible, onDismiss, onDone, classes }: {
               <Text variant="labelLarge" style={{ color: t.colors.onSurfaceVariant, marginBottom: 6 }}>
                 {target === 'students' ? `Pick students · ${studentIds.length} selected` : 'Tick students who should NOT pay'}
               </Text>
-              <Searchbar placeholder="Search name, admission no. or class" value={q} onChangeText={setQ} style={{ marginBottom: space.sm }} />
+              <Searchbar placeholder="Search name, admission no. or class" value={q} onChangeText={setQ} style={{ marginBottom: space.sm, backgroundColor: t.custom.inset }} elevation={0} />
               {!students ? <Text style={{ color: t.colors.onSurfaceVariant, padding: space.md }}>Loading students…</Text> : (
                 <View style={{ borderRadius: radius.lg, backgroundColor: t.colors.surface, overflow: 'hidden' }}>
                   {listed.map((s) => {

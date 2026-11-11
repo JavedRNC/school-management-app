@@ -126,8 +126,6 @@ export function useSchemeTheme(): AppTheme {
 
 export const space = { xs: 4, sm: 8, md: 12, lg: 16, xl: 24, xxl: 32 };
 export const radius = { sm: 8, md: 12, lg: 16, xl: 20, xxl: 28, pill: 999 };
-/** Outline shape for every outlined text field (Paper's default 4dp corners look dated next to 20dp cards). */
-export const fieldOutline = { borderRadius: 12 };
 /** Minimum touch target (dp). */
 export const HIT = 44;
 

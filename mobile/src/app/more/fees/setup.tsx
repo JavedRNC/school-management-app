@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { View } from 'react-native';
-import { Button, Chip, Divider, HelperText, IconButton, Switch, Text, TextInput } from 'react-native-paper';
+import { Button, Chip, Divider, HelperText, IconButton, Switch, Text } from 'react-native-paper';
+import { TextInput } from '@/components/Field';
 
 import { amountText, Bar, academicYear, Glow, KV, MoneyInput, MonthStepper, parseAmount, UPI_RE } from '@/components/fees/setup/common';
 import { StatusBanner } from '@/components/StatusBanner';
@@ -9,7 +10,7 @@ import { api } from '@/lib/api';
 import { useAuth, useCan, useModule } from '@/lib/auth';
 import { haptic, useToast } from '@/lib/feedback';
 import { fmtDate, inr, monthLabel, shiftMonth } from '@/lib/fees';
-import { fieldOutline, radius, space, useAppTheme } from '@/lib/theme';
+import { radius, space, useAppTheme } from '@/lib/theme';
 import type { FeeConfig, GenerateResult } from '@/lib/types';
 import { useLoad } from '@/lib/useLoad';
 
@@ -257,13 +258,13 @@ function Setup() {
         {/* 4 · UPI */}
         <FadeIn index={3}>
           <Panel title="UPI payments" subtitle="Parents pay from any UPI app; you confirm the UTR" icon="qrcode-scan">
-            <TextInput mode="outlined" outlineStyle={fieldOutline} label="School UPI ID" value={upiId} onChangeText={(s) => setUpiId(s.replace(/\s/g, ''))} editable={canEdit}
+            <TextInput mode="outlined" label="School UPI ID" value={upiId} onChangeText={(s) => setUpiId(s.replace(/\s/g, ''))} editable={canEdit}
               autoCapitalize="none" placeholder="schoolname@sbi" error={!upiOk}
               right={upiId && upiOk ? <TextInput.Icon icon="check-circle" color={t.custom.success} /> : undefined} />
             <HelperText type={upiOk ? 'info' : 'error'}>
               {upiOk ? (upiId ? 'Looks good' : 'Leave empty to turn off UPI payments for parents') : 'Should look like name@bank — e.g. greenvalley@sbi'}
             </HelperText>
-            <TextInput mode="outlined" outlineStyle={fieldOutline} label="Payee name (shown in UPI app)" value={upiName} onChangeText={setUpiName} editable={canEdit} />
+            <TextInput mode="outlined" label="Payee name (shown in UPI app)" value={upiName} onChangeText={setUpiName} editable={canEdit} />
             {upiId && upiOk ? (
               <View style={{ marginTop: space.md, borderRadius: radius.lg, padding: space.md, backgroundColor: t.colors.surfaceVariant, gap: 4 }}>
                 <Text variant="labelMedium" style={{ color: t.colors.onSurfaceVariant }}>Parents will see</Text>
@@ -284,14 +285,14 @@ function Setup() {
         {/* 5 · receipts */}
         <FadeIn index={4}>
           <Panel title="Receipts" subtitle="Numbered automatically, restarting every April" icon="receipt-text-outline">
-            <TextInput mode="outlined" outlineStyle={fieldOutline} label="Receipt prefix" value={prefix} editable={canEdit} autoCapitalize="characters" maxLength={20}
+            <TextInput mode="outlined" label="Receipt prefix" value={prefix} editable={canEdit} autoCapitalize="characters" maxLength={20}
               onChangeText={(s) => setPrefix(s.replace(/[^A-Za-z0-9-]/g, '').toUpperCase())} />
             <View style={{ flexDirection: 'row', alignItems: 'center', gap: space.sm, marginVertical: space.sm }}>
               <Icon name="pound" size={16} color={t.colors.onSurfaceVariant} />
               <Text variant="bodyMedium" style={{ color: t.colors.onSurfaceVariant }}>Sample:</Text>
               <Text variant="titleSmall" style={{ fontWeight: '700', color: t.colors.primary, letterSpacing: 0.5 }}>{samplePrefix}/{academicYear()}/0001</Text>
             </View>
-            <TextInput mode="outlined" outlineStyle={fieldOutline} label="Footer note on receipts" value={note} onChangeText={setNote} editable={canEdit} multiline maxLength={500}
+            <TextInput mode="outlined" label="Footer note on receipts" value={note} onChangeText={setNote} editable={canEdit} multiline maxLength={500}
               placeholder="Fees once paid are not refundable." />
           </Panel>
         </FadeIn>

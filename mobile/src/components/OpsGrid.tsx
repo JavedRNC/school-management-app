@@ -3,7 +3,7 @@ import { View } from 'react-native';
 import { Text } from 'react-native-paper';
 
 import { useAuth, useCan, useModule } from '@/lib/auth';
-import { radius, space, useAppTheme } from '@/lib/theme';
+import { cardEdge, shadow, radius, space, useAppTheme } from '@/lib/theme';
 
 import { FadeIn, Icon, IconName, PressScale, SectionTitle } from './ui';
 
@@ -46,10 +46,12 @@ export function OpsGrid({ title = 'Operations' }: { title?: string }) {
       <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: space.sm }}>
         {ops.map((o, i) => (
           <PressScale key={o.key} style={{ width: '31.5%' }} onPress={() => router.push(o.path as never)}>
-            <View style={{ backgroundColor: tones[i % 3], borderRadius: radius.xl, paddingVertical: space.lg, paddingHorizontal: space.sm,
-              alignItems: 'center', gap: 6, minHeight: 92 }}>
-              <Icon name={o.icon} size={26} color={fg[i % 3]} />
-              <Text variant="labelLarge" style={{ color: fg[i % 3], fontWeight: '700', textAlign: 'center' }} numberOfLines={2}>{o.label}</Text>
+            <View style={[{ backgroundColor: t.colors.elevation.level1, borderRadius: radius.lg, paddingVertical: space.md, paddingHorizontal: space.xs,
+              alignItems: 'center', gap: 6, minHeight: 92 }, cardEdge(t), shadow(t, 1)]}>
+              <View style={{ width: 40, height: 40, borderRadius: 13, backgroundColor: tones[i % 3], alignItems: 'center', justifyContent: 'center' }}>
+                <Icon name={o.icon} size={22} color={fg[i % 3]} />
+              </View>
+              <Text variant="labelMedium" style={{ color: t.colors.onSurface, fontWeight: '600', textAlign: 'center' }} numberOfLines={2}>{o.label}</Text>
             </View>
           </PressScale>
         ))}

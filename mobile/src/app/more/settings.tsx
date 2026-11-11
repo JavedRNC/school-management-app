@@ -1,13 +1,14 @@
 import { useEffect, useState } from 'react';
 import { View } from 'react-native';
-import { Button, Chip, HelperText, Text, TextInput } from 'react-native-paper';
+import { Button, Chip, HelperText, Text } from 'react-native-paper';
+import { TextInput } from '@/components/Field';
 
 import { StatusBanner } from '@/components/StatusBanner';
 import { FadeIn, Hero, LoadingCards, Panel, Screen } from '@/components/ui';
 import { api } from '@/lib/api';
 import { useAuth, useCan } from '@/lib/auth';
 import { haptic, useToast } from '@/lib/feedback';
-import { fieldOutline, DAY_NAMES, DAYS, space, useAppTheme } from '@/lib/theme';
+import { DAY_NAMES, DAYS, space, useAppTheme } from '@/lib/theme';
 
 /** School profile + working days (F4). */
 export default function SettingsScreen() {
@@ -84,12 +85,12 @@ export default function SettingsScreen() {
       </FadeIn>
       <FadeIn index={1}>
         <Panel title="School profile" subtitle="Shown on the app, receipts and ID cards" icon="domain">
-          <TextInput mode="outlined" outlineStyle={fieldOutline} label="School name" value={name} onChangeText={setName} editable={canEdit} error={!name.trim()} />
+          <TextInput mode="outlined" label="School name" value={name} onChangeText={setName} editable={canEdit} error={!name.trim()} />
           <HelperText type="error" visible={!name.trim()}>Name is required</HelperText>
-          <TextInput mode="outlined" outlineStyle={fieldOutline} label="Address" value={address} onChangeText={setAddress} editable={canEdit} multiline style={{ marginBottom: space.md }} />
+          <TextInput mode="outlined" label="Address" value={address} onChangeText={setAddress} editable={canEdit} multiline style={{ marginBottom: space.md }} />
           <View style={{ flexDirection: 'row', gap: space.sm, marginBottom: space.md }}>
-            <TextInput mode="outlined" outlineStyle={fieldOutline} label="Phone" value={phone} onChangeText={setPhone} editable={canEdit} keyboardType="phone-pad" style={{ flex: 1 }} />
-            <TextInput mode="outlined" outlineStyle={fieldOutline} label="Board" value={board} onChangeText={setBoard} editable={canEdit} placeholder="CBSE" style={{ flex: 1 }} />
+            <TextInput mode="outlined" label="Phone" value={phone} onChangeText={setPhone} editable={canEdit} keyboardType="phone-pad" style={{ flex: 1 }} />
+            <TextInput mode="outlined" label="Board" value={board} onChangeText={setBoard} editable={canEdit} placeholder="CBSE" style={{ flex: 1 }} />
           </View>
           {canEdit ? (
             <Button mode="contained" icon="content-save-outline" onPress={() => save('profile')} loading={busy === 'profile'} disabled={!profileChanged || !name.trim()}>

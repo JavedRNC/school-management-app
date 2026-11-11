@@ -1,8 +1,9 @@
 import { memo } from 'react';
 import { View } from 'react-native';
-import { Chip, HelperText, IconButton, Text, TextInput } from 'react-native-paper';
+import { Chip, HelperText, IconButton, Text } from 'react-native-paper';
+import { TextInput } from '@/components/Field';
 
-import { fieldOutline, radius, space, useAppTheme } from '@/lib/theme';
+import { radius, space, useAppTheme } from '@/lib/theme';
 import type { SchoolClass } from '@/lib/types';
 
 import type { PersonRole } from './constants';
@@ -77,7 +78,7 @@ export const AddManyRow = memo(function AddManyRow({ index, row, role, classes, 
           const err = errors?.[f.key];
           return (
             <View key={f.key} style={{ width: f.half ? '50%' : '100%', paddingHorizontal: space.xs }}>
-              <TextInput mode="outlined" outlineStyle={fieldOutline} dense label={f.label + (f.required ? ' *' : '')} value={row[f.key] ?? ''} placeholder={f.placeholder}
+              <TextInput mode="outlined" dense label={f.label + (f.required ? ' *' : '')} value={row[f.key] ?? ''} placeholder={f.placeholder}
                 onChangeText={(v) => onChange(row.key, f.key, v)} error={!!err} keyboardType={f.numeric ? 'phone-pad' : 'default'}
                 autoCapitalize={f.key === 'name' || f.key === 'parent_name' ? 'words' : 'none'} />
               {err ? <HelperText type="error" visible style={{ paddingHorizontal: 0 }}>{err}</HelperText> : <View style={{ height: space.xs }} />}

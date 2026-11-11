@@ -1,11 +1,12 @@
 import { router } from 'expo-router';
 import { View } from 'react-native';
-import { Chip, Text, TextInput } from 'react-native-paper';
+import { Chip, Text } from 'react-native-paper';
+import { TextInput } from '@/components/Field';
 
 import { Row, ToneChip } from '@/components/ui';
 import { api } from '@/lib/api';
 import { haptic } from '@/lib/feedback';
-import { fieldOutline, space, Tone, useAppTheme } from '@/lib/theme';
+import { space, Tone, useAppTheme } from '@/lib/theme';
 import type { AdminSchoolRow, SchoolStatus } from '@/lib/types';
 import { useLoad } from '@/lib/useLoad';
 
@@ -54,7 +55,7 @@ export function DateField({ label, value, onChange, quick = true }: { label: str
   const base = value && value > today ? value : today;
   return (
     <View style={{ marginBottom: space.md }}>
-      <TextInput mode="outlined" outlineStyle={fieldOutline} label={`${label} (YYYY-MM-DD)`} value={value} onChangeText={onChange} error={!dateOk(value)}
+      <TextInput mode="outlined" label={`${label} (YYYY-MM-DD)`} value={value} onChangeText={onChange} error={!dateOk(value)}
         left={<TextInput.Icon icon="calendar" />} placeholder="Not set" />
       {quick ? (
         <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 6, marginTop: 6 }}>

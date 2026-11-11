@@ -65,10 +65,10 @@ export function PostList({ posts, canDelete, onDeleted, onEdit, emptyText = 'Not
         const due = p.due_date ? dueInfo(p.due_date) : null;
         return (
           <FadeIn key={p.id} index={i}>
-            <Card mode="elevated" elevation={1} style={{ marginBottom: space.md, borderRadius: radius.xl, backgroundColor: t.colors.elevation.level1 }}
+            <Card mode="elevated" elevation={1} style={{ marginBottom: space.md, borderRadius: radius.xl, backgroundColor: t.colors.elevation.level1, borderWidth: 1, borderColor: t.custom.cardBorder }}
               onPress={long ? () => { haptic.tap(); LayoutAnimation.easeInEaseOut(); setOpen(expanded ? null : p.id); } : undefined}>
               <View style={{ flexDirection: 'row' }}>
-                <View style={{ width: 5, backgroundColor: hw ? t.custom.amber : t.colors.primary, borderTopLeftRadius: radius.xl, borderBottomLeftRadius: radius.xl }} />
+                <View style={{ position: 'absolute', left: 0, top: 18, bottom: 18, width: 4, backgroundColor: hw ? t.custom.amber : t.colors.primary, borderTopRightRadius: 4, borderBottomRightRadius: 4 }} />
                 <View style={{ flex: 1, padding: space.lg }}>
                   <View style={{ flexDirection: 'row', alignItems: 'center', gap: space.sm, marginBottom: space.sm }}>
                     <Icon name={hw ? (p.subject_name ? subjectIcon(p.subject_name) : 'book-open-variant') : 'bullhorn'} size={18}

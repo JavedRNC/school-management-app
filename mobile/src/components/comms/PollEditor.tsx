@@ -1,11 +1,12 @@
 import { useEffect, useState } from 'react';
 import { Pressable, View } from 'react-native';
-import { Button, HelperText, IconButton, SegmentedButtons, Switch, Text, TextInput } from 'react-native-paper';
+import { Button, HelperText, IconButton, SegmentedButtons, Switch, Text } from 'react-native-paper';
+import { TextInput } from '@/components/Field';
 
 import { Sheet } from '@/components/ui';
 import { api } from '@/lib/api';
 import { haptic, useToast } from '@/lib/feedback';
-import { fieldOutline, radius, space, useAppTheme } from '@/lib/theme';
+import { radius, space, useAppTheme } from '@/lib/theme';
 import type { Poll, SchoolClass } from '@/lib/types';
 
 import { isoIn } from './util';
@@ -80,10 +81,10 @@ export function PollEditor({ visible, onDismiss, onCreated }: { visible: boolean
           ? 'Parents answer Yes / No separately for each child — e.g. trip permission.'
           : 'Ask parents, teachers or students to pick from your options.'}
       </Text>
-      <TextInput mode="outlined" outlineStyle={fieldOutline} label={kind === 'consent' ? 'Title (e.g. Science museum trip)' : 'Question'} value={title} onChangeText={setTitle}
+      <TextInput mode="outlined" label={kind === 'consent' ? 'Title (e.g. Science museum trip)' : 'Question'} value={title} onChangeText={setTitle}
         maxLength={200} error={touched && !title.trim()} />
       <HelperText type="error" visible={touched && !title.trim()}>Required</HelperText>
-      <TextInput mode="outlined" outlineStyle={fieldOutline} label="Details (optional)" value={desc} onChangeText={setDesc} multiline maxLength={2000}
+      <TextInput mode="outlined" label="Details (optional)" value={desc} onChangeText={setDesc} multiline maxLength={2000}
         style={{ minHeight: 80, marginBottom: space.md }} />
 
       {kind === 'poll' ? (
@@ -91,7 +92,7 @@ export function PollEditor({ visible, onDismiss, onCreated }: { visible: boolean
           <Text variant="labelLarge" style={{ color: t.colors.onSurfaceVariant, marginBottom: 6 }}>Options</Text>
           {options.map((o, i) => (
             <View key={i} style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 6 }}>
-              <TextInput mode="outlined" outlineStyle={fieldOutline} dense label={`Option ${i + 1}`} value={o} style={{ flex: 1 }} maxLength={80}
+              <TextInput mode="outlined" dense label={`Option ${i + 1}`} value={o} style={{ flex: 1 }} maxLength={80}
                 onChangeText={(v) => setOptions((arr) => arr.map((x, j) => (j === i ? v : x)))} />
               <IconButton icon="close" disabled={options.length <= 2} onPress={() => setOptions((arr) => arr.filter((_, j) => j !== i))} />
             </View>
@@ -123,7 +124,7 @@ export function PollEditor({ visible, onDismiss, onCreated }: { visible: boolean
         </View>
       ) : null}
 
-      <TextInput mode="outlined" outlineStyle={fieldOutline} label="Answer by (YYYY-MM-DD)" value={deadline} onChangeText={setDeadline} error={dlBad}
+      <TextInput mode="outlined" label="Answer by (YYYY-MM-DD)" value={deadline} onChangeText={setDeadline} error={dlBad}
         left={<TextInput.Icon icon="calendar-clock" />} />
       <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 6, marginVertical: space.sm }}>
         {([['Tomorrow', 1], ['3 days', 3], ['1 week', 7], ['2 weeks', 14]] as [string, number][]).map(([l, d]) =>
@@ -131,7 +132,7 @@ export function PollEditor({ visible, onDismiss, onCreated }: { visible: boolean
         {chip(!deadline, 'No deadline', () => setDeadline(''), 'none')}
       </View>
       {kind === 'consent' ? (
-        <TextInput mode="outlined" outlineStyle={fieldOutline} label="Amount to pay, if any (₹)" value={amount} onChangeText={(v) => setAmount(v.replace(/[^0-9.]/g, ''))}
+        <TextInput mode="outlined" label="Amount to pay, if any (₹)" value={amount} onChangeText={(v) => setAmount(v.replace(/[^0-9.]/g, ''))}
           keyboardType="decimal-pad" left={<TextInput.Icon icon="currency-inr" />} style={{ marginBottom: space.md }} />
       ) : null}
       <Button mode="contained" icon="send" onPress={create} loading={busy} disabled={busy} contentStyle={{ paddingVertical: 6 }}>

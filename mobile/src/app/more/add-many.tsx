@@ -3,7 +3,8 @@ import { router, useLocalSearchParams } from 'expo-router';
 import * as Sharing from 'expo-sharing';
 import { useCallback, useMemo, useState } from 'react';
 import { Platform, ScrollView, Share, View } from 'react-native';
-import { Button, Dialog, Text, TextInput } from 'react-native-paper';
+import { Button, Dialog, Text } from 'react-native-paper';
+import { TextInput } from '@/components/Field';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { AddManyRow, BulkField, BulkRowData, fieldsFor, isEmptyRow } from '@/components/people/AddManyRow';
@@ -12,7 +13,7 @@ import { EmptyState, FadeIn, FilterChips, Hero, Icon, IconName, Panel, Row, Shee
 import { api } from '@/lib/api';
 import { ROLE_LABEL, useAuth, useCan, useModule } from '@/lib/auth';
 import { haptic, useToast } from '@/lib/feedback';
-import { fieldOutline, radius, space, useAppTheme } from '@/lib/theme';
+import { radius, space, useAppTheme } from '@/lib/theme';
 import type { BulkResult, NewLogin, SchoolClass } from '@/lib/types';
 import { useLoad } from '@/lib/useLoad';
 
@@ -372,7 +373,7 @@ export default function AddMany() {
         <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 6, marginBottom: space.md }}>
           {fields.map((f, i) => <ToneChip key={f.key} text={`${i + 1}. ${f.label}${f.required ? ' *' : ''}`} tone={f.required ? 'primary' : 'neutral'} />)}
         </View>
-        <TextInput mode="outlined" outlineStyle={fieldOutline} multiline value={pasteText} onChangeText={setPasteText} style={{ minHeight: 160, marginBottom: space.md }}
+        <TextInput mode="outlined" multiline value={pasteText} onChangeText={setPasteText} style={{ minHeight: 160, marginBottom: space.md }}
           placeholder={role === 'student' ? 'Riya Sen, 2026101, 8-A, 12, 31/05/2013, Amit Sen, 9811122233' : role === 'parent' ? 'Amit Sen, 9811122233' : 'Sunita Verma, T006, 9876500101'}
           autoCapitalize="none" />
         <Button mode="contained" icon="table-arrow-down" onPress={applyPaste} contentStyle={{ paddingVertical: 6 }}>Add these rows</Button>

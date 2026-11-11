@@ -1,10 +1,11 @@
 import { ReactNode, useEffect, useRef } from 'react';
 import { Animated, View, ViewStyle } from 'react-native';
-import { IconButton, Text, TextInput } from 'react-native-paper';
+import { IconButton, Text } from 'react-native-paper';
+import { TextInput } from '@/components/Field';
 
 import { haptic } from '@/lib/feedback';
 import { monthLabel, shiftMonth } from '@/lib/fees';
-import { fieldOutline, radius, space, useAppTheme } from '@/lib/theme';
+import { radius, space, useAppTheme } from '@/lib/theme';
 
 export const UPI_RE = /^[A-Za-z0-9.\-_]{2,256}@[A-Za-z][A-Za-z0-9]{1,64}$/;
 export const DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
@@ -36,7 +37,7 @@ export function MoneyInput({ label, value, onChange, editable = true, style, den
   label: string; value: string; onChange: (s: string) => void; editable?: boolean; style?: ViewStyle; dense?: boolean; error?: boolean;
 }) {
   return (
-    <TextInput mode="outlined" outlineStyle={fieldOutline} label={label} value={value} onChangeText={(s) => onChange(s.replace(/[^\d.]/g, ''))} editable={editable}
+    <TextInput mode="outlined" label={label} value={value} onChangeText={(s) => onChange(s.replace(/[^\d.]/g, ''))} editable={editable}
       keyboardType="decimal-pad" left={<TextInput.Affix text="₹" />} dense={dense} error={error} style={style} />
   );
 }

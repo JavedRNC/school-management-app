@@ -61,15 +61,14 @@ function ToastCard({ state, onDone }: { state: ToastState; onDone: () => void })
     return () => clearTimeout(id);
   }, [v, pop, close, action, error]);
 
-  const accent = error ? t.custom.danger : t.custom.success;
   const bg = t.dark ? t.colors.elevation.level4 : '#15243B';
-  const iconBg = error ? (t.dark ? t.custom.dangerContainer : '#FF6B5E') : (t.dark ? t.custom.successContainer : '#2FBF71');
+  const iconBg = error ? '#E5484D' : '#2FA866';
   return (
-    <View pointerEvents="box-none" style={{ position: 'absolute', left: space.lg, right: space.lg, bottom: insets.bottom + 84, alignItems: 'center' }}>
+    <View pointerEvents="box-none" style={{ position: 'absolute', left: space.lg, right: space.lg, bottom: insets.bottom + 150, alignItems: 'center' }}>
       <Animated.View accessibilityLiveRegion="polite" accessibilityRole="alert"
         style={[{ opacity: v, transform: [{ translateY: v.interpolate({ inputRange: [0, 1], outputRange: [24, 0] }) }, { scale: v.interpolate({ inputRange: [0, 1], outputRange: [0.96, 1] }) }],
           maxWidth: 480, minHeight: 48, borderRadius: radius.lg, backgroundColor: bg, borderWidth: 1, borderColor: 'rgba(255,255,255,0.08)' },
-          t.dark ? shadow(t, 3) : glow(error ? accent : '#15243B')]}>
+          t.dark ? shadow(t, 3) : glow(error ? '#B3261E' : '#15243B')]}>
         <Pressable onPress={close} style={{ flexDirection: 'row', alignItems: 'center', gap: space.md, paddingVertical: 10, paddingLeft: 12, paddingRight: action ? 6 : space.lg }}>
           <Animated.View style={{ width: 28, height: 28, borderRadius: 14, backgroundColor: iconBg, alignItems: 'center', justifyContent: 'center',
             transform: [{ scale: pop.interpolate({ inputRange: [0, 1], outputRange: [0.3, 1] }) }] }}>

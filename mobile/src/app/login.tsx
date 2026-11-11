@@ -2,7 +2,8 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { Redirect, router } from 'expo-router';
 import { useEffect, useRef, useState } from 'react';
 import { Animated, Easing, KeyboardAvoidingView, Platform, ScrollView, View } from 'react-native';
-import { Button, HelperText, Text, TextInput, TouchableRipple } from 'react-native-paper';
+import { Button, HelperText, Text, TouchableRipple } from 'react-native-paper';
+import { TextInput } from '@/components/Field';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { FadeIn, Icon, IconName, PressScale } from '@/components/ui';
@@ -11,7 +12,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { getBaseUrl, loadStored, setBaseUrl } from '@/lib/api';
 import { homeFor, KEY_SCHOOL_CODE, useAuth } from '@/lib/auth';
 import { haptic } from '@/lib/feedback';
-import { cardEdge, fieldOutline, glow, radius, shadow, space, useAppTheme } from '@/lib/theme';
+import { cardEdge, glow, radius, shadow, space, useAppTheme } from '@/lib/theme';
 
 const DEMO: { label: string; code: string; id: string; pw: string; icon: IconName; desc: string }[] = [
   { label: 'Principal', code: 'DEMO01', id: 'principal', pw: 'demo123', icon: 'school', desc: 'Insights & admin' },
@@ -94,17 +95,17 @@ export default function Login() {
               ...shadow(t, 2), ...cardEdge(t) }}>
               <Text variant="titleLarge" style={{ fontWeight: '700', color: t.colors.onSurface }}>Welcome back 👋</Text>
               <Text variant="bodyMedium" style={{ color: t.colors.onSurfaceVariant, marginBottom: space.lg }}>Use the details your school gave you</Text>
-              <TextInput mode="outlined" outlineStyle={fieldOutline} label="School code" value={code} onChangeText={(v) => { setCode(v.toUpperCase()); setPicked(null); }} autoCapitalize="characters"
+              <TextInput mode="outlined" label="School code" value={code} onChangeText={(v) => { setCode(v.toUpperCase()); setPicked(null); }} autoCapitalize="characters"
                 autoCorrect={false} left={<TextInput.Icon icon="domain" />} style={{ marginBottom: space.md }} />
-              <TextInput mode="outlined" outlineStyle={fieldOutline} label="Login ID" value={email} onChangeText={(v) => { setEmail(v); setPicked(null); }} autoCapitalize="none"
+              <TextInput mode="outlined" label="Login ID" value={email} onChangeText={(v) => { setEmail(v); setPicked(null); }} autoCapitalize="none"
                 autoCorrect={false} left={<TextInput.Icon icon="account-outline" />} style={{ marginBottom: space.md }}
                 placeholder="Employee code, admission no. or mobile" />
-              <TextInput mode="outlined" outlineStyle={fieldOutline} label="Password" value={password} onChangeText={setPassword} secureTextEntry={!showPw}
+              <TextInput mode="outlined" label="Password" value={password} onChangeText={setPassword} secureTextEntry={!showPw}
                 left={<TextInput.Icon icon="lock-outline" />} right={<TextInput.Icon icon={showPw ? 'eye-off' : 'eye'} onPress={() => setShowPw((s) => !s)} />}
                 onSubmitEditing={() => submit()} />
               <HelperText type="error" visible={!!error}>{error}</HelperText>
               <View style={[{ borderRadius: radius.pill, backgroundColor: t.colors.primary }, t.dark ? null : glow(t.colors.primary)]}>
-                <Button mode="contained" icon="login-variant" onPress={() => submit()} loading={busy} contentStyle={{ paddingVertical: 6, flexDirection: 'row-reverse' }}
+                <Button mode="contained" icon="arrow-right" onPress={() => submit()} loading={busy} contentStyle={{ paddingVertical: 6, flexDirection: 'row-reverse' }}
                   labelStyle={{ fontSize: 15, fontWeight: '700' }}>
                   Sign in
                 </Button>
@@ -149,7 +150,7 @@ export default function Login() {
           </TouchableRipple>
           {showServer ? (
             <FadeIn>
-              <TextInput mode="outlined" outlineStyle={fieldOutline} label="Server address" value={server} onChangeText={setServer} autoCapitalize="none" autoCorrect={false}
+              <TextInput mode="outlined" label="Server address" value={server} onChangeText={setServer} autoCapitalize="none" autoCorrect={false}
                 placeholder="https://school-api.onrender.com" left={<TextInput.Icon icon="link-variant" />} />
               <HelperText type="info">Saved when you sign in</HelperText>
             </FadeIn>

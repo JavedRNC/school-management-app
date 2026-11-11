@@ -1,7 +1,8 @@
 import { router } from 'expo-router';
 import { useEffect, useState } from 'react';
 import { View } from 'react-native';
-import { Button, Dialog, SegmentedButtons, Text, TextInput, TouchableRipple } from 'react-native-paper';
+import { Button, Dialog, SegmentedButtons, Text, TouchableRipple } from 'react-native-paper';
+import { TextInput } from '@/components/Field';
 
 import { bellSummary, useBell } from '@/components/BellTimes';
 import { subjectIcon, TimetableView } from '@/components/TimetableView';
@@ -11,7 +12,7 @@ import {
 import { api } from '@/lib/api';
 import { useCan } from '@/lib/auth';
 import { haptic, useToast } from '@/lib/feedback';
-import { cardEdge, shadow, fieldOutline, DAYS, radius, space, useAppTheme } from '@/lib/theme';
+import { cardEdge, shadow, DAYS, radius, space, useAppTheme } from '@/lib/theme';
 import type { Assignment, Exam, SchoolClass, Slot, Subject, Usage, User } from '@/lib/types';
 import { useLoad } from '@/lib/useLoad';
 
@@ -333,12 +334,12 @@ function Setup({ data, onChange, canEdit }: { data: Base; onChange: () => void; 
         Archived items can be restored from Me → Archive.
       </Text>
       <Sheet visible={!!sheet} onDismiss={() => setSheet(null)} title={sheet === 'class' ? 'New class' : sheet === 'subject' ? 'New subject' : 'New exam'}>
-        <TextInput mode="outlined" outlineStyle={fieldOutline} autoFocus label={sheet === 'class' ? 'Class name (e.g. 10-B)' : sheet === 'subject' ? 'Subject (e.g. Computer Science)' : 'Exam name (e.g. Unit Test 2)'}
+        <TextInput mode="outlined" autoFocus label={sheet === 'class' ? 'Class name (e.g. 10-B)' : sheet === 'subject' ? 'Subject (e.g. Computer Science)' : 'Exam name (e.g. Unit Test 2)'}
           value={name} onChangeText={setName} style={{ marginBottom: space.md }} />
         {sheet === 'exam' ? (
           <View style={{ flexDirection: 'row', gap: space.sm, marginBottom: space.md }}>
-            <TextInput mode="outlined" outlineStyle={fieldOutline} label="Date (YYYY-MM-DD)" value={examDate} onChangeText={setExamDate} style={{ flex: 2 }} left={<TextInput.Icon icon="calendar" />} />
-            <TextInput mode="outlined" outlineStyle={fieldOutline} label="Max marks" value={max} onChangeText={(v) => setMax(v.replace(/\D/g, ''))} keyboardType="number-pad" style={{ flex: 1 }} />
+            <TextInput mode="outlined" label="Date (YYYY-MM-DD)" value={examDate} onChangeText={setExamDate} style={{ flex: 2 }} left={<TextInput.Icon icon="calendar" />} />
+            <TextInput mode="outlined" label="Max marks" value={max} onChangeText={(v) => setMax(v.replace(/\D/g, ''))} keyboardType="number-pad" style={{ flex: 1 }} />
           </View>
         ) : null}
         <Button mode="contained" icon="check" onPress={save} loading={busy} contentStyle={{ paddingVertical: 6 }}>Save</Button>
@@ -350,7 +351,7 @@ function Setup({ data, onChange, canEdit }: { data: Base; onChange: () => void; 
             <Text variant="bodyMedium" style={{ color: t.colors.onSurfaceVariant, marginBottom: space.md }}>
               {editing.student_count} student{editing.student_count === 1 ? '' : 's'} enrolled
             </Text>
-            <TextInput mode="outlined" outlineStyle={fieldOutline} label="Class name" value={rename} onChangeText={setRename} style={{ marginBottom: space.md }} />
+            <TextInput mode="outlined" label="Class name" value={rename} onChangeText={setRename} style={{ marginBottom: space.md }} />
             <Button mode="contained" icon="content-save-outline" onPress={saveRename} loading={busy} disabled={rename.trim() === editing.name}
               contentStyle={{ paddingVertical: 6 }}>Save name</Button>
             <View style={{ height: 1, backgroundColor: t.colors.outlineVariant, marginVertical: space.lg }} />
@@ -438,7 +439,7 @@ function SubjectEditor({ subject, onClose, onChange }: { subject: Subject | null
   return (
     <>
       <Sheet visible={!!subject} onDismiss={onClose} title={subject ? subject.name : ''}>
-        <TextInput mode="outlined" outlineStyle={fieldOutline} label="Subject name" value={name} onChangeText={setName} style={{ marginBottom: space.md }} />
+        <TextInput mode="outlined" label="Subject name" value={name} onChangeText={setName} style={{ marginBottom: space.md }} />
         <Button mode="contained" icon="content-save-outline" loading={busy} disabled={!name.trim() || name.trim() === subject?.name}
           onPress={() => subject && run(() => api(`/subjects/${subject.id}`, { method: 'PUT', body: { name: name.trim() } }), 'Subject renamed')}
           contentStyle={{ paddingVertical: 6 }}>Save name</Button>
@@ -489,10 +490,10 @@ function ExamEditor({ exam, onClose, onChange }: { exam: Exam | null; onClose: (
   return (
     <>
       <Sheet visible={!!exam} onDismiss={onClose} title={exam ? `Edit ${exam.name}` : ''}>
-        <TextInput mode="outlined" outlineStyle={fieldOutline} label="Exam name" value={name} onChangeText={setName} style={{ marginBottom: space.md }} />
+        <TextInput mode="outlined" label="Exam name" value={name} onChangeText={setName} style={{ marginBottom: space.md }} />
         <View style={{ flexDirection: 'row', gap: space.sm }}>
-          <TextInput mode="outlined" outlineStyle={fieldOutline} label="Date (YYYY-MM-DD)" value={date} onChangeText={setDate} style={{ flex: 2 }} left={<TextInput.Icon icon="calendar" />} error={!dateOk} />
-          <TextInput mode="outlined" outlineStyle={fieldOutline} label="Max marks" value={max} onChangeText={(v) => setMax(v.replace(/[^0-9.]/g, ''))} keyboardType="decimal-pad" style={{ flex: 1 }} />
+          <TextInput mode="outlined" label="Date (YYYY-MM-DD)" value={date} onChangeText={setDate} style={{ flex: 2 }} left={<TextInput.Icon icon="calendar" />} error={!dateOk} />
+          <TextInput mode="outlined" label="Max marks" value={max} onChangeText={(v) => setMax(v.replace(/[^0-9.]/g, ''))} keyboardType="decimal-pad" style={{ flex: 1 }} />
         </View>
         <Text variant="bodySmall" style={{ color: t.colors.onSurfaceVariant, marginVertical: space.sm }}>{plural(marks, 'mark')} entered for this exam</Text>
         <Button mode="contained" icon="content-save-outline" loading={busy} disabled={!valid}

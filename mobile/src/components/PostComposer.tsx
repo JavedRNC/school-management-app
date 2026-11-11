@@ -1,10 +1,11 @@
 import { useEffect, useState } from 'react';
 import { View } from 'react-native';
-import { Button, HelperText, SegmentedButtons, TextInput } from 'react-native-paper';
+import { Button, HelperText, SegmentedButtons } from 'react-native-paper';
+import { TextInput } from '@/components/Field';
 
 import { api } from '@/lib/api';
 import { haptic, useToast } from '@/lib/feedback';
-import { fieldOutline, space } from '@/lib/theme';
+import { space } from '@/lib/theme';
 import type { Post, SchoolClass, Subject } from '@/lib/types';
 
 import { FilterChips, Sheet } from './ui';
@@ -79,10 +80,10 @@ export function PostComposer({ visible, onDismiss, classes, subjects, allowSchoo
       {kind === 'homework' && subjects?.length ? (
         <FilterChips label="Subject" options={subjects.map((s) => ({ label: s.name, value: s.id }))} value={subjectId} onChange={setSubjectId} />
       ) : null}
-      <TextInput mode="outlined" outlineStyle={fieldOutline} label="Title" value={title} onChangeText={setTitle} error={touched && !title.trim()}
+      <TextInput mode="outlined" label="Title" value={title} onChangeText={setTitle} error={touched && !title.trim()}
         placeholder={kind === 'homework' ? 'e.g. Chapter 4 exercises' : 'e.g. School closed tomorrow'} />
       <HelperText type="error" visible={touched && !title.trim()}>Title is required</HelperText>
-      <TextInput mode="outlined" outlineStyle={fieldOutline} label="Details" value={body} onChangeText={setBody} multiline numberOfLines={4} style={{ minHeight: 100 }} />
+      <TextInput mode="outlined" label="Details" value={body} onChangeText={setBody} multiline numberOfLines={4} style={{ minHeight: 100 }} />
       {kind === 'homework' ? (
         <FilterChips label="Due" style={{ marginTop: space.md }} value={due} onChange={setDue}
           options={[

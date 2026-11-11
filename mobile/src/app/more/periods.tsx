@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { View } from 'react-native';
-import { Button, Dialog, IconButton, SegmentedButtons, Text, TextInput } from 'react-native-paper';
+import { Button, Dialog, IconButton, SegmentedButtons, Text } from 'react-native-paper';
+import { TextInput } from '@/components/Field';
 
 import { bellSummary, fromMin, setBellCache, toMin, useBell } from '@/components/BellTimes';
 import { EmptyState, ErrorState, FadeIn, FilterChips, Hero, Icon, LoadingCards, Panel, Screen, TopLayer } from '@/components/ui';
@@ -198,7 +199,7 @@ export default function PeriodsScreen() {
                 const brk = r.kind === 'break';
                 return (
                   <View key={r.key} style={{ borderRadius: radius.lg, padding: space.sm, marginBottom: space.sm,
-                    backgroundColor: brk ? t.colors.tertiaryContainer : t.colors.elevation.level2 }}>
+                    backgroundColor: brk ? t.colors.tertiaryContainer : t.custom.inset }}>
                     <View style={{ flexDirection: 'row', alignItems: 'center', gap: space.sm }}>
                       <View style={{ width: 36, height: 36, borderRadius: 18, alignItems: 'center', justifyContent: 'center',
                         backgroundColor: brk ? t.colors.tertiary : t.colors.primary }}>

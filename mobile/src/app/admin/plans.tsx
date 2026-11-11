@@ -1,12 +1,13 @@
 import { useEffect, useState } from 'react';
 import { View } from 'react-native';
-import { Button, Switch, Text, TextInput } from 'react-native-paper';
+import { Button, Switch, Text } from 'react-native-paper';
+import { TextInput } from '@/components/Field';
 
 import { rupees, useModules } from '@/components/admin/common';
 import { Fab, EmptyState, ErrorState, FadeIn, Hero, LoadingCards, Panel, Screen, Sheet, ToneChip } from '@/components/ui';
 import { api } from '@/lib/api';
 import { haptic, useToast } from '@/lib/feedback';
-import { fieldOutline, space, useAppTheme } from '@/lib/theme';
+import { space, useAppTheme } from '@/lib/theme';
 import type { Plan } from '@/lib/types';
 import { useLoad } from '@/lib/useLoad';
 
@@ -90,11 +91,11 @@ function PlanEditor({ plan, modules, onClose, onSaved }: {
 
   return (
     <Sheet visible={!!plan} onDismiss={onClose} title={plan === 'new' ? 'New plan' : 'Edit plan'}>
-      <TextInput mode="outlined" outlineStyle={fieldOutline} label="Plan name" value={name} onChangeText={setName} style={{ marginBottom: space.md }} />
+      <TextInput mode="outlined" label="Plan name" value={name} onChangeText={setName} style={{ marginBottom: space.md }} />
       <View style={{ flexDirection: 'row', gap: space.sm, marginBottom: space.md }}>
-        <TextInput mode="outlined" outlineStyle={fieldOutline} label="₹ / student / month" value={price} onChangeText={(v) => setPrice(v.replace(/[^0-9.]/g, ''))}
+        <TextInput mode="outlined" label="₹ / student / month" value={price} onChangeText={(v) => setPrice(v.replace(/[^0-9.]/g, ''))}
           keyboardType="decimal-pad" style={{ flex: 1 }} />
-        <TextInput mode="outlined" outlineStyle={fieldOutline} label="Minimum ₹ / month" value={min} onChangeText={(v) => setMin(v.replace(/[^0-9.]/g, ''))}
+        <TextInput mode="outlined" label="Minimum ₹ / month" value={min} onChangeText={(v) => setMin(v.replace(/[^0-9.]/g, ''))}
           keyboardType="decimal-pad" style={{ flex: 1 }} />
       </View>
       <Text variant="labelLarge" style={{ color: t.colors.onSurfaceVariant, marginBottom: space.xs }}>Modules</Text>

@@ -28,7 +28,7 @@ function Inner() {
   return (
     <FadeIn>
       <SectionTitle title="Fees" action="Open" onAction={() => open()} />
-      <PressScale onPress={() => open()}>
+      <PressScale onPress={() => open()} style={{ marginBottom: space.md }}>
         <View style={{ backgroundColor: t.colors.elevation.level2, borderRadius: radius.xl, padding: space.lg,
           ...shadow(t, 2), ...cardEdge(t) }}>
           {!data.configured ? (
