@@ -34,8 +34,24 @@ def _norm(h) -> str:
 
 
 # ================================================================ reading
+MAX_UNZIPPED = 200 * 1024 * 1024   # .xlsx is a zip: refuse "zip bombs" before parsing
+
+
+def _check_zip(data: bytes) -> None:
+    import zipfile
+
+    try:
+        with zipfile.ZipFile(io.BytesIO(data)) as z:
+            infos = z.infolist()
+    except zipfile.BadZipFile:
+        raise HTTPException(400, "That file isn't an Excel (.xlsx) workbook") from None
+    if len(infos) > 500 or sum(i.file_size for i in infos) > MAX_UNZIPPED:
+        raise HTTPException(413, "This workbook is too large to import. Split it into smaller files.")
+
+
 class Book:
     def __init__(self, data: bytes):
+        _check_zip(data)
         try:
             wb = load_workbook(io.BytesIO(data), read_only=True, data_only=True)
         except Exception:  # noqa: BLE001 — any parse failure is a bad upload
@@ -350,6 +366,10 @@ class Importer:
     def principal_sheet(self):
         for n, r in self.book.rows("Principal"):
             u = self.user(r.get("login_id"), (Role.principal,))
+            if u and self.me.role != Role.admin and u.id != self.me.id:
+                self.warnings.append(f"Principal row {n}: you can only update your own profile; row skipped")
+                self.cnt("Principal", "skip")
+                continue
             if not u:
                 self.warnings.append(f"Principal row {n}: no principal with login “{r.get('login_id')}” — principal accounts are created by the platform admin; row skipped")
                 self.cnt("Principal", "skip")

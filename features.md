@@ -40,10 +40,10 @@ _Last updated: 9 Nov 2026 — **Phase 2 built** (banners, leaves, consent forms 
 | F21 | **Digital ID card** (photo + QR) | 📝 | M | 3 |
 | F23 | **Admissions & enquiries** | 📝 | M | 3 |
 | F27 | **Photo gallery** | 📝 | M | 3 |
-| F28 | **Period timings (bell schedule)** — number of periods, start/end times, breaks | 📝 Requested 11 Nov | S–M | next |
-| F29 | **Add many people at once** (students / teachers / parents / staff) | 📝 Requested 11 Nov — awaiting confirmation | M | next |
-| F30 | **Excel import of all school data** (multi-tab template, preview, all-or-nothing save) | 📝 Requested 11 Nov — awaiting confirmation | L | next |
-| F31 | **Export / backup & restore** (same Excel format, re-importable) | 📝 Requested 11 Nov — awaiting confirmation | L | next |
+| F28 | **Period timings (bell schedule)** — number of periods, start/end times, breaks | ✅ Done (Phase 4) | S–M | 4 |
+| F29 | **Add many people at once** (students / teachers / parents / staff) | ✅ Done (Phase 4) | M | 4 |
+| F30 | **Excel import of all school data** (multi-tab template, preview, all-or-nothing save) | ✅ Done (Phase 4) | L | 4 |
+| F31 | **Export / backup & restore** (same Excel format, re-importable) | ✅ Done (Phase 4) | L | 4 |
 | F16 | **App update pop-up** (optional / mandatory) configured by Admin | 📝 | M | 4 (Admin page later) |
 
 ---
@@ -366,7 +366,7 @@ Schools pay for **the modules they use**. Admin controls everything manually, in
 
 ---
 
-### F28 · Period timings (bell schedule) 📝 `S–M` — requested by Javed 11 Nov
+### F28 · Period timings (bell schedule) ✅ `S–M` — requested by Javed 11 Nov
 Today the timetable has a fixed 5 numbered periods and no times. Proposal:
 - **Principal → Classes → Setup → Period timings**: set how many periods, each period's start–end time, and breaks (Short break, Lunch) between periods.
 - One school-wide schedule, with an optional **different schedule per weekday** (e.g. Saturday half day). Optional later: separate schedule per wing (Primary / Senior).
@@ -374,17 +374,19 @@ Today the timetable has a fixed 5 numbered periods and no times. Proposal:
 - Admin can view/edit it from the school page (support).
 - Changing number of periods never deletes assigned periods silently: periods beyond the new count are listed and must be cleared first.
 
-### F29 · Add many people at once 📝 `M` — requested 11 Nov
+### F29 · Add many people at once ✅ `M` — requested 11 Nov
+> Decisions (11 Nov): staff = existing roles only (Teacher, VP, Coordinator).
 - People screen: next to "Add", an **"Add many"** button for the selected type.
 - Grid of rows (add row / paste rows copied from Excel or WhatsApp); fields per type (students: name, admission no, class, roll, DOB, parent name + mobile → parent account auto-created/linked).
 - Every row checked before saving; nothing saved if any row has an error; then one list of logins + temporary passwords to share/download.
 
-### F30 · Excel import 📝 `L` — requested 11 Nov
+### F30 · Excel import ✅ `L` — requested 11 Nov
 - Download a template (.xlsx) from the app; tabs: Instructions, School, Classes, Subjects, Teachers, Staff, Students (+ parent columns), Parents, Period timings (F28), Timetable, Holidays, Fees setup, Transport.
 - Upload → server checks every row → preview ("adds 12 classes, 800 students; 3 errors: row 23 class 9-C not found") → confirm → saved in one transaction.
 - Re-upload updates existing records (matched by login ID / class name), adds new; never deletes. New users get temporary passwords (credentials file).
 
-### F31 · Export / backup & restore 📝 `L` — requested 11 Nov
+### F31 · Export / backup & restore ✅ `L` — requested 11 Nov
+> Decisions (11 Nov): app asks Merge or Replace on every import (Replace needs the school code typed); backups keep passwords (bcrypt hashes in a hidden HMAC-signed sheet, honoured only for the same school + server); Admin can import/export only while the school grants support access.
 - Principal exports the whole school to one .xlsx in the same format (plus history: attendance, marks, leaves, fees, receipts, notices, polls…), re-importable for restore.
 - Restore into an empty/damaged school; audit-logged; personal data warning (DPDP).
 - Platform-level safety net already: Neon point-in-time restore.
