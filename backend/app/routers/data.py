@@ -5,13 +5,14 @@ Handlers are plain `def` so FastAPI runs them in its thread pool: a long import 
 import hashlib
 import threading
 import time
-from datetime import date
+from datetime import date, timedelta
 
 from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile
 from fastapi.responses import Response
+from sqlalchemy import delete, select
 from sqlalchemy.orm import Session
 
-from ..auth import admin_only, audit, require, verify_password
+from ..auth import LOCK_MINUTES, MAX_FAILED, admin_only, audit, require, verify_password
 from ..databook import export_workbook
 from ..dataimport import run_import
 from ..db import get_db
@@ -23,7 +24,11 @@ MAX_BYTES = 20 * 1024 * 1024
 XLSX = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
 principal_only = require(Role.principal)
 
-_import_lock = threading.Lock()          # one import at a time on this (small) server
+_imports = threading.BoundedSemaphore(2)  # at most 2 imports at once on this small server…
+_school_locks: dict[int, threading.Lock] = {}   # …and one per school
+_locks_guard = threading.Lock()
+KEEP_SNAPSHOTS = 3
+SNAPSHOT_DAYS = 30
 _last_export: dict[int, float] = {}      # school id → time of last backup download
 EXPORT_GAP = 20                          # seconds
 
@@ -55,10 +60,14 @@ def _do_import(db: Session, school: School, me: User, data: bytes, mode: str, co
     if confirm and mode == "replace":
         if confirm_code.strip().upper() != school.code.upper():
             raise HTTPException(400, f"Type the school code ({school.code}) to confirm Replace")
-        if not password or not verify_password(password, me.password_hash):
-            raise HTTPException(400, "Enter your own password to confirm Replace")
-    if not _import_lock.acquire(blocking=False):
-        raise HTTPException(429, "Another import is running right now — try again in a minute")
+        _check_password(db, me, password, school)
+    with _locks_guard:
+        lock = _school_locks.setdefault(school.id, threading.Lock())
+    if not lock.acquire(blocking=False):
+        raise HTTPException(429, "An import for this school is already running — wait for it to finish")
+    if not _imports.acquire(blocking=False):
+        lock.release()
+        raise HTTPException(429, "The server is busy with other imports — try again in a minute")
     try:
         snapshot = None
         if confirm and mode == "replace":
@@ -69,11 +78,11 @@ def _do_import(db: Session, school: School, me: User, data: bytes, mode: str, co
             report["saved"] = False
             return report
         if snapshot is not None:
-            snap = db.get(DataSnapshot, school.id)
-            if snap:
-                snap.content, snap.created_at, snap.created_by = snapshot, utcnow(), me.name
-            else:
-                db.add(DataSnapshot(school_id=school.id, content=snapshot, created_by=me.name))
+            db.add(DataSnapshot(school_id=school.id, content=snapshot, created_by=me.name))
+            db.flush()
+            keep = list(db.scalars(select(DataSnapshot.id).where(DataSnapshot.school_id == school.id)
+                                   .order_by(DataSnapshot.created_at.desc(), DataSnapshot.id.desc()).limit(KEEP_SNAPSHOTS)))
+            db.execute(delete(DataSnapshot).where(DataSnapshot.school_id == school.id, DataSnapshot.id.not_in(keep)))
         added = sum(s["add"] for s in report["sheets"])
         updated = sum(s["update"] for s in report["sheets"])
         audit(db, me, f"data.import.{mode}",
@@ -89,12 +98,37 @@ def _do_import(db: Session, school: School, me: User, data: bytes, mode: str, co
         db.rollback()
         raise
     finally:
-        _import_lock.release()
+        _imports.release()
+        lock.release()
+
+
+def _check_password(db: Session, me: User, password: str, school: School) -> None:
+    """Replace needs the caller's own password — throttled and audited like a sign-in."""
+    if me.locked_until and me.locked_until > utcnow():
+        raise HTTPException(429, "Too many wrong passwords — try again later")
+    if password and verify_password(password, me.password_hash):
+        me.failed_logins = 0
+        return
+    me.failed_logins = (me.failed_logins or 0) + 1
+    if me.failed_logins >= MAX_FAILED:
+        me.locked_until = utcnow() + timedelta(minutes=LOCK_MINUTES)
+        me.failed_logins = 0
+    audit(db, me, "data.replace.wrong_password", "", school_id=school.id)
+    db.commit()
+    raise HTTPException(400, "Enter your own password to confirm Replace")
+
+
+def _latest_snapshot(db: Session, school_id: int) -> DataSnapshot | None:
+    db.execute(delete(DataSnapshot).where(DataSnapshot.school_id == school_id,
+                                          DataSnapshot.created_at < utcnow() - timedelta(days=SNAPSHOT_DAYS)))
+    db.commit()
+    return db.scalar(select(DataSnapshot).where(DataSnapshot.school_id == school_id)
+                     .order_by(DataSnapshot.created_at.desc(), DataSnapshot.id.desc()).limit(1))
 
 
 def _snapshot_file(db: Session, school: School) -> Response:
-    snap = db.get(DataSnapshot, school.id)
-    if not snap:
+    snap = _latest_snapshot(db, school.id)
+    if not snap:  # noqa: SIM108
         raise HTTPException(404, "No undo backup yet — one is saved automatically before every Replace import")
     name = f"SchoolHub-Before-Replace-{school.code}-{snap.created_at:%Y-%m-%d-%H%M}.xlsx"
     return Response(snap.content, media_type=XLSX, headers={"Content-Disposition": f'attachment; filename="{name}"',
@@ -123,8 +157,9 @@ def backup(me: User = Depends(principal_only), db: Session = Depends(get_db)):
 
 @router.get("/data/snapshot")
 def snapshot_info(me: User = Depends(principal_only), db: Session = Depends(get_db)):
-    snap = db.get(DataSnapshot, me.school_id)
-    return {"exists": bool(snap), "created_at": snap.created_at if snap else None, "created_by": snap.created_by if snap else ""}
+    snap = _latest_snapshot(db, me.school_id)
+    return {"exists": bool(snap), "created_at": snap.created_at if snap else None, "created_by": snap.created_by if snap else "",
+            "keep": f"last {KEEP_SNAPSHOTS}, for {SNAPSHOT_DAYS} days"}
 
 
 @router.get("/data/snapshot/file")

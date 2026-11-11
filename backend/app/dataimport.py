@@ -22,7 +22,7 @@ from .people import (Ctx, Issue, PeoplePlan, apply_plan, as_bool, as_date, as_in
                      norm_mobile, plan_rows)
 from .models import Role, utcnow
 
-MAX_ROWS = 300_000
+MAX_ROWS = 400_000
 MAX_PEOPLE = 20_000
 ROLE_VALUES = {"teacher", "vice_principal", "coordinator", "student", "parent"}
 HHMM = re.compile(r"^([01]\d|2[0-3]):[0-5]\d$")
@@ -37,8 +37,8 @@ def _norm(h) -> str:
 
 
 # ================================================================ reading
-MAX_UNZIPPED = 60 * 1024 * 1024    # .xlsx is a zip: refuse "zip bombs" before parsing
-MAX_MEMBER = 40 * 1024 * 1024
+MAX_UNZIPPED = 160 * 1024 * 1024   # .xlsx is a zip: refuse "zip bombs" before parsing (work is bounded by the row budget)
+MAX_MEMBER = 130 * 1024 * 1024
 MAX_COLS = 40                      # our widest sheet has 15 columns
 MAX_EMPTY_RUN = 1000               # stop reading a sheet after this many blank rows in a row
 MAX_CELL = 32767                   # Excel's own limit
@@ -231,6 +231,7 @@ class Importer:
         self.db, self.school, self.me, self.mode, self.book, self.confirm = db, school, me, mode, book, confirm
         self.sid = school.id
         self.verified = book.verified_for(school.code)
+        self.vault_ok = False
         self.issues: list[Issue] = []
         self.warnings: list[str] = []
         self.counts: dict[str, dict[str, int]] = {}
@@ -286,6 +287,9 @@ class Importer:
         self.refresh()
         pr = next((u for u in self.users.values() if u.role == Role.principal and u.active), None)
         self.actor_id = self.me.id if self.me.school_id == self.sid else (pr.id if pr else self.me.id)
+        if self.me.school_id != self.sid and not self.verified:
+            self.warnings.append("Imported by the platform admin: changes made from this file are recorded under the principal's name in the app "
+                                 "(the audit log names the admin).")
         self.school_sheet()
         self.principal_sheet()
         self.classes_sheet()
@@ -329,6 +333,13 @@ class Importer:
                     and e["h"].startswith(("$2a$", "$2b$", "$2y$")) and len(e["h"]) == 60 and e.get("r") in ROLE_VALUES:
                 out[e["l"].lower()] = e
         self.passwords_kept = bool(out)
+        self.vault_ok = True
+        try:
+            age = (datetime.now() - datetime.fromisoformat(b.meta.get("exported_at", ""))).days
+            if age > 30:
+                self.warnings.append(f"This backup is {age} days old: anyone who changed their password since then gets the old one back.")
+        except ValueError:
+            pass
         return out
 
     def attrib(self, login) -> int:
@@ -549,7 +560,7 @@ class Importer:
         if len(plan.creates) + len(plan.updates) > MAX_PEOPLE:
             self.issues.append(Issue(0, "", f"A file can add or change at most {MAX_PEOPLE:,} people", "Students"))
         self.credentials = apply_plan(ctx, plan, vault, fast=not self.confirm or bool(self.issues),
-                                      locked_down_staff=not self.verified)
+                                      locked_down_staff=not (self.verified and self.vault_ok))
 
     def after_people(self):
         db = self.db
@@ -936,7 +947,19 @@ class Importer:
 
     # ================================================================ history
     def history(self):
-        if not any(self.book.rows(s) for s in HISTORY_SHEETS):
+        present = [s for s in HISTORY_SHEETS if self.book.rows(s)]
+        if not present:
+            return
+        if not self.verified:
+            # Records like receipts, approvals, consent answers and marks are only restored from an unchanged backup —
+            # otherwise a file could put actions in other people's names.
+            if self.mode == "replace":
+                self.issues.append(Issue(0, "", "This file isn't an unchanged backup, so its history (attendance, marks, fees, "
+                                                "leaves…) can't be restored — and Replace would delete the current history. "
+                                                "Use Merge, or restore the backup exactly as downloaded.", present[0]))
+            else:
+                self.warnings.append("History sheets (" + ", ".join(present[:4]) + ("…" if len(present) > 4 else "")
+                                     + ") were skipped: they are only restored from an unchanged backup.")
             return
         self.attendance()
         self.exams_marks()

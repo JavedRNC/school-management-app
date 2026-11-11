@@ -373,3 +373,43 @@ def test_admin_rules(c):
     assert r.status_code == 200 and "_vault" not in book(r.content).sheetnames           # never passwords for the admin
     c.delete("/school/support-access", headers=h1)
     c.put("/school/settings", json={"share_contact_with_admin": False}, headers=h1)
+
+
+def test_vault_chunks_and_carriage_returns_still_verify(c):
+    from app.databook import vault_open, vault_seal
+    for i in range(200):                      # base64 chunks that start with symbols used to break the vault
+        sealed = vault_seal("DEMO01", [{"l": "x", "i": i}])
+        assert sealed[0].startswith("v") and vault_open("DEMO01", sealed) == [{"l": "x", "i": i}]
+        assert vault_open("DEMO02", sealed) is None
+    ht = login(c, "T002")
+    c.post("/leaves", json={"start_date": "2030-02-04", "end_date": "2030-02-04", "leave_type": "casual", "reason": "line1\r\nline2\rline3"}, headers=ht)
+    h = login(c, "principal")
+    r = upload(c, h, c.get("/data/backup", headers=h).content).json()
+    assert r["verified"] and r["passwords_kept"]
+
+
+def test_unverified_history_never_imported(c):
+    h = login(c, "principal")
+    wb = book(c.get("/data/backup", headers=h).content)
+    wb["Read me"]["A1"].value = "edited"
+    content = to_bytes(wb)
+    r = upload(c, h, content).json()
+    assert r["ok"] and not r["verified"] and any("History sheets" in w for w in r["warnings"])
+    assert all(s["sheet"] not in ("Payments", "Attendance", "Poll answers") for s in r["sheets"])
+    r = upload(c, h, content, mode="replace").json()
+    assert not r["ok"] and any("unchanged backup" in e["message"] for e in r["errors"])
+
+
+def test_replace_password_is_throttled(c):
+    h = login(c, "principal", "DEMO02")
+    content = c.get("/data/template", headers=h).content
+    for _ in range(5):
+        assert upload(c, h, content, mode="replace", confirm=True, code="DEMO02", password="wrong-one").status_code == 400
+    assert upload(c, h, content, mode="replace", confirm=True, code="DEMO02", password="demo123").status_code == 429
+    from app.db import SessionLocal
+    from app.models import User
+    from sqlalchemy import select
+    with SessionLocal() as db:
+        u = db.scalar(select(User).where(User.login_id == "principal", User.school_id == db.scalar(select(User.school_id).where(User.login_id == "S001"))))
+        u.locked_until = None
+        db.commit()

@@ -144,7 +144,7 @@ def safe(v):
         return v.replace(microsecond=0, tzinfo=None).isoformat(sep=" ")
     if isinstance(v, date):
         return v.isoformat()
-    s = ILLEGAL_CHARACTERS_RE.sub("", str(v))[:32000]
+    s = ILLEGAL_CHARACTERS_RE.sub("", str(v).replace("\r\n", "\n").replace("\r", "\n"))[:32000]
     if s[:1] in ("=", "+", "-", "@", "\t", "\r"):
         s = "'" + s
     return s
@@ -192,8 +192,8 @@ def vault_seal(school_code: str, payload: list[dict]) -> list[str]:
 
     nonce = os.urandom(12)
     ct = AESGCM(auth.derived_key("school-backup-vault-v1")).encrypt(nonce, json.dumps(payload).encode(), school_code.upper().encode())
-    blob = base64.b64encode(nonce + ct).decode()
-    return [blob[i:i + 30000] for i in range(0, len(blob), 30000)]
+    blob = base64.urlsafe_b64encode(nonce + ct).decode()
+    return ["v" + blob[i:i + 30000] for i in range(0, len(blob), 30000)]   # "v" prefix: a chunk never starts with + - =
 
 
 def vault_open(school_code: str, chunks: list[str]) -> list[dict] | None:
@@ -201,11 +201,13 @@ def vault_open(school_code: str, chunks: list[str]) -> list[dict] | None:
     from cryptography.hazmat.primitives.ciphers.aead import AESGCM
 
     try:
-        raw = base64.b64decode("".join(chunks), validate=True)
+        if not chunks or not all(isinstance(c, str) and c.startswith("v") for c in chunks):
+            return None
+        raw = base64.urlsafe_b64decode("".join(c[1:] for c in chunks).encode())
         data = AESGCM(auth.derived_key("school-backup-vault-v1")).decrypt(raw[:12], raw[12:], school_code.upper().encode())
         out = json.loads(data)
         return out if isinstance(out, list) else None
-    except (InvalidTag, ValueError, TypeError):
+    except (InvalidTag, ValueError, TypeError, base64.binascii.Error):
         return None
 
 

@@ -499,9 +499,10 @@ class BellSchedule(Base):
 
 
 class DataSnapshot(Base):
-    """Automatic full backup taken just before a Replace import, so it can be undone (latest one per school)."""
+    """Automatic full backup taken just before a Replace import, so it can be undone (last 3 per school, 30 days)."""
     __tablename__ = "data_snapshots"
-    school_id: Mapped[int] = mapped_column(ForeignKey("schools.id"), primary_key=True)
+    id: Mapped[int] = mapped_column(primary_key=True)
+    school_id: Mapped[int] = mapped_column(ForeignKey("schools.id"), index=True)
     created_at: Mapped[datetime] = mapped_column(DateTime, default=utcnow)
     created_by: Mapped[str] = mapped_column(String(120), default="")
     content: Mapped[bytes] = mapped_column(LargeBinary)
