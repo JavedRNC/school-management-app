@@ -1,3 +1,4 @@
+import { router } from 'expo-router';
 import { useMemo, useState } from 'react';
 import { NativeScrollEvent, NativeSyntheticEvent, RefreshControl, ScrollView, View } from 'react-native';
 import { AnimatedFAB, Button, Searchbar, Text } from 'react-native-paper';
@@ -126,6 +127,12 @@ export default function People() {
         </Hero>
         <View style={{ paddingHorizontal: space.lg, marginTop: space.lg }}>
           <FilterChips value={tab} onChange={(v) => { setTab(v); setClassId(0); }} options={tabOptions} />
+          {showFab ? (
+            <Button mode="contained-tonal" icon="account-multiple-plus-outline" compact style={{ alignSelf: 'flex-start', marginBottom: space.sm }}
+              onPress={() => { haptic.tap(); router.push(`/more/add-many?role=${TAB_ROLE[tab] === 'vice_principal' && !canManageStaff ? 'teacher' : TAB_ROLE[tab]}`); }}>
+              Add many {tab === 'staff' ? 'staff' : tab === 'parent' ? 'parents' : tab === 'teacher' ? 'teachers' : 'students'}
+            </Button>
+          ) : null}
           {tab === 'student' && classes.data ? (
             <FilterChips options={[{ label: 'All classes', value: 0 }, ...classes.data.map((c) => ({ label: `${c.name} · ${c.student_count}`, value: c.id }))]}
               value={classId} onChange={setClassId} />
