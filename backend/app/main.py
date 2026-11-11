@@ -18,6 +18,13 @@ async def lifespan(_app: FastAPI):
 
     with SessionLocal() as db:
         ensure_secret(db)
+        from datetime import timedelta
+
+        from sqlalchemy import delete
+
+        from .models import DataSnapshot, utcnow
+        db.execute(delete(DataSnapshot).where(DataSnapshot.created_at < utcnow() - timedelta(days=30)))   # undo copies expire
+        db.commit()
 
     ensure_platform()  # plans + super admin account
     if os.getenv("SEED_DEMO", "1") == "1":
@@ -32,7 +39,7 @@ async def lifespan(_app: FastAPI):
     yield
 
 
-app = FastAPI(title="School Hub API", version="0.5.0", lifespan=lifespan)
+app = FastAPI(title="School Hub API", version="0.6.0", lifespan=lifespan)
 app.add_middleware(CORSMiddleware, allow_origins=["*"], allow_methods=["*"], allow_headers=["*"])
 
 for r in (auth.router, school.router, academics.router, dashboard.router, settings.router, admin.router,

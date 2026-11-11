@@ -24,7 +24,7 @@ MAX_BYTES = 20 * 1024 * 1024
 XLSX = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
 principal_only = require(Role.principal)
 
-_imports = threading.BoundedSemaphore(2)  # at most 2 imports at once on this small server…
+_imports = threading.BoundedSemaphore(1)  # one import at a time on this small (512 MB) server…
 _school_locks: dict[int, threading.Lock] = {}   # …and one per school
 _locks_guard = threading.Lock()
 KEEP_SNAPSHOTS = 3
@@ -67,7 +67,7 @@ def _do_import(db: Session, school: School, me: User, data: bytes, mode: str, co
         raise HTTPException(429, "An import for this school is already running — wait for it to finish")
     if not _imports.acquire(blocking=False):
         lock.release()
-        raise HTTPException(429, "The server is busy with other imports — try again in a minute")
+        raise HTTPException(429, "The server is busy with another school's import — try again in a minute")
     try:
         snapshot = None
         if confirm and mode == "replace":
@@ -77,6 +77,7 @@ def _do_import(db: Session, school: School, me: User, data: bytes, mode: str, co
             db.rollback()
             report["saved"] = False
             return report
+        db.execute(delete(DataSnapshot).where(DataSnapshot.created_at < utcnow() - timedelta(days=SNAPSHOT_DAYS)))
         if snapshot is not None:
             db.add(DataSnapshot(school_id=school.id, content=snapshot, created_by=me.name))
             db.flush()

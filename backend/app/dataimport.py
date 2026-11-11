@@ -42,6 +42,7 @@ MAX_MEMBER = 130 * 1024 * 1024
 MAX_COLS = 40                      # our widest sheet has 15 columns
 MAX_EMPTY_RUN = 1000               # stop reading a sheet after this many blank rows in a row
 MAX_CELL = 32767                   # Excel's own limit
+MAX_TEXT = 60 * 1024 * 1024        # total characters read from one file (bounds memory)
 
 
 def _check_zip(data: bytes) -> None:
@@ -72,6 +73,9 @@ def _rows(ws, budget: list[int]):
         if budget[0] < 0:
             raise HTTPException(413, f"The file has more than {MAX_ROWS:,} rows — split it into smaller files")
         vals = tuple((v[:MAX_CELL] if isinstance(v, str) else v) for v in (list(r)[:width] + [None] * max(0, width - len(r))))
+        budget[1] -= sum(len(v) for v in vals if isinstance(v, str))
+        if budget[1] < 0:
+            raise HTTPException(413, "This workbook has too much text to import in one go. Split it into smaller files.")
         if all(v in (None, "") for v in vals):
             empty += 1
             if empty >= MAX_EMPTY_RUN:
@@ -95,7 +99,7 @@ class Book:
         self.meta: dict[str, str] = {}
         self.vault: list[str] = []
         self.signer = Signer()
-        budget = [MAX_ROWS + 50_000]          # physical rows, blank ones included
+        budget = [MAX_ROWS + 50_000, MAX_TEXT]   # physical rows (blank ones included), characters
         names = {_norm(n): n for n in SPEC}
         try:
             for ws in wb.worksheets:
