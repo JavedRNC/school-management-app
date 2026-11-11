@@ -1,6 +1,8 @@
 import { TopLayer } from '@/components/ui';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useCallback, useEffect, useRef, useState } from 'react';
+
+import { useUpdatePromptShowing } from './UpdateGate';
 import { Animated, Image, LayoutChangeEvent, NativeScrollEvent, NativeSyntheticEvent, ScrollView, View, ViewStyle } from 'react-native';
 import { Button, Dialog, Text } from 'react-native-paper';
 
@@ -26,6 +28,7 @@ export function BannerCarousel({ style }: { style?: ViewStyle }) {
   const scroll = useRef<{ scrollTo: (o: { x: number; animated?: boolean }) => void } | null>(null);
   const x = useRef(new Animated.Value(0)).current;
   const paused = useRef(false);
+  const updating = useUpdatePromptShowing();
 
   useEffect(() => {
     let alive = true;
@@ -76,7 +79,7 @@ export function BannerCarousel({ style }: { style?: ViewStyle }) {
     paused.current = false;
   };
 
-  const detail = open ?? popup;
+  const detail = open ?? (updating ? null : popup);
   return (
     <View style={style} onLayout={onLayout}>
       {width ? (

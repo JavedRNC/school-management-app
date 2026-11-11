@@ -44,7 +44,7 @@ function TabItem({ def, label, focused, onPress }: { def?: TabDef; label: string
           {def ? <Icon name={focused ? def.iconActive : def.icon} size={22} color={focused ? t.colors.onSecondaryContainer : t.colors.onSurfaceVariant} /> : null}
         </Animated.View>
       </View>
-      <Text variant="labelMedium" numberOfLines={1} allowFontScaling={false}
+      <Text variant="labelMedium" numberOfLines={1} maxFontSizeMultiplier={1.15}
         style={{ marginTop: 3, color: focused ? t.colors.onSurface : t.colors.onSurfaceVariant, fontWeight: focused ? '700' : '500' }}>{label}</Text>
     </Pressable>
   );

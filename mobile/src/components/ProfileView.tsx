@@ -58,6 +58,9 @@ export function ProfileView({ extra }: { extra?: string }) {
 
   const isPrincipal = user.role === 'principal';
   const links: Link[] = [];
+  if (user.role === 'admin') {
+    links.push({ title: 'App updates', desc: 'Update popup: optional or forced', icon: 'cellphone-arrow-down', to: '/admin-updates' });
+  }
   if (school) {
     links.push({ title: 'School calendar', desc: 'Holidays, vacations & events', icon: 'calendar-month-outline', to: '/more/calendar' });
     for (const o of ops) links.push({ title: o.label, desc: OP_DESC[o.key] ?? '', icon: o.icon, to: o.path });

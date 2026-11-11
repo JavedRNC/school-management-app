@@ -20,6 +20,22 @@ const CHECK_EVERY_MS = 30 * 60 * 1000;
 
 type Version = { latest_build: number; min_build: number; message: string; url: string };
 
+// Other popups (e.g. banner popups) wait while the update prompt is on screen.
+let showing = false;
+const listeners = new Set<(v: boolean) => void>();
+function setShowing(v: boolean) {
+  showing = v;
+  listeners.forEach((l) => l(v));
+}
+export function useUpdatePromptShowing(): boolean {
+  const [v, setV] = useState(showing);
+  useEffect(() => {
+    listeners.add(setV);
+    return () => { listeners.delete(setV); };
+  }, []);
+  return v;
+}
+
 export function UpdateGate() {
   const t = useAppTheme();
   const [info, setInfo] = useState<Version | null>(null);
@@ -53,6 +69,10 @@ export function UpdateGate() {
     });
     return () => sub.remove();
   }, [check]);
+
+  useEffect(() => {
+    setShowing(!!mode && !!info);
+  }, [mode, info]);
 
   if (!mode || !info) return null;
   const forced = mode === 'forced';

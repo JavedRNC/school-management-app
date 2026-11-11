@@ -4,6 +4,7 @@ import { StatusBar } from 'expo-status-bar';
 import { PaperProvider } from 'react-native-paper';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 
+import { UpdateGate } from '@/components/UpdateGate';
 import { AuthProvider } from '@/lib/auth';
 import { ToastProvider } from '@/lib/feedback';
 import { useSchemeTheme } from '@/lib/theme';
@@ -23,6 +24,7 @@ export default function RootLayout() {
             <AuthProvider>
               <StatusBar style="light" />
               <Stack screenOptions={{ headerShown: false, animation: 'fade' }} />
+              <UpdateGate />
             </AuthProvider>
           </ToastProvider>
         </ThemeProvider>
