@@ -5,7 +5,7 @@ Soft delete: rows with `is_active` are archived (hidden) instead of deleted.
 from datetime import date, datetime, timezone
 from enum import Enum
 
-from sqlalchemy import JSON, Boolean, Date, DateTime, Float, ForeignKey, Integer, String, Text, UniqueConstraint
+from sqlalchemy import JSON, Boolean, Date, DateTime, Float, ForeignKey, Integer, LargeBinary, String, Text, UniqueConstraint
 from sqlalchemy import Enum as SAEnum
 from sqlalchemy.orm import Mapped, mapped_column
 
@@ -496,3 +496,12 @@ class BellSchedule(Base):
     school_id: Mapped[int] = mapped_column(ForeignKey("schools.id"), primary_key=True)
     day: Mapped[int] = mapped_column(Integer, primary_key=True)
     slots: Mapped[list] = mapped_column(JSON, default=list)
+
+
+class DataSnapshot(Base):
+    """Automatic full backup taken just before a Replace import, so it can be undone (latest one per school)."""
+    __tablename__ = "data_snapshots"
+    school_id: Mapped[int] = mapped_column(ForeignKey("schools.id"), primary_key=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=utcnow)
+    created_by: Mapped[str] = mapped_column(String(120), default="")
+    content: Mapped[bytes] = mapped_column(LargeBinary)

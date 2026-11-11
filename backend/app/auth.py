@@ -1,3 +1,4 @@
+import logging
 import os
 from datetime import datetime, timedelta, timezone
 
@@ -13,14 +14,32 @@ from .perms import RANK, level_of
 from .subscription import can_write, school_modules
 
 DEV_SECRET = "dev-only-secret-change-me-in-production-0123456789"
-SECRET = os.getenv("JWT_SECRET") or DEV_SECRET   # replaced at startup by ensure_secret() when JWT_SECRET is unset
+_ENV_SECRET = os.getenv("JWT_SECRET", "")
+# Fail closed: no usable secret until ensure_secret() runs at startup (a weak/public JWT_SECRET is ignored).
+SECRET: str | None = _ENV_SECRET if len(_ENV_SECRET) >= 32 and _ENV_SECRET != DEV_SECRET else None
+
+
+def secret() -> str:
+    if not SECRET:
+        raise RuntimeError("Server secret not initialised")
+    return SECRET
+
+
+def derived_key(purpose: str) -> bytes:
+    """Separate keys per use (JWT, backup signature, backup vault) from one server secret."""
+    import hashlib
+    import hmac as _h
+
+    return _h.new(secret().encode(), purpose.encode(), hashlib.sha256).digest()
 
 
 def ensure_secret(db) -> None:
-    """Never run with the public default secret: if JWT_SECRET isn't set, use a random one kept in the database."""
+    """Use JWT_SECRET (≥32 chars) when set; otherwise a random secret kept in the database — never a public default."""
     global SECRET
-    if os.getenv("JWT_SECRET"):
+    if SECRET:
         return
+    if _ENV_SECRET:
+        logging.getLogger("auth").warning("JWT_SECRET is too short or the public default — using a generated secret instead")
     import secrets as _s
 
     from .models import Meta
@@ -30,6 +49,8 @@ def ensure_secret(db) -> None:
         db.add(row)
         db.commit()
     SECRET = row.value
+
+
 TOKEN_DAYS = 7
 MAX_FAILED = 5
 LOCK_MINUTES = 15
@@ -56,7 +77,7 @@ def check_password_rules(pw: str, login_id: str) -> None:
 
 def make_token(user: User) -> str:
     exp = datetime.now(timezone.utc) + timedelta(days=TOKEN_DAYS)
-    return jwt.encode({"sub": str(user.id), "role": user.role.value, "sid": user.school_id, "exp": exp}, SECRET, algorithm="HS256")
+    return jwt.encode({"sub": str(user.id), "role": user.role.value, "sid": user.school_id, "exp": exp}, secret(), algorithm="HS256")
 
 
 def audit(db: Session, actor: User | None, action: str, detail: str = "", school_id: int | None = None) -> None:
@@ -73,7 +94,7 @@ def current_user(request: Request, creds: HTTPAuthorizationCredentials | None = 
     if not creds:
         raise HTTPException(status.HTTP_401_UNAUTHORIZED, "Not logged in")
     try:
-        data = jwt.decode(creds.credentials, SECRET, algorithms=["HS256"])
+        data = jwt.decode(creds.credentials, secret(), algorithms=["HS256"])
     except jwt.PyJWTError:
         raise HTTPException(status.HTTP_401_UNAUTHORIZED, "Session expired — please sign in again")
     user = db.get(User, int(data["sub"]))

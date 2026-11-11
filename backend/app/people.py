@@ -278,28 +278,56 @@ def check_student_limit(ctx: Ctx, plan: PeoplePlan) -> None:
         plan.err(0, "students", f"your plan allows up to {lim} active students; this would make {active_now + delta}")
 
 
-def apply_plan(ctx: Ctx, plan: PeoplePlan, hashes: dict[str, tuple[str, bool]] | None = None) -> list[dict]:
+PREVIEW_HASH = "!preview-not-a-password"   # never matches; only ever written inside a rolled-back preview
+
+
+def apply_plan(ctx: Ctx, plan: PeoplePlan, vault: dict[str, dict] | None = None, fast: bool = False,
+               locked_down_staff: bool = False) -> list[dict]:
     """Write the plan. Returns credentials of new accounts: [{name, role, login_id, password}].
-    `hashes` (login lower → (bcrypt hash, must_change)) comes from a verified backup; those people keep their password."""
+    vault (login lower → {"h","m","p","c"}) comes from a verified backup: those people keep their password,
+    VP/coordinator permissions and parental consent date.
+    fast=True (preview, or a run that will be rolled back) skips password hashing entirely.
+    locked_down_staff: new VPs/coordinators start with no permissions (file not verified)."""
+    from datetime import datetime as _dt
+
+    from .perms import AREAS
+
     db = ctx.db
     creds = []
-    hashes = hashes or {}
+    vault = vault or {}
     classes = {c.name.strip().lower(): c for c in db.scalars(select(SchoolClass).where(SchoolClass.school_id == ctx.school.id))}
     for d in plan.creates:
         cls = classes.get(d.get("class", "").strip().lower()) if d["role"] == Role.student else None
-        known = hashes.get(d["login_id"].lower())
+        known = vault.get(d["login_id"].lower())
+        if known and known.get("r") != d["role"].value:
+            known = None
         pw = None
         if known:
-            pw_hash, must = known
+            pw_hash, must = known["h"], bool(known.get("m", True))
+        elif fast:
+            pw, pw_hash, must = "(shown after saving)", PREVIEW_HASH, True
         else:
             pw = temp_password()
             pw_hash, must = hash_temp(pw), True
+        perms = None
+        if d["role"] in (Role.vice_principal, Role.coordinator):
+            if known and isinstance(known.get("p"), dict):
+                perms = clean_permissions(known["p"], d["role"])
+            elif locked_down_staff:
+                perms = {a: "none" for a in AREAS}
+            else:
+                perms = clean_permissions(None, d["role"])
+        consent = None
+        if known and known.get("c"):
+            try:
+                consent = _dt.fromisoformat(known["c"])
+            except (TypeError, ValueError):
+                consent = None
         u = User(school_id=ctx.school.id, login_id=d["login_id"], name=d["name"], role=d["role"], password_hash=pw_hash,
                  must_change_password=must, phone=d.get("phone", ""), email=d.get("email", ""), address=d.get("address", ""),
                  dob=d.get("dob"), blood_group=d.get("blood_group", ""), class_id=cls.id if cls else None,
                  roll_no=d.get("roll_no") if d["role"] == Role.student else None, active=d.get("active", True),
-                 archived_at=None if d.get("active", True) else utcnow(),
-                 permissions=clean_permissions(None, d["role"]) if d["role"] in (Role.vice_principal, Role.coordinator) else None)
+                 archived_at=None if d.get("active", True) else utcnow(), permissions=perms, consent_at=consent)
         db.add(u)
         ctx.users[u.login_id.lower()] = u
         if pw:

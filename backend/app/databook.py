@@ -8,17 +8,24 @@ inside the file.
 Security notes
 - Cell text that starts with = + - @ is written with a leading apostrophe so Excel never runs it as a formula,
   and every cell is written as text/number (never a formula).
-- Password hashes travel only in the hidden `_auth` sheet, signed with HMAC-SHA256 (server secret + school code).
-  Hashes are used on import only when the signature verifies for the same school; otherwise people get new
-  temporary passwords. Principal/admin accounts are never created or overwritten from a file.
+- A backup carries a signature (HMAC-SHA256, key derived from the server secret) over every sheet, the school code and
+  the export time. Only a verified file (same school + server, unchanged) is restored as-is: password hashes,
+  VP/coordinator permissions, parental consent and who-did-what. Anything else is imported as plain data with
+  strict checks, attributed to the person importing it.
+- Password hashes, permissions and consent dates are AES-GCM encrypted in the hidden `_vault` sheet, so nobody
+  holding the file can read the hashes. Principal/admin accounts are never created or overwritten from a file.
 """
+import base64
 import hashlib
 import hmac
 import io
+import json
+import os
 from datetime import date, datetime
 
 from openpyxl import Workbook
 from openpyxl.cell import WriteOnlyCell
+from openpyxl.cell.cell import ILLEGAL_CHARACTERS_RE
 from openpyxl.styles import Alignment, Font, PatternFill
 from openpyxl.worksheet.datavalidation import DataValidation
 
@@ -137,7 +144,7 @@ def safe(v):
         return v.replace(microsecond=0, tzinfo=None).isoformat(sep=" ")
     if isinstance(v, date):
         return v.isoformat()
-    s = str(v)
+    s = ILLEGAL_CHARACTERS_RE.sub("", str(v))[:32000]
     if s[:1] in ("=", "+", "-", "@", "\t", "\r"):
         s = "'" + s
     return s
@@ -150,9 +157,56 @@ def unsafe(v):
     return v
 
 
-def auth_signature(school_code: str, rows: list[tuple[str, str, bool]]) -> str:
-    msg = school_code.upper() + "\n" + "\n".join(f"{l}\t{h}\t{int(m)}" for l, h, m in rows)
-    return hmac.new(auth.SECRET.encode(), msg.encode(), hashlib.sha256).hexdigest()
+def canon(v) -> str:
+    """Canonical text of a cell value, identical for what we write and what openpyxl reads back."""
+    if v is None:
+        return ""
+    if isinstance(v, bool):
+        return "1" if v else "0"
+    if isinstance(v, (int, float)):
+        f = float(v)
+        return str(int(f)) if f.is_integer() else repr(f)
+    return str(v)
+
+
+class Signer:
+    """Running HMAC over sheets (name, then each row padded to the header width)."""
+
+    def __init__(self):
+        self.h = hmac.new(auth.derived_key("school-backup-sig-v1"), digestmod=hashlib.sha256)
+
+    def sheet(self, name: str, width: int):
+        self.h.update(b"\x1e" + name.encode() + b"\x1e" + str(width).encode())
+
+    def row(self, values, width: int):
+        vals = list(values)[:width] + [None] * max(0, width - len(values))
+        self.h.update(b"\x1d" + "\x1f".join(canon(v) for v in vals).encode())
+
+    def finish(self, school_code: str, exported_at: str) -> str:
+        self.h.update(b"\x1c" + school_code.upper().encode() + b"\x1c" + exported_at.encode())
+        return self.h.hexdigest()
+
+
+def vault_seal(school_code: str, payload: list[dict]) -> list[str]:
+    from cryptography.hazmat.primitives.ciphers.aead import AESGCM
+
+    nonce = os.urandom(12)
+    ct = AESGCM(auth.derived_key("school-backup-vault-v1")).encrypt(nonce, json.dumps(payload).encode(), school_code.upper().encode())
+    blob = base64.b64encode(nonce + ct).decode()
+    return [blob[i:i + 30000] for i in range(0, len(blob), 30000)]
+
+
+def vault_open(school_code: str, chunks: list[str]) -> list[dict] | None:
+    from cryptography.exceptions import InvalidTag
+    from cryptography.hazmat.primitives.ciphers.aead import AESGCM
+
+    try:
+        raw = base64.b64decode("".join(chunks), validate=True)
+        data = AESGCM(auth.derived_key("school-backup-vault-v1")).decrypt(raw[:12], raw[12:], school_code.upper().encode())
+        out = json.loads(data)
+        return out if isinstance(out, list) else None
+    except (InvalidTag, ValueError, TypeError):
+        return None
 
 
 HEAD_FONT = Font(bold=True, color="FFFFFF")
@@ -164,6 +218,7 @@ class Writer:
 
     def __init__(self, write_only: bool):
         self.wo = write_only
+        self.signer = Signer()
         self.wb = Workbook(write_only=write_only)
         if not write_only:
             self.wb.remove(self.wb.active)
@@ -175,6 +230,11 @@ class Writer:
         ws.freeze_panes = "A2"
         if hidden:
             ws.sheet_state = "hidden"
+        width = len(headers)
+        sign = name != "_meta"
+        if sign:
+            self.signer.sheet(name, width)
+            self.signer.row(headers, width)
         if self.wo:
             head = []
             for h in headers:
@@ -183,13 +243,19 @@ class Writer:
                 head.append(c)
             ws.append(head)
             for r in rows:
-                ws.append([_text_cell(ws, safe(v)) for v in r])
+                vals = [safe(v) for v in r]
+                if sign:
+                    self.signer.row(vals, width)
+                ws.append([_text_cell(ws, v) for v in vals])
         else:
             ws.append(headers)
             for c in ws[1]:
                 c.font, c.fill = HEAD_FONT, HEAD_FILL
             for r in rows:
-                ws.append([safe(v) for v in r])
+                vals = [safe(v) for v in r]
+                if sign:
+                    self.signer.row(vals, width)
+                ws.append(vals)
                 for c in ws[ws.max_row]:
                     if isinstance(c.value, str):
                         c.data_type = "s"
@@ -236,13 +302,15 @@ def readme_rows(kind: str, school_name: str) -> list[list]:
     rows += [[k, v] for k, v in HELP.items()]
     if kind == "backup":
         rows += [[""], ["This file is a full backup and contains personal data. Store it safely (DPDP Act 2023)."],
-                 ["Do not edit the hidden sheets — passwords are kept only when the file is unchanged there."]]
+                 ["Restore it as-is to keep everyone's passwords and permissions. If the file is edited, it's still imported,"],
+                 ["but as plain data: new accounts get temporary passwords."]]
     return rows
 
 
 # ================================================================ export
-def export_workbook(db, school, kind: str = "backup") -> bytes:
-    """kind = 'template' (empty sheets + dropdowns + this school's classes/subjects/staff) or 'backup' (everything)."""
+def export_workbook(db, school, kind: str = "backup", with_vault: bool = True) -> bytes:
+    """kind = 'template' (this school's setup data + dropdowns, no history/passwords) or 'backup' (everything).
+    with_vault=False leaves out password hashes, permissions and consent (admin downloads)."""
     from sqlalchemy import select
 
     from . import models as M
@@ -338,16 +406,18 @@ def export_workbook(db, school, kind: str = "backup") -> bytes:
                                              stops[t.stop_id].name if t.stop_id in stops else ""]
                                             for t in db.scalars(select(M.StudentTransport).where(M.StudentTransport.school_id == sid))])
 
-    auth_rows = []
     if full:
         _history(w, db, sid, M, users, login, cname, sname)
-        auth_rows = sorted((u.login_id, u.password_hash, bool(u.must_change_password)) for u in users.values()
-                           if u.role in (M.Role.teacher, M.Role.vice_principal, M.Role.coordinator, M.Role.student, M.Role.parent))
-        w.sheet("_auth", ["login_id", "password_hash", "must_change"], [[l, h, m] for l, h, m in auth_rows], hidden=True)
-    meta = [["kind", kind], ["school_code", school.code], ["format", FORMAT_VERSION],
-            ["exported_at", datetime.now().replace(microsecond=0).isoformat(sep=" ")]]
+        if with_vault:
+            payload = [{"l": u.login_id, "r": u.role.value, "h": u.password_hash, "m": bool(u.must_change_password),
+                        "p": u.permissions, "c": u.consent_at.isoformat() if u.consent_at else None}
+                       for u in sorted(users.values(), key=lambda x: x.login_id)
+                       if u.role in (M.Role.teacher, M.Role.vice_principal, M.Role.coordinator, M.Role.student, M.Role.parent)]
+            w.sheet("_vault", ["data"], [[c] for c in vault_seal(school.code, payload)], hidden=True)
+    exported_at = datetime.now().replace(microsecond=0).isoformat(sep=" ")
+    meta = [["kind", kind], ["school_code", school.code], ["format", FORMAT_VERSION], ["exported_at", exported_at]]
     if full:
-        meta.append(["auth_sig", auth_signature(school.code, auth_rows)])
+        meta.append(["data_sig", w.signer.finish(school.code, exported_at)])
     w.sheet("_meta", ["key", "value"], meta, hidden=True)
     return w.bytes()
 

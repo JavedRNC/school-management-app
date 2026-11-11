@@ -5,6 +5,7 @@ the user confirmed (preview = the same run, rolled back). See databook.py for th
 """
 import hmac
 import io
+import math
 import re
 from datetime import date, datetime
 
@@ -15,13 +16,15 @@ from sqlalchemy.orm import Session
 
 from . import models as M
 from .bell import clean_slots, period_count, schedules
-from .databook import DAY_NAMES, FEE_KEYS, HISTORY_SHEETS, SCHOOL_KEYS, SETUP_SHEETS, SPEC, auth_signature, unsafe
+from .databook import DAY_NAMES, FEE_KEYS, HISTORY_SHEETS, SCHOOL_KEYS, SETUP_SHEETS, SPEC, unsafe, vault_open
 from .deps import get_prefs
 from .people import (Ctx, Issue, PeoplePlan, apply_plan, as_bool, as_date, as_int, as_text, check_student_limit,
                      norm_mobile, plan_rows)
 from .models import Role, utcnow
 
 MAX_ROWS = 300_000
+MAX_PEOPLE = 20_000
+ROLE_VALUES = {"teacher", "vice_principal", "coordinator", "student", "parent"}
 HHMM = re.compile(r"^([01]\d|2[0-3]):[0-5]\d$")
 DAYS = {d.lower(): i for i, d in enumerate(DAY_NAMES)}
 DAYS.update({"monday": 0, "tuesday": 1, "wednesday": 2, "thursday": 3, "friday": 4, "saturday": 5, "sunday": 6})
@@ -34,7 +37,11 @@ def _norm(h) -> str:
 
 
 # ================================================================ reading
-MAX_UNZIPPED = 200 * 1024 * 1024   # .xlsx is a zip: refuse "zip bombs" before parsing
+MAX_UNZIPPED = 60 * 1024 * 1024    # .xlsx is a zip: refuse "zip bombs" before parsing
+MAX_MEMBER = 40 * 1024 * 1024
+MAX_COLS = 40                      # our widest sheet has 15 columns
+MAX_EMPTY_RUN = 1000               # stop reading a sheet after this many blank rows in a row
+MAX_CELL = 32767                   # Excel's own limit
 
 
 def _check_zip(data: bytes) -> None:
@@ -45,12 +52,39 @@ def _check_zip(data: bytes) -> None:
             infos = z.infolist()
     except zipfile.BadZipFile:
         raise HTTPException(400, "That file isn't an Excel (.xlsx) workbook") from None
-    if len(infos) > 500 or sum(i.file_size for i in infos) > MAX_UNZIPPED:
+    if len(infos) > 300 or sum(i.file_size for i in infos) > MAX_UNZIPPED or any(i.file_size > MAX_MEMBER for i in infos):
         raise HTTPException(413, "This workbook is too large to import. Split it into smaller files.")
+
+
+def _rows(ws, budget: list[int]):
+    """Yield (excel_row_no, values) with the header width, never trusting the sheet's declared size."""
+    ws.reset_dimensions()
+    it = ws.iter_rows(values_only=True, max_col=MAX_COLS)
+    head = next(it, None) or ()
+    head = list(head)
+    while head and head[-1] in (None, ""):
+        head.pop()
+    width = max(1, len(head))
+    yield 1, tuple(head)
+    empty = 0
+    for n, r in enumerate(it, start=2):
+        budget[0] -= 1
+        if budget[0] < 0:
+            raise HTTPException(413, f"The file has more than {MAX_ROWS:,} rows — split it into smaller files")
+        vals = tuple((v[:MAX_CELL] if isinstance(v, str) else v) for v in (list(r)[:width] + [None] * max(0, width - len(r))))
+        if all(v in (None, "") for v in vals):
+            empty += 1
+            if empty >= MAX_EMPTY_RUN:
+                return
+        else:
+            empty = 0
+        yield n, vals
 
 
 class Book:
     def __init__(self, data: bytes):
+        from .databook import Signer
+
         _check_zip(data)
         try:
             wb = load_workbook(io.BytesIO(data), read_only=True, data_only=True)
@@ -59,51 +93,70 @@ class Book:
         self.sheets: dict[str, list[tuple[int, dict]]] = {}
         self.missing_cols: list[str] = []
         self.meta: dict[str, str] = {}
-        self.auth: list[tuple[str, str, bool]] = []
-        total = 0
+        self.vault: list[str] = []
+        self.signer = Signer()
+        budget = [MAX_ROWS + 50_000]          # physical rows, blank ones included
         names = {_norm(n): n for n in SPEC}
-        for ws in wb.worksheets:
-            title = ws.title.strip()
-            if title == "_meta":
-                for r in ws.iter_rows(min_row=2, values_only=True):
-                    if r and r[0]:
-                        self.meta[str(r[0])] = str(r[1] if len(r) > 1 and r[1] is not None else "")
-                continue
-            if title == "_auth":
-                for r in ws.iter_rows(min_row=2, values_only=True):
-                    if r and r[0] and len(r) >= 3:
-                        self.auth.append((str(r[0]), str(r[1] or ""), str(r[2]).strip().lower() in ("yes", "true", "1")))
-                continue
-            key = names.get(_norm(title))
-            if not key:
-                continue
-            spec = SPEC[key]
-            by_head = {}
-            for k, h in spec:
-                by_head[_norm(h)] = k
-                by_head[_norm(k)] = k
-            rows_iter = ws.iter_rows(values_only=True)
-            head = next(rows_iter, None) or ()
-            cols = [by_head.get(_norm(h)) for h in head]
-            out = []
-            for n, r in enumerate(rows_iter, start=2):
-                if not r or all(v in (None, "") or (isinstance(v, str) and not v.strip()) for v in r):
+        try:
+            for ws in wb.worksheets:
+                title = ws.title.strip()
+                if title == "_meta":
+                    for n, r in _rows(ws, budget):
+                        if n > 50:
+                            break
+                        if n > 1 and r and r[0] and len(r) > 1:
+                            self.meta[str(r[0])[:40]] = str(r[1] if r[1] is not None else "")[:200]
                     continue
-                total += 1
-                if total > MAX_ROWS:
-                    raise HTTPException(413, f"The file has more than {MAX_ROWS:,} rows — split it into smaller files")
-                d = {}
-                for c, v in zip(cols, r):
-                    if c:
-                        d[c] = unsafe(v.strip() if isinstance(v, str) else v)
-                out.append((n, d))
-            if out:
-                needed = {"Classes": "name", "Subjects": "name", "Staff": "login_id", "Students": "login_id", "Parents": "login_id",
-                          "School": "value", "Fee setup": "value"}.get(key)
-                if needed and needed not in [c for c in cols if c]:
-                    self.missing_cols.append(f"{key}: column “{dict(spec)[needed]}” not found")
-                self.sheets[key] = out
-        wb.close()
+                rows = _rows(ws, budget)
+                _, head = next(rows)
+                width = len(head)
+                self.signer.sheet(ws.title, width)
+                self.signer.row(head, width)
+                if title == "_vault":
+                    for n, r in rows:
+                        self.signer.row(r, width)
+                        if r and isinstance(r[0], str):
+                            self.vault.append(r[0])
+                    continue
+                key = names.get(_norm(title))
+                if not key:
+                    for _, r in rows:      # still part of the signed content
+                        self.signer.row(r, width)
+                    continue
+                spec = SPEC[key]
+                by_head = {}
+                for k, h in spec:
+                    by_head[_norm(h)] = k
+                    by_head[_norm(k)] = k
+                cols = [by_head.get(_norm(h)) for h in head]
+                out = []
+                for n, r in rows:
+                    self.signer.row(r, width)
+                    if all(v in (None, "") or (isinstance(v, str) and not v.strip()) for v in r):
+                        continue
+                    d = {}
+                    for c, v in zip(cols, r):
+                        if c:
+                            d[c] = unsafe(v.strip() if isinstance(v, str) else v)
+                    out.append((n, d))
+                if out:
+                    needed = {"Classes": "name", "Subjects": "name", "Staff": "login_id", "Students": "login_id", "Parents": "login_id",
+                              "School": "value", "Fee setup": "value"}.get(key)
+                    if needed and needed not in [c for c in cols if c]:
+                        self.missing_cols.append(f"{key}: column “{dict(spec)[needed]}” not found")
+                    self.sheets[key] = out
+        finally:
+            wb.close()
+
+    def verified_for(self, school_code: str) -> bool:
+        """True only for an unchanged backup made by this server for this school."""
+        sig = self.meta.get("data_sig", "")
+        if self.meta.get("kind") != "backup" or not re.fullmatch(r"[0-9a-f]{64}", sig):
+            return False
+        if self.meta.get("school_code", "").upper() != school_code.upper():
+            return False
+        expected = self.signer.finish(school_code, self.meta.get("exported_at", ""))
+        return hmac.compare_digest(sig.encode(), expected.encode())
 
     def rows(self, name: str) -> list[tuple[int, dict]]:
         return self.sheets.get(name, [])
@@ -150,6 +203,8 @@ def as_float(v, lo: float | None = None, hi: float | None = None, digits: int = 
         f = float(str(v).replace(",", "").replace("₹", "").strip())
     except ValueError:
         raise ValueError("must be a number") from None
+    if not math.isfinite(f):
+        raise ValueError("must be a number")
     if (lo is not None and f < lo) or (hi is not None and f > hi):
         raise ValueError(f"must be between {lo:g} and {hi:g}")
     return round(f, digits)
@@ -172,9 +227,10 @@ def parse_day(v) -> int:
 
 # ================================================================ importer
 class Importer:
-    def __init__(self, db: Session, school: M.School, me: M.User, mode: str, book: Book):
-        self.db, self.school, self.me, self.mode, self.book = db, school, me, mode, book
+    def __init__(self, db: Session, school: M.School, me: M.User, mode: str, book: Book, confirm: bool = False):
+        self.db, self.school, self.me, self.mode, self.book, self.confirm = db, school, me, mode, book, confirm
         self.sid = school.id
+        self.verified = book.verified_for(school.code)
         self.issues: list[Issue] = []
         self.warnings: list[str] = []
         self.counts: dict[str, dict[str, int]] = {}
@@ -224,15 +280,17 @@ class Importer:
             self.issues.append(Issue(1, "", m, m.split(":")[0]))
         if b.meta.get("school_code") and b.meta["school_code"].upper() != self.school.code.upper():
             self.warnings.append(f"This file was exported from school {b.meta['school_code']}, not {self.school.code}.")
-        hashes = self._hashes()
+        vault = self._vault()
         if self.mode == "replace":
             self.wipe()
         self.refresh()
+        pr = next((u for u in self.users.values() if u.role == Role.principal and u.active), None)
+        self.actor_id = self.me.id if self.me.school_id == self.sid else (pr.id if pr else self.me.id)
         self.school_sheet()
         self.principal_sheet()
         self.classes_sheet()
         self.subjects_sheet()
-        self.people(hashes)
+        self.people(vault)
         self.refresh()
         self.after_people()
         self.teaching_sheet()
@@ -249,27 +307,38 @@ class Importer:
         sheets = [s for s in SETUP_SHEETS + HISTORY_SHEETS if s in self.counts]
         return {"ok": not self.issues, "mode": self.mode, "kind": self.book.meta.get("kind") or "template",
                 "errors": [i.out() for i in self.issues[:300]], "error_count": len(self.issues),
-                "warnings": self.warnings[:50], "passwords_kept": self.passwords_kept,
+                "warnings": self.warnings[:50], "passwords_kept": self.passwords_kept, "verified": self.verified,
                 "sheets": [{"sheet": s, **self.counts[s]} for s in sheets],
                 "new_logins": len(self.credentials)}
 
-    def _hashes(self) -> dict[str, tuple[str, bool]]:
+    def _vault(self) -> dict[str, dict]:
         b = self.book
-        if not b.auth:
+        if b.meta.get("kind") == "backup" and not self.verified:
+            self.warnings.append("This backup can't be verified (it was changed, or made for another school or server). "
+                                 "It's imported as plain data: new accounts get temporary passwords, new Vice Principals/"
+                                 "Coordinators start with no permissions, and history is recorded under your name.")
+        if not self.verified or not b.vault:
             return {}
-        sig = b.meta.get("auth_sig", "")
-        ok = (b.meta.get("kind") == "backup" and b.meta.get("school_code", "").upper() == self.school.code.upper()
-              and hmac.compare_digest(sig, auth_signature(self.school.code, sorted(b.auth))))
-        if not ok:
-            self.warnings.append("Passwords in this file can't be verified (file changed, or made for another school/server) — "
-                                 "new accounts will get temporary passwords.")
+        rows = vault_open(self.school.code, b.vault)
+        if rows is None:
+            self.warnings.append("The password section of this backup couldn't be opened — new accounts get temporary passwords.")
             return {}
         out = {}
-        for login, h, must in b.auth:
-            if h.startswith(("$2a$", "$2b$", "$2y$")) and len(h) == 60:
-                out[login.lower()] = (h, must)
-        self.passwords_kept = True
+        for e in rows:
+            if isinstance(e, dict) and isinstance(e.get("l"), str) and isinstance(e.get("h"), str) \
+                    and e["h"].startswith(("$2a$", "$2b$", "$2y$")) and len(e["h"]) == 60 and e.get("r") in ROLE_VALUES:
+                out[e["l"].lower()] = e
+        self.passwords_kept = bool(out)
         return out
+
+    def attrib(self, login) -> int:
+        """Who did it. Only a verified backup may name other people; otherwise it's the importer
+        (or the school's principal when the platform admin imports)."""
+        if self.verified:
+            u = self.user(login)
+            if u:
+                return u.id
+        return self.actor_id
 
     # ================================================================ replace: wipe this school's data
     def wipe(self):
@@ -449,7 +518,7 @@ class Importer:
         self.db.flush()
 
     # ---- people
-    def people(self, hashes):
+    def people(self, vault):
         ctx = Ctx(self.db, self.school)
         ctx.allow_inactive_class = True
         plan = PeoplePlan(school=self.school, me=self.me)
@@ -460,8 +529,7 @@ class Importer:
                 continue
             before = len(plan.issues)
             for n, r in rows:
-                plan_rows(ctx, plan, role, [r], sheet=sheet, start_row=n, allow_update=True,
-                          strict=self.book.meta.get("kind") != "backup")
+                plan_rows(ctx, plan, role, [r], sheet=sheet, start_row=n, allow_update=True, strict=not self.verified)
             for i in plan.issues[before:]:
                 i.field = dict(SPEC[sheet]).get(i.field, i.field)
         check_student_limit(ctx, plan)
@@ -478,7 +546,10 @@ class Importer:
             self.cnt({Role.student: "Students", Role.parent: "Parents"}.get(u.role, "Staff"), "update")
         # Valid rows are written even when other rows have problems, so later sheets can resolve their references
         # and only real problems are reported. Nothing is kept: any error rolls the whole import back.
-        self.credentials = apply_plan(ctx, plan, hashes)
+        if len(plan.creates) + len(plan.updates) > MAX_PEOPLE:
+            self.issues.append(Issue(0, "", f"A file can add or change at most {MAX_PEOPLE:,} people", "Students"))
+        self.credentials = apply_plan(ctx, plan, vault, fast=not self.confirm or bool(self.issues),
+                                      locked_down_staff=not self.verified)
 
     def after_people(self):
         db = self.db
@@ -913,7 +984,7 @@ class Importer:
                     self.cnt(S, "skip")
             else:
                 new.append({"school_id": sid, "student_id": st.id, "class_id": cid, "date": d, "present": pr,
-                            "marked_by": self.uid(r.get("marked_by"), True), "marked_at": datetime(d.year, d.month, d.day, 9, 0)})
+                            "marked_by": self.attrib(r.get("marked_by")), "marked_at": datetime(d.year, d.month, d.day, 9, 0)})
                 self.cnt(S, "add")
         if new:
             for i in range(0, len(new), 5000):
@@ -979,7 +1050,7 @@ class Importer:
                     self.cnt("Marks", "skip")
             else:
                 m = M.Mark(school_id=sid, exam_id=e.id, student_id=st.id, subject_id=sb.id, score=sc,
-                           entered_by=self.uid(r.get("entered_by"), True))
+                           entered_by=self.attrib(r.get("entered_by")))
                 db.add(m)
                 have[(e.id, st.id, sb.id)] = m
                 self.cnt("Marks", "add")
@@ -1014,7 +1085,7 @@ class Importer:
             c = self.classes.get(as_text(r.get("class"), 40).lower()) if r.get("class") else None
             sb = self.subjects.get(as_text(r.get("subject"), 60).lower()) if r.get("subject") else None
             db.add(M.Post(school_id=sid, kind=kind, title=title, body=as_text(r.get("body"), 20000), class_id=c.id if c else None,
-                          subject_id=sb.id if sb else None, due_date=due, author_id=self.uid(r.get("author"), True), created_at=at,
+                          subject_id=sb.id if sb else None, due_date=due, author_id=self.attrib(r.get("author")), created_at=at,
                           is_active=bool(act), archived_at=None if act else at))
             have.add((kind, title, at.replace(microsecond=0)))
             self.cnt(S, "add")
@@ -1048,9 +1119,9 @@ class Importer:
             if (u.id, st, en, ltype) in have:
                 self.cnt(S, "skip")
                 continue
-            db.add(M.LeaveRequest(school_id=sid, kind=kind, user_id=u.id, applied_by=self.uid(r.get("applied_by"), True), leave_type=ltype,
+            db.add(M.LeaveRequest(school_id=sid, kind=kind, user_id=u.id, applied_by=self.attrib(r.get("applied_by")), leave_type=ltype,
                                   start_date=st, end_date=en, half_day=bool(half), reason=as_text(r.get("reason"), 2000), status=status,
-                                  decided_by=self.uid(r.get("decided_by")), decided_at=dec_at, comment=as_text(r.get("comment"), 2000),
+                                  decided_by=self.attrib(r.get("decided_by")) if r.get("decided_by") else None, decided_at=dec_at, comment=as_text(r.get("comment"), 2000),
                                   created_at=at))
             have.add((u.id, st, en, ltype))
             self.cnt(S, "add")
@@ -1076,7 +1147,7 @@ class Importer:
                 continue
             a = have.get((u.id, d))
             vals = dict(check_in_at=ci, check_out_at=co, in_distance_m=nums["in_distance"], out_distance_m=nums["out_distance"],
-                        in_accuracy_m=nums["accuracy"], late=bool(late), marked_by=self.uid(r.get("marked_by")), note=as_text(r.get("note"), 200))
+                        in_accuracy_m=nums["accuracy"], late=bool(late), marked_by=self.attrib(r.get("marked_by")) if r.get("marked_by") else None, note=as_text(r.get("note"), 200))
             if a:
                 for k, v in vals.items():
                     setattr(a, k, v)
@@ -1128,7 +1199,7 @@ class Importer:
             db.add(M.Banner(school_id=sid, title=title, text=as_text(r.get("text"), 2000), image_url=url,
                             color=color if color in ("primary", "amber", "green", "red", "purple") else "primary", roles=roles,
                             class_ids=self._class_ids("Banners", n, "classes", r.get("classes")), start_date=st, end_date=en, popup=bool(pop),
-                            sort=srt or 0, created_by=self.me.id, created_at=at, is_active=bool(act), archived_at=None if act else at))
+                            sort=srt or 0, created_by=self.actor_id, created_at=at, is_active=bool(act), archived_at=None if act else at))
             have.add((title, at.replace(microsecond=0)))
             self.cnt("Banners", "add")
         polls = {(p.title, p.created_at.replace(microsecond=0)): p for p in db.scalars(select(M.Poll).where(M.Poll.school_id == sid))}
@@ -1159,7 +1230,7 @@ class Importer:
             else:
                 p = M.Poll(school_id=sid, kind=kind, title=title, description=as_text(r.get("description"), 4000), options=opts,
                            multi=bool(multi), audience=aud, class_ids=self._class_ids("Polls", n, "classes", r.get("classes")),
-                           deadline=dl, amount=amt, closed=bool(closed), created_by=self.uid(r.get("created_by"), True), created_at=at,
+                           deadline=dl, amount=amt, closed=bool(closed), created_by=self.attrib(r.get("created_by")), created_at=at,
                            is_active=bool(act), archived_at=None if act else at)
                 db.add(p)
                 polls[(title, at.replace(microsecond=0))] = p
@@ -1227,7 +1298,7 @@ class Importer:
             else:
                 x = M.FeeBatch(school_id=sid, title=title, amount=amt, due_date=due, note=as_text(r.get("note"), 500), target=target,
                                class_ids=self._class_ids("Extra fees", n, "classes", r.get("classes")), student_ids=lid(r.get("students")),
-                               exclude_ids=lid(r.get("excluded")), created_by=self.uid(r.get("created_by"), True), created_at=at,
+                               exclude_ids=lid(r.get("excluded")), created_by=self.attrib(r.get("created_by")), created_at=at,
                                is_active=bool(act), archived_at=None if act else at)
                 db.add(x)
                 batches[(title, at.replace(microsecond=0))] = x
@@ -1275,7 +1346,7 @@ class Importer:
                 self.cnt("Fee charges", "skip")
             else:
                 i = M.FeeItem(school_id=sid, student_id=st.id, kind=kind, period=period, title=as_text(r.get("title"), 160) or kind.title(),
-                              amount=amt, due_date=due, batch_id=batch.id if batch else None, is_active=bool(act), created_by=self.me.id,
+                              amount=amt, due_date=due, batch_id=batch.id if batch else None, is_active=bool(act), created_by=self.actor_id,
                               created_at=at)
                 db.add(i)
                 items[k] = i
@@ -1327,7 +1398,8 @@ class Importer:
             req = [iref[x].id for x in split_list(r.get("requested")) if x in iref]
             p = M.FeePayment(school_id=sid, student_id=st.id, receipt_no=rn, amount=amt, mode=mode, reference=ref, paid_on=paid_on,
                              status=status, note=as_text(r.get("note"), 300), cancel_reason=as_text(r.get("cancel_reason"), 300),
-                             received_by=self.uid(r.get("received_by")), submitted_by=self.uid(r.get("submitted_by")),
+                             received_by=self.attrib(r.get("received_by")) if r.get("received_by") else None,
+                             submitted_by=self.attrib(r.get("submitted_by")) if r.get("submitted_by") else None,
                              requested_item_ids=req, created_at=at, confirmed_at=cat)
             db.add(p)
             if rn:
@@ -1383,12 +1455,12 @@ class Importer:
             self.issues.append(Issue(0, "Amount ₹", f"a charge of ₹{amt:g} would be paid ₹{paid:g} — check Payment split", "Payment split"))
 
 
-def run_import(db: Session, school: M.School, me: M.User, data: bytes, mode: str) -> tuple[dict, list[dict]]:
+def run_import(db: Session, school: M.School, me: M.User, data: bytes, mode: str, confirm: bool = False) -> tuple[dict, list[dict]]:
     if mode not in ("merge", "replace"):
         raise HTTPException(400, "Choose Merge or Replace")
     book = Book(data)
     if not book.sheets:
         raise HTTPException(400, "No School Hub sheets found in this file. Download the template from the app and fill it in.")
-    imp = Importer(db, school, me, mode, book)
+    imp = Importer(db, school, me, mode, book, confirm)
     report = imp.run()
     return report, imp.credentials

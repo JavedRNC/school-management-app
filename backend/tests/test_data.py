@@ -25,6 +25,9 @@ def c():
     md = MetaData()
     md.reflect(bind=engine)
     md.drop_all(bind=engine)
+    import app.routers.data as data_router
+
+    data_router.EXPORT_GAP = 0
     with TestClient(app) as client:
         yield client
 
@@ -45,9 +48,9 @@ def to_bytes(wb) -> bytes:
     return buf.getvalue()
 
 
-def upload(c, h, content, mode="merge", confirm=False, code="", url="/data/import"):
+def upload(c, h, content, mode="merge", confirm=False, code="", url="/data/import", password=""):
     return c.post(url, headers=h, files={"file": ("school.xlsx", content)},
-                  data={"mode": mode, "confirm": str(confirm).lower(), "confirm_code": code})
+                  data={"mode": mode, "confirm": str(confirm).lower(), "confirm_code": code, "password": password})
 
 
 # ================================================================ F28
@@ -129,7 +132,7 @@ def test_bulk_add_teachers_permissions(c):
 # ================================================================ F30 template import (fresh setup on DEMO02)
 def fill_template(c, h) -> bytes:
     wb = book(c.get("/data/template", headers=h).content)
-    assert "_auth" not in wb.sheetnames and "Attendance" not in wb.sheetnames
+    assert "_vault" not in wb.sheetnames and "Attendance" not in wb.sheetnames
     wb["Classes"].append(["6-A", "E201", 1200, "Yes"])
     wb["Classes"].append(["7-A", "", None, "Yes"])
     wb["Subjects"].append(["Hindi", "Yes"])
@@ -230,12 +233,25 @@ def test_backup_restore_round_trip_keeps_passwords(c):
     b1 = c.get("/data/backup", headers=h)
     assert b1.headers["content-type"].startswith("application/vnd.openxmlformats") and "Backup-DEMO01" in b1.headers["content-disposition"]
     wb = book(b1.content)
-    assert wb["_auth"].sheet_state == "hidden" and wb["Attendance"].max_row > 100 and wb["Payments"].max_row > 10
-    # replace needs the school code typed
-    r = upload(c, h, b1.content, mode="replace", confirm=True, code="WRONG")
-    assert r.status_code == 400
-    r = upload(c, h, b1.content, mode="replace", confirm=True, code="demo01").json()
-    assert r["saved"] and r["passwords_kept"] and r["new_logins"] == 0, r["errors"][:3]
+    assert wb["_vault"].sheet_state == "hidden" and wb["Attendance"].max_row > 100 and wb["Payments"].max_row > 10
+    assert "$2b$" not in str(list(wb["_vault"].values))            # hashes are encrypted, not readable
+    # restrict the VP first — a verified restore must keep it restricted
+    vp = next(u for u in c.get("/users?role=vice_principal", headers=h).json())
+    c.put(f"/users/{vp['id']}", json={"permissions": {"fees": "none", "people": "none"}}, headers=h)
+    b1 = c.get("/data/backup", headers=h)
+    # replace needs the school code AND the principal's password
+    assert upload(c, h, b1.content, mode="replace", confirm=True, code="WRONG", password="demo123").status_code == 400
+    assert upload(c, h, b1.content, mode="replace", confirm=True, code="demo01", password="nope").status_code == 400
+    r = upload(c, h, b1.content, mode="replace").json()
+    assert r["ok"] and r["verified"] and r["saved"] is False
+    r = upload(c, h, b1.content, mode="replace", confirm=True, code="demo01", password="demo123").json()
+    assert r["saved"] and r["verified"] and r["passwords_kept"] and r["new_logins"] == 0 and r["undo_saved"], r["errors"][:3]
+    vp2 = next(u for u in c.get("/users?role=vice_principal", headers=login(c, "principal")).json())
+    assert vp2["permissions"]["fees"] == "none" and vp2["permissions"]["people"] == "none"
+    # the undo backup was stored and can be downloaded
+    hh = login(c, "principal")
+    assert c.get("/data/snapshot", headers=hh).json()["exists"]
+    assert c.get("/data/snapshot/file", headers=hh).content.startswith(b"PK")
     assert c.post("/auth/login", json={"school_code": "DEMO01", "login_id": "T001", "password": "demo123"}).status_code == 200
     h = login(c, "principal")         # principal kept
     b2 = c.get("/data/backup", headers=h).content
@@ -258,21 +274,34 @@ def test_backup_restore_round_trip_keeps_passwords(c):
     assert summ["outstanding"] > 0 and summ["pending_claims"] >= 1
 
 
-def test_tampered_backup_does_not_keep_passwords(c):
+def test_edited_backup_is_plain_data(c):
     h = login(c, "principal")
     wb = book(c.get("/data/backup", headers=h).content)
-    ws = wb["_auth"]
-    for row in ws.iter_rows(min_row=2):
-        if row[0].value == "T001":
-            from app.auth import hash_password
-            row[1].value = hash_password("hacked123")
-            row[2].value = "No"
-    ws2 = wb["Staff"]
-    ws2.append(["T999", "Planted", "Teacher", "", "", "", "", "", "", "Yes"])
+    wb["Staff"].append(["T999", "Planted", "Teacher", "", "", "", "", "", "", "Yes"])
+    wb["Staff"].append(["C999", "New Coord", "Coordinator", "", "", "", "", "", "", "Yes"])
+    # forge attribution: claim teacher T002 entered a mark
+    ws = wb["Marks"]
+    ws.append([ws.cell(2, 1).value, ws.cell(2, 2).value, "2026005", "Mathematics", 1, "T002"])
     r = upload(c, h, to_bytes(wb), confirm=True).json()
-    assert r["saved"] and not r["passwords_kept"] and any("can't be verified" in w for w in r["warnings"])
-    assert {x["login_id"] for x in r["credentials"]} == {"T999"}       # new account gets a temporary password
-    assert c.post("/auth/login", json={"school_code": "DEMO01", "login_id": "T001", "password": "hacked123"}).status_code == 401
+    assert r["saved"], (r["errors"][:5], r["warnings"])
+    assert not r["verified"] and not r["passwords_kept"] and any("can't be verified" in w for w in r["warnings"])
+    assert {x["login_id"] for x in r["credentials"]} == {"T999", "C999"}
+    coord = next(u for u in c.get("/users?role=coordinator", headers=h).json() if u["login_id"] == "C999")
+    assert set(coord["permissions"].values()) == {"none"}        # unverified → no permissions until the principal sets them
+    from app.db import SessionLocal
+    from app.models import Mark, User
+    from sqlalchemy import select
+    with SessionLocal() as db:
+        t2 = db.scalar(select(User.id).where(User.login_id == "T002"))
+        assert not db.scalar(select(Mark.id).where(Mark.entered_by == t2, Mark.score == 1))     # can't be pinned on T002
+
+
+def test_tampered_vault_is_ignored(c):
+    h = login(c, "principal")
+    wb = book(c.get("/data/backup", headers=h).content)
+    wb["_vault"]["A2"].value = "AAAA" + str(wb["_vault"]["A2"].value)[4:]
+    r = upload(c, h, to_bytes(wb)).json()
+    assert not r["verified"] and not r["passwords_kept"]
 
 
 def test_other_schools_backup_cannot_bring_passwords(c):
@@ -291,3 +320,56 @@ def test_principal_row_cannot_create_or_hijack(c):
     r = upload(c, h, to_bytes(wb)).json()
     assert not r["ok"] and any("principal" in e["message"].lower() for e in r["errors"])
     assert any("evilprincipal" in w for w in r["warnings"])
+
+
+def test_bulk_ignores_row_roles_and_module_rules(c):
+    h = login(c, "principal", "DEMO02")      # Basic plan: no extra roles
+    r = c.post("/users/bulk", json={"role": "teacher", "rows": [{"name": "Sneaky", "login_id": "Z1", "role": "Coordinator"}],
+                                    "dry_run": False}, headers=h).json()
+    assert r["ok"] and r["by_role"] == {"teacher": {"add": 1, "update": 0}}
+
+
+def test_bad_values_and_backup_robustness(c):
+    h = login(c, "principal", "DEMO02")
+    wb = book(c.get("/data/template", headers=h).content)
+    for row in wb["Fee setup"].iter_rows(min_row=2):
+        if str(row[0].value).startswith("Monthly fee"):
+            row[1].value = "nan"
+    r = upload(c, h, to_bytes(wb)).json()
+    assert not r["ok"] and any("number" in e["message"] for e in r["errors"])
+    # control characters typed into the app never break the backup
+    ht = login(c, "T001")
+    c.post("/leaves", json={"start_date": "2030-01-07", "end_date": "2030-01-07", "leave_type": "sick", "reason": "sick \u0001\u0002"}, headers=ht)
+    assert c.get("/data/backup", headers=login(c, "principal")).content.startswith(b"PK")
+
+
+def test_dimension_bomb_is_cheap(c):
+    import time
+    import zipfile
+    h = login(c, "principal", "DEMO02")
+    good = c.get("/data/template", headers=h).content
+    src = zipfile.ZipFile(io.BytesIO(good))
+    out = io.BytesIO()
+    with zipfile.ZipFile(out, "w", zipfile.ZIP_DEFLATED) as z:
+        for i in src.infolist():
+            data = src.read(i.filename)
+            if i.filename.startswith("xl/worksheets/sheet"):
+                import re
+                data = re.sub(rb'<dimension ref="[^"]*"', b'<dimension ref="A1:XFD1048576"', data, count=1)
+            z.writestr(i, data)
+    t = time.time()
+    r = upload(c, h, out.getvalue())
+    assert r.status_code == 200 and time.time() - t < 15
+
+
+def test_admin_rules(c):
+    ha = admin(c)
+    h1 = login(c, "principal")
+    sid = next(s["id"] for s in c.get("/admin/schools", headers=ha).json() if s["code"] == "DEMO01")
+    c.put("/school/settings", json={"share_contact_with_admin": True}, headers=h1)
+    assert c.get(f"/admin/schools/{sid}/data/backup", headers=ha).status_code == 403    # sharing contacts isn't enough
+    c.post("/school/support-access", headers=h1)
+    r = c.get(f"/admin/schools/{sid}/data/backup", headers=ha)
+    assert r.status_code == 200 and "_vault" not in book(r.content).sheetnames           # never passwords for the admin
+    c.delete("/school/support-access", headers=h1)
+    c.put("/school/settings", json={"share_contact_with_admin": False}, headers=h1)

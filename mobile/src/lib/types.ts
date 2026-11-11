@@ -600,7 +600,7 @@ export interface BulkResult {
 /** POST /data/import (multipart: file, mode=merge|replace, confirm, confirm_code) */
 export interface ImportReport {
   ok: boolean; saved: boolean; mode: 'merge' | 'replace'; kind: 'template' | 'backup';
-  errors: ImportIssue[]; error_count: number; warnings: string[]; passwords_kept: boolean;
+  errors: ImportIssue[]; error_count: number; warnings: string[]; passwords_kept: boolean; verified: boolean; undo_saved?: boolean;
   sheets: { sheet: string; add: number; update: number; skip: number }[]; new_logins: number;
   credentials?: NewLogin[];
 }

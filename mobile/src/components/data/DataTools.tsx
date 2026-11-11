@@ -1,7 +1,7 @@
 import * as DocumentPicker from 'expo-document-picker';
 import { File, Paths } from 'expo-file-system';
 import * as Sharing from 'expo-sharing';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Platform, Share, View } from 'react-native';
 import { ActivityIndicator, Button, Dialog, Text, TextInput } from 'react-native-paper';
 
@@ -83,7 +83,7 @@ function csvOf(rows: NewLogin[], code: string) {
 export function DataTools({ base, schoolCode, schoolName }: { base: string; schoolCode: string; schoolName: string }) {
   const t = useAppTheme();
   const toast = useToast();
-  const [busy, setBusy] = useState<'template' | 'backup' | null>(null);
+  const [busy, setBusy] = useState<'template' | 'backup' | 'undo' | null>(null);
   const [picked, setPicked] = useState<Picked | null>(null);
   const [askMode, setAskMode] = useState(false);
   const [mode, setMode] = useState<Mode>('merge');
@@ -91,6 +91,8 @@ export function DataTools({ base, schoolCode, schoolName }: { base: string; scho
   const [saving, setSaving] = useState(false);
   const [report, setReport] = useState<ImportReport | null>(null);
   const [code, setCode] = useState('');
+  const [password, setPassword] = useState('');
+  const [undo, setUndo] = useState<{ exists: boolean; created_at: string | null; created_by: string } | null>(null);
   const [done, setDone] = useState<ImportReport | null>(null);
 
   async function download(kind: 'template' | 'backup') {
@@ -101,6 +103,26 @@ export function DataTools({ base, schoolCode, schoolName }: { base: string; scho
       await downloadAndShare(`${getBaseUrl()}${base}/${kind}`, name, kind === 'backup' ? 'Save the backup' : 'Save the template');
       haptic.success();
       toast(kind === 'backup' ? 'Backup ready — keep it somewhere safe' : 'Template ready — fill it in and import it here');
+    } catch (e) {
+      haptic.error();
+      toast((e as Error).message, { error: true });
+    } finally {
+      setBusy(null);
+    }
+  }
+
+  useEffect(() => {
+    if (base !== '/data') return;      // admins just get the button
+    api<{ exists: boolean; created_at: string | null; created_by: string }>('/data/snapshot').then(setUndo).catch(() => setUndo(null));
+  }, [base, done]);
+
+  async function downloadUndo() {
+    haptic.tap();
+    setBusy('undo');
+    try {
+      await downloadAndShare(`${getBaseUrl()}${base}/snapshot/file`, `SchoolHub-Before-Replace-${schoolCode}-${stamp()}.xlsx`, 'Save the undo backup');
+      haptic.success();
+      toast('Undo backup ready');
     } catch (e) {
       haptic.error();
       toast((e as Error).message, { error: true });
@@ -125,6 +147,7 @@ export function DataTools({ base, schoolCode, schoolName }: { base: string; scho
     setReport(null);
     setDone(null);
     setCode('');
+    setPassword('');
     setAskMode(true);
   }
 
@@ -136,6 +159,7 @@ export function DataTools({ base, schoolCode, schoolName }: { base: string; scho
     fd.append('mode', m);
     fd.append('confirm', confirm ? 'true' : 'false');
     fd.append('confirm_code', confirm ? code.trim() : '');
+    fd.append('password', confirm && m === 'replace' ? password : '');
     return fd;
   }
 
@@ -212,7 +236,7 @@ export function DataTools({ base, schoolCode, schoolName }: { base: string; scho
     }
   }
 
-  const replaceReady = mode !== 'replace' || code.trim().toUpperCase() === schoolCode.toUpperCase();
+  const replaceReady = mode !== 'replace' || (code.trim().toUpperCase() === schoolCode.toUpperCase() && password.length >= 6);
 
   return (
     <>
@@ -242,6 +266,21 @@ export function DataTools({ base, schoolCode, schoolName }: { base: string; scho
             disabled={!!busy} contentStyle={{ paddingVertical: 4 }}>Download backup</Button>
         </Panel>
       </FadeIn>
+
+      {undo === null || undo.exists ? (
+        <FadeIn index={1}>
+          <Panel title="Undo the last Replace" icon="history"
+            subtitle={undo?.created_at ? `Saved automatically ${new Date(undo.created_at + 'Z').toLocaleString('en-IN')}${undo.created_by ? ` · before ${undo.created_by}'s Replace` : ''}`
+              : 'A copy of the school data is saved automatically before every Replace'}>
+            <Text variant="bodySmall" style={{ color: t.colors.onSurfaceVariant, marginBottom: space.md }}>
+              Download it, then import it here with Replace to go back to how things were.
+            </Text>
+            <Button mode="outlined" icon="file-restore-outline" onPress={downloadUndo} disabled={!!busy} loading={busy === 'undo'}>
+              Download the undo backup
+            </Button>
+          </Panel>
+        </FadeIn>
+      ) : null}
 
       <FadeIn index={2}>
         <Panel title="Import a file" subtitle="Filled template or a backup (.xlsx)" icon="database-import-outline">
@@ -275,8 +314,15 @@ export function DataTools({ base, schoolCode, schoolName }: { base: string; scho
             icon={mode === 'replace' ? 'alert-octagon-outline' : 'check-decagram-outline'}
             subtitle={mode === 'replace' ? 'All current data of this school is replaced by the file. Principal accounts are kept.' : 'New rows are added and changed rows updated. Nothing is deleted.'}>
             {mode === 'replace' ? (
-              <TextInput mode="outlined" label={`Type the school code (${schoolCode}) to confirm`} value={code} onChangeText={setCode}
-                autoCapitalize="characters" style={{ marginBottom: space.md }} />
+              <>
+                <TextInput mode="outlined" label={`Type the school code (${schoolCode}) to confirm`} value={code} onChangeText={setCode}
+                  autoCapitalize="characters" style={{ marginBottom: space.sm }} />
+                <TextInput mode="outlined" label="Your password" value={password} onChangeText={setPassword} secureTextEntry
+                  style={{ marginBottom: space.sm }} />
+                <Text variant="bodySmall" style={{ color: t.colors.onSurfaceVariant, marginBottom: space.md }}>
+                  The app keeps a copy of the current data first, so you can undo this from "Undo the last Replace" below.
+                </Text>
+              </>
             ) : null}
             <Button mode="contained" icon="content-save-check-outline" onPress={save} loading={saving} disabled={saving || !replaceReady}
               buttonColor={mode === 'replace' ? t.colors.error : undefined} contentStyle={{ paddingVertical: 6 }}>
@@ -338,6 +384,10 @@ function ReportCard({ r }: { r: ImportReport }) {
         subtitle={`${r.kind === 'backup' ? 'Backup file' : 'Template'} · ${r.mode === 'replace' ? 'Replace' : 'Merge'} · ${totals.add} to add, ${totals.update} to update`}
         icon={r.ok ? 'check-circle-outline' : 'alert-circle-outline'} tone={r.ok ? undefined : 'danger'}>
         <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 6, marginBottom: space.md }}>
+          {r.kind === 'backup' ? (
+            <ToneChip text={r.verified ? 'Verified backup' : 'Edited / unverified file'} tone={r.verified ? 'success' : 'warning'}
+              icon={r.verified ? 'shield-check-outline' : 'shield-alert-outline'} />
+          ) : null}
           {r.kind === 'backup' ? (
             <ToneChip text={r.passwords_kept ? 'Passwords kept' : 'New temporary passwords'} tone={r.passwords_kept ? 'success' : 'warning'}
               icon={r.passwords_kept ? 'lock-check-outline' : 'lock-reset'} />

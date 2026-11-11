@@ -1,5 +1,5 @@
 """School setup: classes, subjects, people, assignments, timetable, exams. All tenant-scoped."""
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Response
 from pydantic import BaseModel, Field
 from sqlalchemy import delete, func, select
 from sqlalchemy.exc import IntegrityError
@@ -218,17 +218,19 @@ class BulkIn(BaseModel):
 
 
 @router.post("/users/bulk")
-def bulk_create(body: BulkIn, me: User = Depends(require_area("people", "edit")), db: Session = Depends(get_db)):
+def bulk_create(body: BulkIn, response: Response, me: User = Depends(require_area("people", "edit")), db: Session = Depends(get_db)):
     """F29 · Add many people of one type. dry_run → only check. Nothing is saved if any row has a problem."""
     from ..people import Ctx, PeoplePlan, apply_plan, check_student_limit, plan_rows, summary
 
     if body.role not in (Role.student, Role.teacher, Role.parent, Role.vice_principal, Role.coordinator):
         raise HTTPException(400, "Pick students, teachers, parents, vice principals or coordinators")
     _validate_role(db, me, body.role)
+    response.headers["Cache-Control"] = "no-store"
     school = get_school(db, me)
     ctx = Ctx(db, school)
     plan = PeoplePlan(school=school, me=me)
-    rows = [r for r in body.rows if any(str(v or "").strip() for v in r.values())]
+    # the role comes from the request only (a per-row "role" would bypass the module/role checks above)
+    rows = [{k: v for k, v in r.items() if k != "role"} for r in body.rows if any(str(v or "").strip() for v in r.values())]
     if not rows:
         raise HTTPException(400, "All rows are empty")
     plan_rows(ctx, plan, body.role, rows)
