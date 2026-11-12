@@ -74,23 +74,34 @@ def list_schools(me: User = Depends(admin_only), db: Session = Depends(get_db)):
     return [_school_row(db, s) for s in db.scalars(select(School).order_by(School.name))]
 
 
-@router.post("/schools")
-def create_school(body: SchoolCreate, me: User = Depends(admin_only), db: Session = Depends(get_db)):
-    code = body.code.strip().upper()
+def new_school(db: Session, me: User, *, code: str, name: str, address: str = "", phone: str = "", board: str = "",
+               plan_id: int | None = None, principal_name: str, principal_login_id: str = "principal",
+               principal_password: str, principal_phone: str = "") -> School:
+    """The one place a school + its principal login are created (admin form and onboarding approval both use it).
+    Adds to the session and writes the audit entry; the caller commits."""
+    code = code.strip().upper()
     if code == "ADMIN":
         raise HTTPException(400, "This code is reserved")
     if db.scalar(select(School).where(func.upper(School.code) == code)):
         raise HTTPException(409, "School code already in use")
-    if body.plan_id and not db.get(Plan, body.plan_id):
+    if plan_id and not db.get(Plan, plan_id):
         raise HTTPException(400, "Plan not found")
-    check_password_rules(body.principal_password, body.principal_login_id)
-    s = School(code=code, name=body.name.strip(), address=body.address.strip(), phone=body.phone.strip(),
-               board=body.board.strip(), plan_id=body.plan_id, trial_until=today() + timedelta(days=30))
+    check_password_rules(principal_password, principal_login_id)
+    s = School(code=code, name=name.strip(), address=address.strip(), phone=phone.strip(),
+               board=board.strip(), plan_id=plan_id, trial_until=today() + timedelta(days=30))
     db.add(s)
     db.flush()
-    db.add(User(school_id=s.id, login_id=body.principal_login_id.strip(), name=body.principal_name.strip(), role=Role.principal,
-                phone=body.principal_phone.strip(), password_hash=hash_password(body.principal_password), must_change_password=True))
+    db.add(User(school_id=s.id, login_id=principal_login_id.strip(), name=principal_name.strip(), role=Role.principal,
+                phone=principal_phone.strip(), password_hash=hash_password(principal_password), must_change_password=True))
     audit(db, me, "school.created", f"{s.code} {s.name}", school_id=s.id)
+    return s
+
+
+@router.post("/schools")
+def create_school(body: SchoolCreate, me: User = Depends(admin_only), db: Session = Depends(get_db)):
+    s = new_school(db, me, code=body.code, name=body.name, address=body.address, phone=body.phone, board=body.board,
+                   plan_id=body.plan_id, principal_name=body.principal_name, principal_login_id=body.principal_login_id,
+                   principal_password=body.principal_password, principal_phone=body.principal_phone)
     db.commit()
     return school_detail(s.id, me, db)
 

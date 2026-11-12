@@ -6,7 +6,8 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from .migrate import migrate
-from .routers import academics, admin, appversion, auth, public, comms, bell, dashboard, data, fees, leaves, school, settings, staff_attendance, transport
+from .routers import (academics, admin, appversion, auth, bell, comms, dashboard, data, fees, leaves, onboarding, portal, public,
+                      school, settings, staff_attendance, transport)
 
 
 @asynccontextmanager
@@ -40,10 +41,33 @@ async def lifespan(_app: FastAPI):
 
 
 app = FastAPI(title="Prangan API", version="0.6.0", lifespan=lifespan)
-app.add_middleware(CORSMiddleware, allow_origins=["*"], allow_methods=["*"], allow_headers=["*"])
+
+APP_ENV = os.getenv("APP_ENV", "prod")
+# Which websites may call this API from a browser (the Android app is not a browser and is unaffected).
+# Default: the Prangan website, the portal sites on Render, and localhost outside PROD. CORS_ORIGINS (comma list) adds more.
+_extra = [o.strip().rstrip("/") for o in os.getenv("CORS_ORIGINS", "").split(",") if o.strip()]
+_origin_re = r"https://javedrnc\.github\.io|https://prangan-portal(-dev|-test)?(-[a-z0-9]+)?\.onrender\.com"
+if APP_ENV != "prod":
+    _origin_re += r"|http://(localhost|127\.0\.0\.1)(:\d+)?"
+app.add_middleware(CORSMiddleware, allow_origins=_extra, allow_origin_regex=_origin_re, allow_credentials=False,
+                   allow_methods=["GET", "POST", "PUT", "DELETE"], allow_headers=["Authorization", "Content-Type"],
+                   expose_headers=["Content-Disposition"], max_age=600)
+
+
+@app.middleware("http")
+async def security_headers(request, call_next):
+    response = await call_next(request)
+    response.headers.setdefault("X-Content-Type-Options", "nosniff")
+    response.headers.setdefault("X-Frame-Options", "DENY")
+    response.headers.setdefault("Referrer-Policy", "no-referrer")
+    response.headers.setdefault("Strict-Transport-Security", "max-age=31536000; includeSubDomains")
+    if request.url.path.startswith(("/auth", "/admin", "/data", "/school", "/fees")):
+        response.headers.setdefault("Cache-Control", "no-store")
+    return response
+
 
 for r in (auth.router, school.router, academics.router, dashboard.router, settings.router, admin.router,
-          leaves.router, comms.router, comms.poll_router, staff_attendance.router, transport.router, fees.router, bell.router, data.router, appversion.router, public.router):
+          leaves.router, comms.router, comms.poll_router, staff_attendance.router, transport.router, fees.router, bell.router, data.router, appversion.router, public.router, onboarding.router, portal.router):
     app.include_router(r)
 
 

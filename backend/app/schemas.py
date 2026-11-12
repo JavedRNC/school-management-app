@@ -11,9 +11,10 @@ class ORM(BaseModel):
 
 # ---------------------------------------------------------------- auth
 class LoginIn(BaseModel):
-    school_code: str = Field(min_length=1)
-    login_id: str = Field(min_length=1)
-    password: str
+    school_code: str = Field(min_length=1, max_length=40)
+    login_id: str = Field(min_length=1, max_length=120)
+    password: str = Field(max_length=200)
+    client: str = Field(default="app", pattern="^(app|web)$")     # web = the portal: shorter session, Admin/Principal only
 
 
 class UserOut(ORM):

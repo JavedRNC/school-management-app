@@ -75,9 +75,24 @@ def check_password_rules(pw: str, login_id: str) -> None:
         raise HTTPException(400, "Password can't be the same as the login ID")
 
 
-def make_token(user: User) -> str:
-    exp = datetime.now(timezone.utc) + timedelta(days=TOKEN_DAYS)
-    return jwt.encode({"sub": str(user.id), "role": user.role.value, "sid": user.school_id, "exp": exp}, secret(), algorithm="HS256")
+WEB_TOKEN_HOURS = 12
+WEB_ROLES = {"admin", "principal"}
+
+
+def pw_stamp(user: User) -> str:
+    """Changes whenever the password does; lets a web session end when the password is changed."""
+    import hashlib
+    return hashlib.sha256((user.password_hash or "").encode()).hexdigest()[:12]
+
+
+def make_token(user: User, web: bool = False) -> str:
+    """App tokens last TOKEN_DAYS. Portal (web) tokens last WEB_TOKEN_HOURS and die when the password changes."""
+    claims = {"sub": str(user.id), "role": user.role.value, "sid": user.school_id}
+    if web:
+        claims.update(exp=datetime.now(timezone.utc) + timedelta(hours=WEB_TOKEN_HOURS), web=True, pw=pw_stamp(user))
+    else:
+        claims["exp"] = datetime.now(timezone.utc) + timedelta(days=TOKEN_DAYS)
+    return jwt.encode(claims, secret(), algorithm="HS256")
 
 
 def audit(db: Session, actor: User | None, action: str, detail: str = "", school_id: int | None = None) -> None:
@@ -100,6 +115,9 @@ def current_user(request: Request, creds: HTTPAuthorizationCredentials | None = 
     user = db.get(User, int(data["sub"]))
     if not user or not user.active:
         raise HTTPException(status.HTTP_401_UNAUTHORIZED, "Account not found or removed")
+    if data.get("web") and (data.get("pw") != pw_stamp(user) or user.role.value not in WEB_ROLES):
+        raise HTTPException(status.HTTP_401_UNAUTHORIZED, "Session expired — please sign in again")
+    request.state.web = bool(data.get("web"))
     if user.school_id:
         school = db.get(School, user.school_id)
         if not school or school.suspended:

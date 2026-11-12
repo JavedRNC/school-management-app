@@ -530,3 +530,80 @@ class SchoolShowcase(Base):
     show: Mapped[bool] = mapped_column(Boolean, default=False)
     city: Mapped[str] = mapped_column(String(60), default="")
     updated_at: Mapped[datetime] = mapped_column(DateTime, default=utcnow)
+
+
+# ---------------------------------------------------------------- v9 · web portal, onboarding, push
+class SchoolDetails(Base):
+    """Extra school facts added with the web portal (separate table → no ALTER TABLE on schools)."""
+    __tablename__ = "school_details"
+    school_id: Mapped[int] = mapped_column(ForeignKey("schools.id"), primary_key=True)
+    reg_no: Mapped[str] = mapped_column(String(60), default="", index=True)      # school registration / UDISE / affiliation no.
+    category: Mapped[str] = mapped_column(String(40), default="")
+    state: Mapped[str] = mapped_column(String(60), default="")
+    district: Mapped[str] = mapped_column(String(60), default="")
+    city: Mapped[str] = mapped_column(String(80), default="")
+    pin: Mapped[str] = mapped_column(String(10), default="")
+    email: Mapped[str] = mapped_column(String(160), default="")
+    contact_name: Mapped[str] = mapped_column(String(120), default="")
+    onboarding_id: Mapped[int | None] = mapped_column(Integer, nullable=True)     # request this school came from
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=utcnow)
+
+
+class OnboardingRequest(Base):
+    """A school asking to join Prangan (public web form or the app). One table for both channels."""
+    __tablename__ = "onboarding_requests"
+    id: Mapped[int] = mapped_column(primary_key=True)
+    reference: Mapped[str] = mapped_column(String(24), unique=True, index=True)
+    status: Mapped[str] = mapped_column(String(40), default="PENDING", index=True)
+    source: Mapped[str] = mapped_column(String(10), default="web")               # web | app
+    school_name: Mapped[str] = mapped_column(String(160))
+    reg_no: Mapped[str] = mapped_column(String(60), default="", index=True)
+    category: Mapped[str] = mapped_column(String(40), default="")
+    board: Mapped[str] = mapped_column(String(40), default="")
+    address: Mapped[str] = mapped_column(Text, default="")
+    state: Mapped[str] = mapped_column(String(60), default="")
+    district: Mapped[str] = mapped_column(String(60), default="")
+    city: Mapped[str] = mapped_column(String(80), default="")
+    pin: Mapped[str] = mapped_column(String(10), default="")
+    principal_name: Mapped[str] = mapped_column(String(120), default="")
+    contact_name: Mapped[str] = mapped_column(String(120), default="")
+    designation: Mapped[str] = mapped_column(String(60), default="")
+    mobile: Mapped[str] = mapped_column(String(20), default="", index=True)
+    alt_phone: Mapped[str] = mapped_column(String(20), default="")
+    email: Mapped[str] = mapped_column(String(160), default="", index=True)
+    contact_method: Mapped[str] = mapped_column(String(20), default="")
+    students: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    teachers: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    current_software: Mapped[str] = mapped_column(String(120), default="")
+    message: Mapped[str] = mapped_column(Text, default="")
+    consent_privacy: Mapped[bool] = mapped_column(Boolean, default=False)
+    consent_contact: Mapped[bool] = mapped_column(Boolean, default=False)
+    assigned_to: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    assigned_name: Mapped[str] = mapped_column(String(120), default="")
+    school_id: Mapped[int | None] = mapped_column(Integer, nullable=True)        # set once ONBOARDED
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=utcnow, index=True)
+    updated_at: Mapped[datetime] = mapped_column(DateTime, default=utcnow)
+
+
+class OnboardingEvent(Base):
+    """Audit trail of one request: created, every status change, internal notes, assignment."""
+    __tablename__ = "onboarding_events"
+    id: Mapped[int] = mapped_column(primary_key=True)
+    request_id: Mapped[int] = mapped_column(ForeignKey("onboarding_requests.id"), index=True)
+    at: Mapped[datetime] = mapped_column(DateTime, default=utcnow)
+    actor_id: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    actor_name: Mapped[str] = mapped_column(String(120), default="")
+    kind: Mapped[str] = mapped_column(String(20))                                 # created | status | note | assigned
+    from_status: Mapped[str] = mapped_column(String(40), default="")
+    to_status: Mapped[str] = mapped_column(String(40), default="")
+    remarks: Mapped[str] = mapped_column(Text, default="")
+
+
+class PushToken(Base):
+    """A phone that should get push notifications for a user (Firebase Cloud Messaging token)."""
+    __tablename__ = "push_tokens"
+    id: Mapped[int] = mapped_column(primary_key=True)
+    user_id: Mapped[int] = mapped_column(ForeignKey("users.id"), index=True)
+    token: Mapped[str] = mapped_column(String(400), unique=True)
+    platform: Mapped[str] = mapped_column(String(20), default="android")
+    updated_at: Mapped[datetime] = mapped_column(DateTime, default=utcnow)

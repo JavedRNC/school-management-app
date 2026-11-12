@@ -12,7 +12,7 @@ from sqlalchemy import MetaData, inspect, select
 from .db import Base, SessionLocal, engine
 from .models import Meta
 
-SCHEMA_VERSION = 8  # v3 Phase 2, v4 fees, v5 bell, v6 snapshots, v7 app version, v8 showcase (all additive)
+SCHEMA_VERSION = 9  # v3 Phase 2, v4 fees, v5 bell, v6 snapshots, v7 app version, v8 showcase, v9 portal+onboarding+push (all additive)
 log = logging.getLogger("migrate")
 
 
