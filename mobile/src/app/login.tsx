@@ -7,6 +7,7 @@ import { TextInput } from '@/components/Field';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { FadeIn, Icon, IconName, PressScale } from '@/components/ui';
+import { APP_VERSION_LABEL } from '@/components/UpdateGate';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
 import { api, cleanUrl, getBaseUrl, keepServer, loadStored, revertServer, serverOnTrial, tryServer } from '@/lib/api';
@@ -169,7 +170,8 @@ export default function Login() {
               <HelperText type="info">For the Prangan admin only. Kept after an admin sign-in.</HelperText>
             </FadeIn>
           ) : null}
-          <View style={{ height: insets.bottom + space.xl }} />
+          <Text variant="labelSmall" style={{ textAlign: 'center', color: t.colors.outline, marginTop: space.xl }}>Prangan v{APP_VERSION_LABEL}</Text>
+          <View style={{ height: insets.bottom + space.lg }} />
         </View>
       </ScrollView>
     </KeyboardAvoidingView>

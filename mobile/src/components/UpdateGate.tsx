@@ -15,6 +15,8 @@ import { Icon, TopLayer } from './ui';
  *  comes back to the foreground we ask the server which build is newest and which is the minimum:
  *  below the minimum → a forced, undismissable "Update now"; older than the newest → an optional prompt with "Later". */
 export const APP_BUILD: number | null = Number((Constants.expoConfig?.extra as { buildNumber?: number } | undefined)?.buildNumber) || null;
+/** Same text Android shows under App info, e.g. "1.0.0.8" (app.json version + build number). */
+export const APP_VERSION_LABEL = `${Constants.expoConfig?.version ?? '1.0.0'}${APP_BUILD ? `.${APP_BUILD}` : ' (test build)'}`;
 const KEY_SKIPPED = 'update_skipped_build';
 const CHECK_EVERY_MS = 5 * 60 * 1000;
 const RETRY_MS = [15_000, 45_000, 120_000];     // server asleep / no network: try again soon
