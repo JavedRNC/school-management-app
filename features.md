@@ -397,6 +397,13 @@ Today the timetable has a fixed 5 numbered periods and no times. Proposal:
 - Keep a small "Share" button next to it for sending on WhatsApp / email.
 - iPhone: share sheet stays (iOS has no Downloads folder), but "Save to Files" shown first.
 
+### F33 · Server details only for Admin 📝 `S` — requested 12 Nov
+> Javed: server details must not be visible or changeable by anyone except Admin.
+- Login screen: remove the "Server settings" link; the app always uses the built-in Prangan server.
+- Me screen: hide the "Server" row for principal, staff, parents and students; show it only to Admin.
+- Admin changes the server from Admin → Me after logging in (for testing / moving servers). Since nobody is logged in on the login screen, the only way there is a hidden gesture (e.g. tap the logo 7 times), and the change still needs an Admin login before it is kept.
+- If someone already changed the server on their phone, the update resets it to the built-in server.
+
 ## 🖥️ Infrastructure & effort plan
 
 **Today (free tier, fine for testing):** Render free API (sleeps when idle) · Neon free Postgres · no file storage.
