@@ -1,6 +1,6 @@
 import * as FileSystem from 'expo-file-system/legacy';
 import { router, useLocalSearchParams } from 'expo-router';
-import * as Sharing from 'expo-sharing';
+import { CSV_FILE, saveToPhone, savedToast } from '@/lib/saveFile';
 import { useCallback, useMemo, useState } from 'react';
 import { Platform, ScrollView, Share, View } from 'react-native';
 import { Button, Dialog, Text } from 'react-native-paper';
@@ -228,8 +228,10 @@ export default function AddMany() {
       } else {
         const uri = `${FileSystem.cacheDirectory}${name}`;
         await FileSystem.writeAsStringAsync(uri, csv);
-        if (!(await Sharing.isAvailableAsync())) throw new Error('Sharing is not available on this phone');
-        await Sharing.shareAsync(uri, { mimeType: 'text/csv', dialogTitle: 'Save or send the logins', UTI: 'public.comma-separated-values-text' });
+        const m = savedToast(await saveToPhone(uri, name, CSV_FILE, 'Save or send the logins'), 'Login list', (msg) => toast(msg, { error: true }));
+        setShared(true);
+        toast(m.text, m.opts);
+        return;
       }
       setShared(true);
       toast('Login list ready');

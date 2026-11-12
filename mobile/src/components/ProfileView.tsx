@@ -4,7 +4,7 @@ import { View } from 'react-native';
 import { Button, Dialog, Text } from 'react-native-paper';
 import { TextInput } from '@/components/Field';
 
-import { api, getBaseUrl } from '@/lib/api';
+import { api, cleanUrl, DEFAULT_URL, getBaseUrl, isCustomServer, tryServer } from '@/lib/api';
 import { ROLE_LABEL, useAuth, useCan } from '@/lib/auth';
 import { haptic, useToast } from '@/lib/feedback';
 import { space, Tone, useAppTheme } from '@/lib/theme';
@@ -39,7 +39,22 @@ export function ProfileView({ extra }: { extra?: string }) {
   const [newPw, setNew] = useState('');
   const [show, setShow] = useState(false);
   const [busy, setBusy] = useState(false);
+  const [srvOpen, setSrvOpen] = useState(false);
+  const [srv, setSrv] = useState('');
   if (!user) return null;
+  const isAdmin = user.role === 'admin';
+
+  /** Admin only: sign out and try another server; it is kept once the Admin signs in there. */
+  async function switchServer(url: string) {
+    const next = cleanUrl(url);
+    if (next && !/^https?:\/\//i.test(next)) return toast('The address must start with https://', { error: true });
+    if ((next || cleanUrl(DEFAULT_URL)) === cleanUrl(getBaseUrl())) return setSrvOpen(false);
+    setSrvOpen(false);
+    await logout();
+    tryServer(next);
+    router.replace('/login');
+  }
+
 
   async function change() {
     if (newPw.length < 6) return toast('New password must be at least 6 characters', { error: true });
@@ -122,7 +137,10 @@ export function ProfileView({ extra }: { extra?: string }) {
         <Panel style={{ paddingVertical: 0 }}>
           <View style={{ marginVertical: -space.sm }}>
             <Row title="Change password" left={<IconBadge icon="lock-reset" tone="neutral" size={38} />} onPress={() => setPwOpen(true)} />
-            <Row title="Server" subtitle={getBaseUrl()} left={<IconBadge icon="server-network" tone="neutral" size={38} />} />
+            {isAdmin ? (
+              <Row title="Server" subtitle={`${getBaseUrl()}${isCustomServer() ? ' · not the normal server' : ''}`}
+                left={<IconBadge icon="server-network" tone="neutral" size={38} />} onPress={() => { setSrv(getBaseUrl()); setSrvOpen(true); }} />
+            ) : null}
             <Row title="Theme" subtitle="Follows your phone's light / dark setting" divider={false} left={<IconBadge icon="theme-light-dark" tone="neutral" size={38} />} />
           </View>
         </Panel>
@@ -139,6 +157,14 @@ export function ProfileView({ extra }: { extra?: string }) {
           right={<TextInput.Icon icon={show ? 'eye-off' : 'eye'} onPress={() => setShow((s) => !s)} />} />
         <Text variant="bodySmall" style={{ color: t.colors.onSurfaceVariant, marginVertical: space.sm }}>At least 6 characters, not the same as your login ID.</Text>
         <Button mode="contained" onPress={change} loading={busy} contentStyle={{ paddingVertical: 6 }}>Update password</Button>
+      </Sheet>
+      <Sheet visible={srvOpen} onDismiss={() => setSrvOpen(false)} title="Server">
+        <Text variant="bodyMedium" style={{ color: t.colors.onSurfaceVariant, marginBottom: space.md }}>
+          Only you (Admin) can see or change this. Changing it logs you out; the new server is kept on this phone after you sign in on it as Admin.
+        </Text>
+        <TextInput mode="outlined" label="Server address" value={srv} onChangeText={setSrv} autoCapitalize="none" autoCorrect={false} keyboardType="url" />
+        <Button mode="contained" onPress={() => switchServer(srv)} style={{ marginTop: space.md }} contentStyle={{ paddingVertical: 6 }}>Log out and switch</Button>
+        {isCustomServer() ? <Button onPress={() => switchServer('')} style={{ marginTop: space.sm }}>Go back to the normal server</Button> : null}
       </Sheet>
       <TopLayer visible={confirmOut} onDismiss={() => setConfirmOut(false)}>
         <Dialog visible={confirmOut} onDismiss={() => setConfirmOut(false)}>

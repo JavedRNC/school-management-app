@@ -1,10 +1,12 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import Constants from 'expo-constants';
 
-const KEY_URL = 'api_url';
+const KEY_URL = 'api_url_admin';      // F33: only an Admin sign-in can store a server override
+const KEY_URL_OLD = 'api_url';        // pre-F33 override anyone could set: dropped on first start
 const KEY_TOKEN = 'token';
 
-let baseUrl: string = (Constants.expoConfig?.extra?.apiUrl as string) || 'http://localhost:8000';
+export const DEFAULT_URL: string = (Constants.expoConfig?.extra?.apiUrl as string) || 'http://localhost:8000';
+let baseUrl: string = DEFAULT_URL;
 let token: string | null = null;
 let onUnauthorized: (() => void) | null = null;
 let onPasswordChange: (() => void) | null = null;
@@ -35,17 +37,51 @@ export function setPasswordChangeHandler(fn: () => void) {
 }
 
 export async function loadStored() {
-  const [u, t] = await Promise.all([AsyncStorage.getItem(KEY_URL), AsyncStorage.getItem(KEY_TOKEN)]);
-  if (u) baseUrl = u;
+  const [u, t, old] = await Promise.all([AsyncStorage.getItem(KEY_URL), AsyncStorage.getItem(KEY_TOKEN), AsyncStorage.getItem(KEY_URL_OLD)]);
   token = t;
+  if (old !== null) {
+    await AsyncStorage.removeItem(KEY_URL_OLD).catch(() => {});
+    // A sign-in made against another server can't be used on the built-in one.
+    if (!u && old.replace(/\/+$/, '') !== DEFAULT_URL.replace(/\/+$/, '')) {
+      token = null;
+      await AsyncStorage.removeItem(KEY_TOKEN).catch(() => {});
+    }
+  }
+  if (u && !onTrial) baseUrl = u;
+  if (u) keptUrl = u;
   return { url: baseUrl, token };
 }
 
 export const getBaseUrl = () => baseUrl;
 
-export async function setBaseUrl(url: string) {
-  baseUrl = url.trim().replace(/\/+$/, '');
-  await AsyncStorage.setItem(KEY_URL, baseUrl);
+export const cleanUrl = (url: string) => url.trim().replace(/\/+$/, '');
+export const isCustomServer = () => cleanUrl(baseUrl) !== cleanUrl(DEFAULT_URL);
+
+// F33 · Only an Admin can move this phone to another server. A new address is used
+// "on trial" until an Admin signs in on it; anyone else puts the phone back.
+let keptUrl: string = DEFAULT_URL;
+let onTrial = false;
+
+/** Try another server (not remembered yet). Empty = the built-in server. */
+export function tryServer(url: string) {
+  baseUrl = cleanUrl(url) || DEFAULT_URL;
+  onTrial = cleanUrl(baseUrl) !== cleanUrl(keptUrl);
+}
+
+export const serverOnTrial = () => onTrial;
+
+/** Remember the server being tried. Call only after an Admin has signed in on it. */
+export async function keepServer() {
+  keptUrl = baseUrl;
+  onTrial = false;
+  if (isCustomServer()) await AsyncStorage.setItem(KEY_URL, baseUrl);
+  else await AsyncStorage.removeItem(KEY_URL);
+}
+
+/** Give up the server being tried and go back to the remembered one. */
+export function revertServer() {
+  baseUrl = keptUrl;
+  onTrial = false;
 }
 
 export async function setToken(t: string | null) {
@@ -93,7 +129,7 @@ export async function api<T = unknown>(
       body: opts.body ? (isForm ? (opts.body as FormData) : JSON.stringify(opts.body)) : undefined,
     });
   } catch {
-    throw new ApiError(0, `Can't reach the server at ${baseUrl}. If you haven't used the app for a while the free server may be waking up — wait a minute and try again. Also check your internet.`);
+    throw new ApiError(0, "Can't reach the server. If you haven't used the app for a while it may be waking up — wait a minute and try again. Also check your internet.");
   }
   const text = await res.text();
   let data: unknown = null;

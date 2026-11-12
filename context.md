@@ -90,3 +90,8 @@ Multi-school with school code login (no email/OTP; principal issues temp passwor
 - 2026-11-08: DB = Neon free Postgres (Render free PG expires in 30 days; Render disk not persistent).
 - 2026-11-09: API on Render free (Ohio). Repo made public (for Termux clone).
 - 2026-11-09: Principal full CRUD; users soft-deleted, others hard-deleted (pending archive decision).
+
+## F32/F33 (12 Nov)
+- F32: mobile/src/lib/saveFile.ts saveToPhone() — Android saves via SAF folder picker (Directory.pickDirectoryAsync, starts at Documents; folder uri kept in AsyncStorage 'save_folder'; Download root not selectable on Android 11+), toast "saved in <folder>" with Share action; falls back to share sheet if write fails; iOS = share sheet. Used by DataTools (template/backup/undo/login CSV), add-many CSV, receipt "Save PDF on phone".
+- F33: server address hidden from everyone but Admin. api.ts: DEFAULT_URL, override key 'api_url_admin' (old 'api_url' dropped on start), tryServer/keepServer/revertServer — a new server is on trial until an Admin signs in on it. Login: no server link; tap logo 7× shows field. Me → Server row + switch sheet for Admin only. "Can't reach the server" text no longer shows the URL.
+- Update popup: AppVersion defaults auto_latest=True, min_build=0 → every new APK build prompts optional update (builds ≥4). Forced only if Admin sets min build in Admin → App updates.

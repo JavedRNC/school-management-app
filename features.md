@@ -391,13 +391,13 @@ Today the timetable has a fixed 5 numbered periods and no times. Proposal:
 - Restore into an empty/damaged school; audit-logged; personal data warning (DPDP).
 - Platform-level safety net already: Neon point-in-time restore.
 
-### F32 · Save files straight to the phone 📝 `S` — requested 12 Nov
+### F32 · Save files straight to the phone ✅ `S` — requested 12 Nov
 > Javed: "Get the template" opens the share window instead of downloading the file.
 - Android: "Get the template", "Download backup", login lists (CSV) and receipts save directly into a folder (first time: pick a folder, e.g. Downloads, using Android's folder picker; remembered after that). Toast: "Saved to Downloads · Open".
 - Keep a small "Share" button next to it for sending on WhatsApp / email.
 - iPhone: share sheet stays (iOS has no Downloads folder), but "Save to Files" shown first.
 
-### F33 · Server details only for Admin 📝 `S` — requested 12 Nov
+### F33 · Server details only for Admin ✅ `S` — requested 12 Nov
 > Javed: server details must not be visible or changeable by anyone except Admin.
 - Login screen: remove the "Server settings" link; the app always uses the built-in Prangan server.
 - Me screen: hide the "Server" row for principal, staff, parents and students; show it only to Admin.

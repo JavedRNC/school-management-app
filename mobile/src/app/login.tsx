@@ -1,7 +1,7 @@
 import { LinearGradient } from 'expo-linear-gradient';
 import { Redirect, router } from 'expo-router';
 import { useEffect, useRef, useState } from 'react';
-import { Animated, Easing, Image, KeyboardAvoidingView, Platform, ScrollView, View } from 'react-native';
+import { Animated, Easing, Image, KeyboardAvoidingView, Platform, Pressable, ScrollView, View } from 'react-native';
 import { Button, HelperText, Text, TouchableRipple } from 'react-native-paper';
 import { TextInput } from '@/components/Field';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -9,7 +9,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { FadeIn, Icon, IconName, PressScale } from '@/components/ui';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
-import { getBaseUrl, loadStored, setBaseUrl } from '@/lib/api';
+import { api, cleanUrl, getBaseUrl, keepServer, loadStored, revertServer, serverOnTrial, tryServer } from '@/lib/api';
 import { homeFor, KEY_SCHOOL_CODE, useAuth } from '@/lib/auth';
 import { haptic } from '@/lib/feedback';
 import { cardEdge, glow, radius, shadow, space, useAppTheme } from '@/lib/theme';
@@ -32,7 +32,8 @@ export default function Login() {
   const [password, setPassword] = useState('');
   const [showPw, setShowPw] = useState(false);
   const [server, setServer] = useState(getBaseUrl());
-  const [showServer, setShowServer] = useState(false);
+  const [showServer, setShowServer] = useState(serverOnTrial());   // hidden: tap the logo 7 times (Admin only)
+  const taps = useRef(0);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [picked, setPicked] = useState<string | null>(null);
@@ -41,6 +42,7 @@ export default function Login() {
 
   useEffect(() => {
     loadStored().then(({ url }) => setServer(url));
+    return () => { if (serverOnTrial()) revertServer(); };   // left without an Admin sign-in
     AsyncStorage.getItem(KEY_SCHOOL_CODE).then((c) => { if (c) setCode(c); }).catch(() => {});
     Animated.loop(Animated.sequence([
       Animated.timing(float, { toValue: 1, duration: 2200, easing: Easing.inOut(Easing.sin), useNativeDriver: true }),
@@ -60,7 +62,25 @@ export default function Login() {
     if (!c || !e || !p) return doShake();
     setBusy(true);
     try {
-      if (server.trim() !== getBaseUrl()) await setBaseUrl(server);
+      if (showServer && cleanUrl(server) !== cleanUrl(getBaseUrl())) tryServer(server);
+      if (serverOnTrial()) {
+        // A new server sticks only when the platform Admin signs in on it.
+        let role: string | null = null;
+        try {
+          role = (await api<{ user: { role: string } }>('/auth/login', { body: { school_code: c.trim(), login_id: e.trim(), password: p } })).user.role;
+        } catch (err) {
+          revertServer();
+          setServer(getBaseUrl());
+          throw err;
+        }
+        if (role !== 'admin') {
+          revertServer();
+          setServer(getBaseUrl());
+          setShowServer(false);
+          throw new Error('Only the Prangan admin can change the server. This phone is back on the normal server — sign in again.');
+        }
+        await keepServer();
+      }
       const u = await login(c, e, p);
       haptic.success();
       router.replace(homeFor(u) as '/');
@@ -80,9 +100,10 @@ export default function Login() {
           <View style={{ position: 'absolute', width: 260, height: 260, borderRadius: 130, backgroundColor: 'rgba(255,255,255,0.06)', top: -80, left: -80 }} />
           <View style={{ position: 'absolute', width: 180, height: 180, borderRadius: 90, backgroundColor: 'rgba(245,166,35,0.18)', bottom: -40, right: -30 }} />
           <Animated.View style={{ transform: [{ translateY: float.interpolate({ inputRange: [0, 1], outputRange: [0, -8] }) }] }}>
-            <View style={{ width: 84, height: 84, borderRadius: 24, overflow: 'hidden', ...glow(t.custom.amber, true) }}>
+            <Pressable accessible={false} onPress={() => { taps.current += 1; if (taps.current >= 7) { taps.current = 0; haptic.tap(); setShowServer((v) => !v); } }}
+              style={{ width: 84, height: 84, borderRadius: 24, overflow: 'hidden', ...glow(t.custom.amber, true) }}>
               <Image source={require('../../assets/icon.png')} style={{ width: 84, height: 84 }} accessibilityLabel="Prangan logo" />
-            </View>
+            </Pressable>
           </Animated.View>
           <Text variant="headlineLarge" style={{ color: '#fff', fontWeight: '700', marginTop: space.md }}>Prangan</Text>
           <Text variant="titleSmall" style={{ color: t.custom.amber, marginTop: -2 }}>प्रांगण</Text>
@@ -141,18 +162,11 @@ export default function Login() {
             </Text>
           </FadeIn>
 
-          <TouchableRipple onPress={() => { haptic.tap(); setShowServer((s) => !s); }} style={{ marginTop: space.xl, alignSelf: 'center', borderRadius: radius.pill, paddingHorizontal: space.md, paddingVertical: space.sm }}>
-            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
-              <Icon name="server-network" size={16} color={t.colors.onSurfaceVariant} />
-              <Text variant="labelLarge" style={{ color: t.colors.onSurfaceVariant }}>Server settings</Text>
-              <Icon name={showServer ? 'chevron-up' : 'chevron-down'} size={16} color={t.colors.onSurfaceVariant} />
-            </View>
-          </TouchableRipple>
           {showServer ? (
-            <FadeIn>
+            <FadeIn style={{ marginTop: space.xl }}>
               <TextInput mode="outlined" label="Server address" value={server} onChangeText={setServer} autoCapitalize="none" autoCorrect={false}
                 placeholder="https://school-api.onrender.com" left={<TextInput.Icon icon="link-variant" />} />
-              <HelperText type="info">Saved when you sign in</HelperText>
+              <HelperText type="info">For the Prangan admin only. Kept after an admin sign-in.</HelperText>
             </FadeIn>
           ) : null}
           <View style={{ height: insets.bottom + space.xl }} />

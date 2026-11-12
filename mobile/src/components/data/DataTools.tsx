@@ -1,6 +1,5 @@
 import * as DocumentPicker from 'expo-document-picker';
 import { File, Paths } from 'expo-file-system';
-import * as Sharing from 'expo-sharing';
 import { useEffect, useState } from 'react';
 import { Platform, Share, View } from 'react-native';
 import { ActivityIndicator, Button, Dialog, Text } from 'react-native-paper';
@@ -8,12 +7,13 @@ import { TextInput } from '@/components/Field';
 
 import { ApiError, api, authHeaders, getBaseUrl } from '@/lib/api';
 import { haptic, useToast } from '@/lib/feedback';
+import { CSV_FILE, saveToPhone, savedToast, XLSX_FILE, type Saved } from '@/lib/saveFile';
 import { radius, space, useAppTheme } from '@/lib/theme';
 import type { ImportReport, NewLogin } from '@/lib/types';
 
 import { FadeIn, Icon, IconBadge, Panel, PressScale, ToneChip, TopLayer } from '../ui';
 
-const XLSX = 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet';
+const XLSX = XLSX_FILE.mime;
 type Mode = 'merge' | 'replace';
 type Picked = { uri: string; name: string; size?: number; file?: Blob };
 
@@ -24,8 +24,8 @@ function stamp() {
   return new Date().toISOString().slice(0, 10);
 }
 
-/** Download an authenticated file and open the share sheet (save to Files/Drive, WhatsApp…). */
-async function downloadAndShare(url: string, name: string, title: string) {
+/** Download an authenticated file and save it on the phone (Android folder; share sheet on iPhone). */
+async function downloadAndSave(url: string, name: string, title: string): Promise<Saved | null> {
   if (Platform.OS === 'web') {
     const res = await fetch(url, { headers: authHeaders() });
     if (!res.ok) throw new Error(await errText(res));
@@ -35,7 +35,7 @@ async function downloadAndShare(url: string, name: string, title: string) {
     a.download = name;
     a.click();
     setTimeout(() => URL.revokeObjectURL(a.href), 4000);
-    return;
+    return null;
   }
   const dest = new File(Paths.cache, name);
   if (dest.exists) dest.delete();
@@ -50,8 +50,7 @@ async function downloadAndShare(url: string, name: string, title: string) {
       throw new Error(typeof msg === 'string' ? msg : 'Download failed');
     }
   }
-  if (!(await Sharing.isAvailableAsync())) throw new Error('Sharing is not available on this phone');
-  await Sharing.shareAsync(f.uri, { mimeType: XLSX, dialogTitle: title, UTI: 'org.openxmlformats.spreadsheetml.sheet' });
+  return saveToPhone(f.uri, name, XLSX_FILE, title);
 }
 
 async function errText(res: Response) {
@@ -101,9 +100,12 @@ export function DataTools({ base, schoolCode, schoolName }: { base: string; scho
     setBusy(kind);
     try {
       const name = `Prangan-${kind === 'backup' ? 'Backup' : 'Template'}-${schoolCode}-${stamp()}.xlsx`;
-      await downloadAndShare(`${getBaseUrl()}${base}/${kind}`, name, kind === 'backup' ? 'Save the backup' : 'Save the template');
+      const saved = await downloadAndSave(`${getBaseUrl()}${base}/${kind}`, name, kind === 'backup' ? 'Save the backup' : 'Save the template');
       haptic.success();
-      toast(kind === 'backup' ? 'Backup ready — keep it somewhere safe' : 'Template ready — fill it in and import it here');
+      if (saved?.folder) {
+        const m = savedToast(saved, kind === 'backup' ? 'Backup' : 'Template', (msg) => toast(msg, { error: true }));
+        toast(m.text, m.opts);
+      } else toast(kind === 'backup' ? 'Backup ready — keep it somewhere safe' : 'Template ready — fill it in and import it here');
     } catch (e) {
       haptic.error();
       toast((e as Error).message, { error: true });
@@ -121,9 +123,10 @@ export function DataTools({ base, schoolCode, schoolName }: { base: string; scho
     haptic.tap();
     setBusy('undo');
     try {
-      await downloadAndShare(`${getBaseUrl()}${base}/snapshot/file`, `Prangan-Before-Replace-${schoolCode}-${stamp()}.xlsx`, 'Save the undo backup');
+      const saved = await downloadAndSave(`${getBaseUrl()}${base}/snapshot/file`, `Prangan-Before-Replace-${schoolCode}-${stamp()}.xlsx`, 'Save the undo backup');
       haptic.success();
-      toast('Undo backup ready');
+      const m = saved ? savedToast(saved, 'Undo backup', (msg) => toast(msg, { error: true })) : { text: 'Undo backup ready', opts: undefined };
+      toast(m.text, m.opts);
     } catch (e) {
       haptic.error();
       toast((e as Error).message, { error: true });
@@ -231,7 +234,8 @@ export function DataTools({ base, schoolCode, schoolName }: { base: string; scho
       const f = new File(Paths.cache, name);
       f.create({ overwrite: true });
       await f.write(csv);
-      await Sharing.shareAsync(f.uri, { mimeType: 'text/csv', dialogTitle: 'Save the login list', UTI: 'public.comma-separated-values-text' });
+      const m = savedToast(await saveToPhone(f.uri, name, CSV_FILE, 'Save the login list'), 'Login list', (msg) => toast(msg, { error: true }));
+      toast(m.text, m.opts);
     } catch (e) {
       toast((e as Error).message, { error: true });
     }

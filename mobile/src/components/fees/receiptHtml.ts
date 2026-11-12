@@ -1,6 +1,7 @@
 import * as Print from 'expo-print';
 import * as Sharing from 'expo-sharing';
 import { Platform } from 'react-native';
+import { PDF_FILE, saveToPhone, type Saved } from '@/lib/saveFile';
 
 import { fmtDate, inr, MODE_LABEL } from '@/lib/fees';
 import type { FeeReceipt } from '@/lib/types';
@@ -91,4 +92,16 @@ export async function shareReceipt(r: FeeReceipt): Promise<void> {
 
 export async function printReceipt(r: FeeReceipt): Promise<void> {
   await Print.printAsync({ html: buildReceiptHtml(r) });
+}
+
+/** PDF saved into the phone's chosen folder (Android); share sheet on iPhone. */
+export async function saveReceipt(r: FeeReceipt): Promise<Saved | null> {
+  const html = buildReceiptHtml(r);
+  if (Platform.OS === 'web') {
+    await Print.printAsync({ html });
+    return null;
+  }
+  const { uri } = await Print.printToFileAsync({ html });
+  const name = `Receipt-${String(r.receipt_no).replace(/[^A-Za-z0-9._-]+/g, '-')}.pdf`;
+  return saveToPhone(uri, name, PDF_FILE, `Receipt ${r.receipt_no}`);
 }
