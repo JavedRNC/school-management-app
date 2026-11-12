@@ -328,6 +328,15 @@ def test_review_fixes(c):
             raise AssertionError(f"{label} accepted")
         except HTTPException as e:
             assert e.status_code in (400, 413), label
+    for hidden in ("xl/ws/sheet1.xml", "xl/media/a.bin", "xl/data"):                 # a worksheet stored anywhere else
+        buf = io.BytesIO()
+        with zipfile.ZipFile(buf, "w", zipfile.ZIP_DEFLATED) as z:
+            z.writestr(hidden, cases["wide row"])
+        try:
+            _check_zip(buf.getvalue())
+            raise AssertionError(f"{hidden} accepted")
+        except HTTPException as e:
+            assert e.status_code == 400, hidden
     _check_zip(c.get("/data/template", headers=principal_h(c)).content)          # our own files still pass
     # M3 (round 3): without support access the admin can't create or change ANY other login of a school
     ah0 = admin_h(c)

@@ -6,6 +6,7 @@ the user confirmed (preview = the same run, rolled back). See databook.py for th
 import hmac
 import io
 import math
+import os
 import re
 from datetime import date, datetime
 
@@ -39,7 +40,7 @@ def _norm(h) -> str:
 # ================================================================ reading
 MAX_UNZIPPED = 160 * 1024 * 1024   # .xlsx is a zip: refuse "zip bombs" before parsing (work is bounded by the row budget)
 MAX_MEMBER = 130 * 1024 * 1024
-MAX_OTHER_PART = 12 * 1024 * 1024       # openpyxl holds every non-worksheet part fully in memory (≈8–15× its size)
+MAX_OTHER_PART = int(os.getenv("IMPORT_MAX_PART_MB", "4")) * 1024 * 1024   # openpyxl holds every non-worksheet part fully in memory (≈8–15× its size)
 MAX_SHARED_STRINGS = MAX_OTHER_PART
 MAX_COLS = 40                      # our widest sheet has 15 columns
 MAX_EMPTY_RUN = 1000               # stop reading a sheet after this many blank rows in a row
@@ -68,16 +69,46 @@ def _check_zip(data: bytes) -> None:
                     _scan_sheet(f, budget)
             elif i.file_size > MAX_OTHER_PART:
                 raise HTTPException(413, TOO_BIG)
+            elif i.file_size > 2048:
+                with z.open(i) as f:                      # a worksheet hidden under another name or folder is refused
+                    if _root_of(f) == (SHEET_NS, "worksheet"):
+                        raise HTTPException(400, "That file isn't a valid Excel (.xlsx) workbook")
 
 
 TOO_BIG = "This workbook is too large to import. Split it into smaller files."
 MAX_ROW_CELLS = 200                 # cells in one row (our widest sheet has 15 columns)
 MAX_CELL_BYTES = 200_000            # one cell's XML (Excel allows 32,767 characters)
-MAX_SCAN_CELLS = 5_000_000          # cells in the whole workbook
+# Parsed rows are kept in memory (about 120 bytes a cell), so the total is sized for the 512 MB server: 1.5 million cells
+# ≈ 270 MB. On a bigger server raise IMPORT_MAX_CELLS (and IMPORT_MAX_PART_MB).
+MAX_SCAN_CELLS = int(os.getenv("IMPORT_MAX_CELLS", "1500000"))
 MAX_SCAN_ELEMENTS = 14_000_000      # XML elements of any kind in the whole workbook
 SHEET_NS = "http://schemas.openxmlformats.org/spreadsheetml/2006/main"
 CELL_PARTS = {"row", "c", "v", "f", "is", "t", "r", "rPr", "sheetData", "worksheet"}
 MAX_OTHER_ELEMENTS = 100_000
+
+
+def _root_of(f) -> tuple[str, str] | None:
+    """Namespace and name of an XML part's root element (streamed; stops at the first element)."""
+    from xml.parsers import expat
+
+    par = expat.ParserCreate(namespace_separator=" ")
+    found: list = []
+
+    def start(name, _attrs):
+        ns, _, local = name.rpartition(" ")
+        found.append((ns, local))
+        raise _Refuse(0, "")
+
+    par.StartElementHandler = start
+    try:
+        while not found:
+            chunk = f.read(64 * 1024)
+            if not chunk:
+                break
+            par.Parse(chunk, False)
+    except (_Refuse, expat.ExpatError):
+        pass
+    return found[0] if found else None
 
 
 class _Refuse(Exception):

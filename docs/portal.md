@@ -67,7 +67,8 @@ No existing table was changed. Import/export history is read from the existing `
 - No document uploads on the registration form (no file storage yet).
 - Push notifications reach Android phones only; the portal shows a pending count.
 - One school per principal.
-- Imports and exports run inside the request, one at a time; no live progress bar.
+- Imports and exports run inside the request, one at a time; no live progress bar. An import file may hold up to 1.5 million
+  cells and 400,000 rows (sized for the 512 MB server; `IMPORT_MAX_CELLS` raises it on a bigger one).
 - Admin's view of a school's detailed data depends on that school's support access.
 - Rate limits are kept in the API's memory: they reset on a restart and assume one API instance.
 - People, plans, prices and payments are managed in the app, not in the portal.
