@@ -98,7 +98,7 @@ Multi-school with school code login (no email/OTP; principal issues temp passwor
 
 ## Environments (12 Nov)
 - PROD = branch main → Render school-api (school-api-7y80.onrender.com) + Neon prod DB + "Prangan" APK (release latest-apk) + website.
-- DEV = branch dev → Render prangan-api-dev (env APP_ENV=dev, APK_RELEASE_TAG=dev-apk, APK_FILE=PranganDev.apk) + separate Neon DB + "Prangan Dev" APK (package com.javedrnc.prangan.dev, release dev-apk). Dev API address lives in mobile/dev.json (empty = dev APK build skipped).
+- DEV = branch dev → Render prangan-api-dev (env APP_ENV=dev, APK_RELEASE_TAG=dev-apk, APK_FILE=PranganDev.apk) + separate Neon DB + "Prangan Dev" APK (package com.javedrnc.prangan.dev, release dev-apk). Dev API = https://prangan-api-dev.onrender.com (mobile/dev.json; live since 12 Nov).
 - Flow: Claude commits to dev → Javed tests in Prangan Dev → on "release", `git merge --ff-only dev` into main and push. Never push features straight to main.
 - Update check: server reads releases/download/<tag>/build.json (no API rate limit), falls back to API, remembers newest in meta 'seen_build'.
 
