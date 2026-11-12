@@ -80,3 +80,10 @@ def phone(browser, servers):
     pg = ctx.new_page()
     yield pg
     ctx.close()
+
+
+def pytest_runtest_logreport(report):
+    """On GitHub Actions, show each failure as an annotation on the run (readable without opening the log)."""
+    if report.failed and os.getenv("GITHUB_ACTIONS"):
+        text = str(report.longrepr)[-900:].replace("%", "%25").replace("\r", "").replace("\n", "%0A")
+        print(f"\n::error title={report.nodeid.split('::')[-1]} ({report.when})::{text}")
