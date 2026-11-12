@@ -3,7 +3,9 @@ import os
 from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
+from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import JSONResponse
 
 from .migrate import migrate
 from .routers import (academics, admin, appversion, auth, bell, comms, dashboard, data, fees, leaves, onboarding, portal, public,
@@ -40,9 +42,12 @@ async def lifespan(_app: FastAPI):
     yield
 
 
-app = FastAPI(title="Prangan API", version="0.6.0", lifespan=lifespan)
-
 APP_ENV = os.getenv("APP_ENV", "prod")
+# The interactive API reference is for DEV and TEST; the live API does not publish its own map.
+_docs = APP_ENV != "prod" or os.getenv("API_DOCS") == "1"
+app = FastAPI(title="Prangan API", version="0.6.0", lifespan=lifespan, docs_url="/docs" if _docs else None,
+              redoc_url=None, openapi_url="/openapi.json" if _docs else None)
+
 # Which websites may call this API from a browser (the Android app is not a browser and is unaffected).
 # Each environment allows only ITS OWN portal site, plus the public Prangan website; localhost only outside PROD.
 # If Render gives a portal site a different address, list it in CORS_ORIGINS (comma separated) on that API service.
@@ -56,6 +61,58 @@ app.add_middleware(CORSMiddleware, allow_origins=_origins, allow_origin_regex=_o
                    expose_headers=["Content-Disposition"], max_age=600)
 
 
+PUBLIC_CACHEABLE = {"/", "/app/version", "/public/schools"}
+MAX_JSON_BODY = 1024 * 1024              # 1 MB is far above any real form or list this API accepts
+MAX_UPLOAD_BODY = 21 * 1024 * 1024       # the two Excel import routes (their own check is 20 MB)
+
+
+class BodyLimit:
+    """Refuse oversized request bodies BEFORE they are read into memory or onto disk — this runs ahead of sign-in,
+    so an anonymous caller can't exhaust the small server with one huge request."""
+
+    def __init__(self, inner):
+        self.inner = inner
+
+    async def __call__(self, scope, receive, send):
+        if scope["type"] != "http" or scope["method"] in ("GET", "HEAD", "OPTIONS"):
+            return await self.inner(scope, receive, send)
+        limit = MAX_UPLOAD_BODY if scope["path"].endswith("/data/import") else MAX_JSON_BODY
+        headers = dict(scope.get("headers") or [])
+        declared = headers.get(b"content-length", b"")
+        too_big = JSONResponse({"detail": "That request is too large."}, status_code=413)
+        if declared.isdigit() and int(declared) > limit:
+            return await too_big(scope, receive, send)
+        seen = 0
+
+        async def limited():
+            nonlocal seen
+            msg = await receive()
+            if msg["type"] == "http.request":
+                seen += len(msg.get("body") or b"")
+                if seen > limit:
+                    raise _TooLarge
+            return msg
+
+        try:
+            await self.inner(scope, limited, send)
+        except _TooLarge:
+            await too_big(scope, receive, send)
+
+
+class _TooLarge(Exception):
+    pass
+
+
+app.add_middleware(BodyLimit)
+
+
+@app.exception_handler(RequestValidationError)
+async def validation_error(_request, exc: RequestValidationError):
+    """Say which field is wrong and why, without echoing back what was sent (it may hold a password or a huge body)."""
+    return JSONResponse({"detail": [{"loc": list(e.get("loc", ())), "msg": str(e.get("msg", "Invalid value")), "type": e.get("type", "")}
+                                    for e in exc.errors()[:20]]}, status_code=422)
+
+
 @app.middleware("http")
 async def security_headers(request, call_next):
     response = await call_next(request)
@@ -63,7 +120,7 @@ async def security_headers(request, call_next):
     response.headers.setdefault("X-Frame-Options", "DENY")
     response.headers.setdefault("Referrer-Policy", "no-referrer")
     response.headers.setdefault("Strict-Transport-Security", "max-age=31536000; includeSubDomains")
-    if request.url.path.startswith(("/auth", "/admin", "/data", "/school", "/fees")):
+    if request.url.path not in PUBLIC_CACHEABLE:          # everything else may hold personal data
         response.headers.setdefault("Cache-Control", "no-store")
     return response
 

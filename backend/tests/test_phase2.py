@@ -145,7 +145,7 @@ def test_banners(c):
     # platform banner by admin shows in every school
     r = c.post("/auth/login", json={"school_code": "ADMIN", "login_id": "admin", "password": "admin123"}).json()
     a = {"Authorization": f"Bearer {r['token']}"}
-    c.post("/auth/password", json={"old_password": "admin123", "new_password": "Admin#2026"}, headers=a)
+    a = {"Authorization": f"Bearer {c.post('/auth/password', json={'old_password': 'admin123', 'new_password': 'Admin#2026'}, headers=a).json()['token']}"}
     pb = c.post("/admin/banners", json={"title": "New features this week"}, headers=a).json()
     assert any(x["id"] == pb["id"] and x["platform"] for x in c.get("/banners/active", headers=login(c, "principal", "DEMO02")).json())
 

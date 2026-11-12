@@ -15,15 +15,15 @@ Every permission is enforced by the API. The portal's route guards are only for 
 
 ## Sign-in on the web
 
-`POST /auth/login` with `client: "web"` → a 12-hour token (the app's lasts 7 days) that only Admin and Principal can get.
-It is kept in `sessionStorage` (ends with the tab), sent as a header (no cookies, so no CSRF surface), and stops working when the
-password changes. Failed sign-ins are limited per account (lockout) and per network address.
+`POST /auth/login` with `client: "web"` → a 12-hour token (the app's lasts 7 days; the platform admin's is always 12 hours) that only
+Admin and Principal can get. It is kept in `sessionStorage` (ends with the tab) and sent as a header (no cookies, so no CSRF surface).
+Every session of a user, web or app, ends when that user's password is changed or reset. Failed sign-ins are limited per account (lockout) and per network address.
 
 ## API added for the portal
 
 Public
-- `POST /public/onboarding` — submit a request. Limits: 5 per hour per address, 300 per day overall; trap field for bots; duplicate and already-registered checks.
-- `GET /public/onboarding/status?reference=&mobile=` — status for the applicant; needs both values.
+- `POST /public/onboarding` — submit a request. Limits: 5 per hour per address, 2000 stored per day overall; trap field for bots; duplicate and already-registered checks.
+- `POST /public/onboarding/status` (`reference`, `mobile`) — status for the applicant; needs both values.
 
 Admin only
 - `GET /admin/onboarding` (`q`, `status`, `date_from`, `date_to`, `page`, `size`) · `GET /admin/onboarding/summary` · `GET /admin/onboarding/{id}`
@@ -39,7 +39,7 @@ Principal
 Any signed-in user
 - `POST /push/register`, `POST /push/unregister` — this phone's notification token.
 
-Interactive API reference: `<api address>/docs`.
+Interactive API reference: `<api address>/docs` on DEV and TEST (switched off on PROD).
 
 ## Request lifecycle
 

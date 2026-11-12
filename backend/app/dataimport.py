@@ -39,6 +39,7 @@ def _norm(h) -> str:
 # ================================================================ reading
 MAX_UNZIPPED = 160 * 1024 * 1024   # .xlsx is a zip: refuse "zip bombs" before parsing (work is bounded by the row budget)
 MAX_MEMBER = 130 * 1024 * 1024
+MAX_SHARED_STRINGS = 16 * 1024 * 1024   # openpyxl holds this part fully in memory (≈8× its size)
 MAX_COLS = 40                      # our widest sheet has 15 columns
 MAX_EMPTY_RUN = 1000               # stop reading a sheet after this many blank rows in a row
 MAX_CELL = 32767                   # Excel's own limit
@@ -55,6 +56,9 @@ def _check_zip(data: bytes) -> None:
         raise HTTPException(400, "That file isn't an Excel (.xlsx) workbook") from None
     if len(infos) > 300 or sum(i.file_size for i in infos) > MAX_UNZIPPED or any(i.file_size > MAX_MEMBER for i in infos):
         raise HTTPException(413, "This workbook is too large to import. Split it into smaller files.")
+    # The shared-strings table is loaded into memory whole, before any row budget applies: keep it small.
+    if any(i.file_size > MAX_SHARED_STRINGS for i in infos if i.filename.lower().endswith("sharedstrings.xml")):
+        raise HTTPException(413, "This workbook has too much text to import. Split it into smaller files.")
 
 
 def _rows(ws, budget: list[int]):
@@ -375,6 +379,8 @@ class Importer:
             db.delete(cfg)
         db.execute(update(M.SchoolClass).where(M.SchoolClass.school_id == sid).values(class_teacher_id=None))
         db.execute(update(M.User).where(M.User.id.in_(keep or [-1])).values(class_id=None))
+        gone = select(M.User.id).where(M.User.school_id == sid, M.User.id.not_in(keep or [-1]))
+        db.execute(delete(M.PushToken).where(M.PushToken.user_id.in_(gone)))          # phones of the people being removed
         db.execute(delete(M.User).where(M.User.school_id == sid, M.User.id.not_in(keep or [-1])))
         db.execute(delete(M.SchoolClass).where(M.SchoolClass.school_id == sid))
         db.execute(delete(M.Subject).where(M.Subject.school_id == sid))

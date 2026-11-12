@@ -4,8 +4,9 @@ import { View } from 'react-native';
 import { Button, Dialog, Text } from 'react-native-paper';
 import { TextInput } from '@/components/Field';
 
-import { api, cleanUrl, DEFAULT_URL, getBaseUrl, isCustomServer, tryServer } from '@/lib/api';
+import { api, cleanUrl, DEFAULT_URL, getBaseUrl, isCustomServer, tryServer, setToken } from '@/lib/api';
 import { ROLE_LABEL, useAuth, useCan } from '@/lib/auth';
+import { registerPush } from '@/lib/push';
 import { haptic, useToast } from '@/lib/feedback';
 import { space, Tone, useAppTheme } from '@/lib/theme';
 import type { User } from '@/lib/types';
@@ -58,11 +59,14 @@ export function ProfileView({ extra }: { extra?: string }) {
 
 
   async function change() {
-    if (newPw.length < 6) return toast('New password must be at least 6 characters', { error: true });
+    const minLen = user!.role === 'student' || user!.role === 'parent' ? 6 : 8;
+    if (newPw.length < minLen) return toast(`New password must be at least ${minLen} characters`, { error: true });
     setBusy(true);
     try {
-      const u = await api<User>('/auth/password', { body: { old_password: oldPw, new_password: newPw } });
+      const u = await api<User & { token?: string }>('/auth/password', { body: { old_password: oldPw, new_password: newPw } });
+      if (u.token) await setToken(u.token);     // the old session ended with the old password
       setUser(u);
+      void registerPush();
       setOld(''); setNew(''); setPwOpen(false);
       toast('Password updated');
     } catch (e) {
@@ -157,7 +161,7 @@ export function ProfileView({ extra }: { extra?: string }) {
         <TextInput mode="outlined" label="Current password" value={oldPw} onChangeText={setOld} secureTextEntry={!show} style={{ marginBottom: space.md }} />
         <TextInput mode="outlined" label="New password" value={newPw} onChangeText={setNew} secureTextEntry={!show}
           right={<TextInput.Icon icon={show ? 'eye-off' : 'eye'} onPress={() => setShow((s) => !s)} />} />
-        <Text variant="bodySmall" style={{ color: t.colors.onSurfaceVariant, marginVertical: space.sm }}>At least 6 characters, not the same as your login ID.</Text>
+        <Text variant="bodySmall" style={{ color: t.colors.onSurfaceVariant, marginVertical: space.sm }}>At least {user.role === 'student' || user.role === 'parent' ? 6 : 8} characters, not the same as your login ID.</Text>
         <Button mode="contained" onPress={change} loading={busy} contentStyle={{ paddingVertical: 6 }}>Update password</Button>
       </Sheet>
       <Sheet visible={srvOpen} onDismiss={() => setSrvOpen(false)} title="Server">

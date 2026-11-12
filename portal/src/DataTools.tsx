@@ -8,8 +8,9 @@ const MAX_MB = 20;
 
 function csv(rows: (string | number | null | undefined)[][]) {
   const cell = (v: string | number | null | undefined) => {
-    let s = String(v ?? '');
-    if (/^[=+\-@\t\r]/.test(s)) s = `'${s}`;          // never let a spreadsheet run a cell as a formula
+    // eslint-disable-next-line no-control-regex
+    let s = String(v ?? '').replace(/\r\n?/g, '\n').replace(/[\x00-\x08\x0b\x0c\x0e-\x1f\x7f]/g, '');
+    if (/^[=+\-@\t]/.test(s.trimStart())) s = `'${s}`;   // never let a spreadsheet run a cell as a formula
     return /[",\n]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s;
   };
   return rows.map((r) => r.map(cell).join(',')).join('\r\n');

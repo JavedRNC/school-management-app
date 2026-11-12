@@ -31,8 +31,14 @@ def _current_version() -> int:
 def migrate() -> None:
     v = _current_version()
     if v == 1:
-        if os.getenv("ALLOW_SCHEMA_RESET", "1") != "1":
-            raise RuntimeError("Legacy schema found and ALLOW_SCHEMA_RESET is not 1 — refusing to reset")
+        # Wiping is OFF unless explicitly switched on, and even then only for the real first-version schema:
+        # a database that merely lost its version row (partial restore, wrong DATABASE_URL) is never dropped.
+        tables = set(inspect(engine).get_table_names())
+        if os.getenv("ALLOW_SCHEMA_RESET", "0") != "1":
+            raise RuntimeError("The database has tables but no Prangan schema version. Refusing to touch it. "
+                               "Check DATABASE_URL, or restore the 'meta' table. (ALLOW_SCHEMA_RESET=1 resets a first-version demo database.)")
+        if "meta" in tables or tables & {"plans", "audit_logs", "school_settings", "onboarding_requests", "fee_configs"}:
+            raise RuntimeError("This is not a first-version database (it has current Prangan tables) — refusing to reset it.")
         log.warning("Legacy demo schema found → resetting database for multi-school (v2)")
         md = MetaData()
         md.reflect(bind=engine)

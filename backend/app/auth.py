@@ -52,7 +52,8 @@ def ensure_secret(db) -> None:
 
 
 TOKEN_DAYS = 7
-MAX_FAILED = 5
+MAX_FAILED = 5            # wrong passwords from ONE network address before that address must wait
+ACCOUNT_MAX_FAILED = 25   # wrong passwords from anywhere before the account itself is locked for a while
 LOCK_MINUTES = 15
 bearer = HTTPBearer(auto_error=False)
 
@@ -68,9 +69,15 @@ def verify_password(pw: str, hashed: str) -> bool:
         return False
 
 
-def check_password_rules(pw: str, login_id: str) -> None:
-    if len(pw) < 6:
-        raise HTTPException(400, "Password must be at least 6 characters")
+STAFF_MIN_PASSWORD = 8      # passwords people choose for themselves (staff and admin); students and parents: 6
+MIN_PASSWORD = 6            # also the minimum for temporary passwords, which must be changed at first sign-in
+
+
+def check_password_rules(pw: str, login_id: str, minimum: int = MIN_PASSWORD) -> None:
+    if len(pw) < minimum:
+        raise HTTPException(400, f"Password must be at least {minimum} characters")
+    if len(pw.encode()) > 72:                      # bcrypt's limit — longer input would be cut off or rejected
+        raise HTTPException(400, "Password is too long (use up to 72 letters; fewer for non-English letters)")
     if pw.strip().lower() == (login_id or "").strip().lower():
         raise HTTPException(400, "Password can't be the same as the login ID")
 
@@ -86,12 +93,13 @@ def pw_stamp(user: User) -> str:
 
 
 def make_token(user: User, web: bool = False) -> str:
-    """App tokens last TOKEN_DAYS. Portal (web) tokens last WEB_TOKEN_HOURS and die when the password changes."""
-    claims = {"sub": str(user.id), "role": user.role.value, "sid": user.school_id}
+    """Every token carries a stamp of the password, so ALL of a user's sessions end when the password is changed or reset.
+    The platform admin always gets a short session; portal (web) sessions are short for everyone."""
+    short = web or user.role.value == "admin"
+    exp = datetime.now(timezone.utc) + (timedelta(hours=WEB_TOKEN_HOURS) if short else timedelta(days=TOKEN_DAYS))
+    claims = {"sub": str(user.id), "role": user.role.value, "sid": user.school_id, "pw": pw_stamp(user), "exp": exp}
     if web:
-        claims.update(exp=datetime.now(timezone.utc) + timedelta(hours=WEB_TOKEN_HOURS), web=True, pw=pw_stamp(user))
-    else:
-        claims["exp"] = datetime.now(timezone.utc) + timedelta(days=TOKEN_DAYS)
+        claims["web"] = True
     return jwt.encode(claims, secret(), algorithm="HS256")
 
 
@@ -115,7 +123,7 @@ def current_user(request: Request, creds: HTTPAuthorizationCredentials | None = 
     user = db.get(User, int(data["sub"]))
     if not user or not user.active:
         raise HTTPException(status.HTTP_401_UNAUTHORIZED, "Account not found or removed")
-    if data.get("web") and (data.get("pw") != pw_stamp(user) or user.role.value not in WEB_ROLES):
+    if data.get("pw") != pw_stamp(user) or (data.get("web") and user.role.value not in WEB_ROLES):
         raise HTTPException(status.HTTP_401_UNAUTHORIZED, "Session expired — please sign in again")
     request.state.web = bool(data.get("web"))
     if user.school_id:

@@ -11,7 +11,7 @@ from datetime import date, timedelta
 
 from sqlalchemy import select
 
-from .auth import hash_password
+from .auth import hash_password, verify_password
 from .db import SessionLocal
 from .models import (Assignment, Attendance, Exam, Holiday, Mark, ParentLink, Plan, Post, Role, School, SchoolClass, Subject,
                      TimetableEntry, User)
@@ -34,10 +34,31 @@ def ensure_platform() -> None:
         if not db.scalar(select(Plan.id).limit(1)):
             for i, (name, mods, pps, mn) in enumerate(DEFAULT_PLANS):
                 db.add(Plan(name=name, modules=mods, price_per_student=pps, min_monthly=mn, sort=i))
-        if not db.scalar(select(User.id).where(User.role == Role.admin).limit(1)):
-            env_pw = os.getenv("ADMIN_PASSWORD")
+        # The platform admin never starts with a publicly known password. Without ADMIN_PASSWORD a random temporary one is
+        # made and written ONCE to the server log (Render → Logs); it must be changed at first sign-in.
+        # ALLOW_DEFAULT_ADMIN_PASSWORD=1 keeps the old "admin123" for automated tests and local development only.
+        env_pw = os.getenv("ADMIN_PASSWORD")
+        allow_default = os.getenv("ALLOW_DEFAULT_ADMIN_PASSWORD") == "1"
+
+        def first_password() -> str:
+            if env_pw:
+                return env_pw
+            if allow_default:
+                return "admin123"
+            import secrets
+            pw = secrets.token_urlsafe(9)
+            logging.getLogger("seed").warning("Platform admin temporary password (shown once, change it at first sign-in): %s", pw)
+            return pw
+
+        admin = db.scalar(select(User).where(User.role == Role.admin).order_by(User.id))
+        if not admin:
             db.add(User(school_id=None, login_id=os.getenv("ADMIN_LOGIN_ID", "admin"), name="Platform Admin", role=Role.admin,
-                        password_hash=hash_password(env_pw or "admin123"), must_change_password=not env_pw))
+                        password_hash=hash_password(first_password()), must_change_password=not env_pw))
+        elif admin.must_change_password and not allow_default and verify_password("admin123", admin.password_hash):
+            # an older install still on the well-known default that nobody has changed yet: replace it now
+            admin.password_hash = hash_password(first_password())
+            admin.must_change_password = not env_pw
+            admin.failed_logins, admin.locked_until = 0, None
         reset_pw = os.getenv("ADMIN_RESET_PASSWORD")
         if reset_pw:
             # recovery switch: set ADMIN_RESET_PASSWORD on the server, restart, log in, then REMOVE the variable
@@ -48,6 +69,8 @@ def ensure_platform() -> None:
                 admin.locked_until = None
                 admin.must_change_password = True
                 admin.active = True
+                from . import ratelimit
+                ratelimit.forget_user(admin.id)
                 logging.getLogger("seed").warning("Admin password reset from ADMIN_RESET_PASSWORD — remove that variable now")
         db.commit()
 

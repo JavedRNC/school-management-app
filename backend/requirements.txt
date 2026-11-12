@@ -1,12 +1,13 @@
-fastapi>=0.115
-uvicorn[standard]>=0.30
-SQLAlchemy>=2.0
-PyJWT>=2.8
-bcrypt>=4.1
-pydantic>=2.7
-email-validator>=2.1
-psycopg[binary]>=3.1
-tzdata>=2024.1
-openpyxl>=3.1
-python-multipart>=0.0.9
-cryptography>=42
+# Exact versions, so what is tested is what is deployed. Raise them deliberately, then run the tests.
+fastapi==0.162.5
+uvicorn[standard]==0.54.0
+SQLAlchemy==2.1.8
+PyJWT==2.15.0
+bcrypt==5.0.0
+pydantic==2.13.5
+email-validator==2.3.0
+psycopg[binary]==3.3.8
+tzdata==2026.6
+openpyxl==3.1.5
+python-multipart==0.0.32
+cryptography==50.0.1

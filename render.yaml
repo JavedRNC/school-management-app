@@ -22,6 +22,8 @@ services:
         value: Asia/Kolkata
       - key: SEED_DEMO
         value: "1"           # set to "0" before going live with real school data
+      - key: ALLOW_SCHEMA_RESET
+        value: "0"           # never wipe a database at start-up
       - key: PYTHON_VERSION
         value: "3.12.7"
 

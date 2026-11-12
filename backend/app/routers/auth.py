@@ -2,14 +2,14 @@ import os
 from datetime import timedelta
 
 from fastapi import APIRouter, Depends, HTTPException, Request
-from sqlalchemy import func, select
+from sqlalchemy import delete, func, select
 from sqlalchemy.orm import Session
 
 from .. import ratelimit
-from ..auth import (LOCK_MINUTES, MAX_FAILED, WEB_ROLES, audit, check_password_rules, current_user, hash_password, make_token,
+from ..auth import (ACCOUNT_MAX_FAILED, LOCK_MINUTES, MAX_FAILED, STAFF_MIN_PASSWORD, WEB_ROLES, audit, check_password_rules, current_user, hash_password, make_token,
                     verify_password)
 from ..db import get_db
-from ..models import Role, School, User, utcnow
+from ..models import PushToken, Role, School, User, utcnow
 from ..schemas import LoginIn, LoginOut, PasswordChange, UserOut
 from ..views import user_out
 
@@ -18,41 +18,48 @@ ADMIN_CODE = os.getenv("ADMIN_SCHOOL_CODE", "ADMIN").upper()
 FAILS_PER_IP = 30
 
 
+_DUMMY_HASH = hash_password("not-a-real-password")
+WRONG = "Wrong school code, login ID or password"
+
+
 @router.post("/login", response_model=LoginOut)
 def login(body: LoginIn, request: Request, db: Session = Depends(get_db)):
-    # Per-address limit on FAILED sign-ins, on top of the per-account lockout below (password guessing across many
-    # accounts). Successful sign-ins are not counted, so a whole staff room on one Wi-Fi is never locked out.
-    ip_key = f"login-fail:{ratelimit.client_ip(request)}"
+    """One generic failure message and similar timing whether the school, the account or the password is wrong.
+
+    Guessing is limited three ways: per network address (all accounts), per address for one account, and — at a much higher
+    count — for the account from anywhere. A stranger's wrong guesses therefore can't easily lock the real owner out."""
+    ip = ratelimit.client_ip(request)
+    ip_key = f"login-fail:{ip}"
     if ratelimit.over(ip_key, FAILS_PER_IP, 300):
         raise HTTPException(429, "Too many wrong sign-in attempts from this network. Please wait a few minutes.")
     code = body.school_code.strip().upper()
     lid = body.login_id.strip()
+    school = None
     if code == ADMIN_CODE:
         user = db.scalar(select(User).where(User.school_id.is_(None), User.role == Role.admin,
                                             func.lower(User.login_id) == lid.lower()))
     else:
         school = db.scalar(select(School).where(func.upper(School.code) == code))
-        if not school:
-            ratelimit.hit(ip_key, FAILS_PER_IP, 300)
-            raise HTTPException(401, "School code not found")
-        if school.suspended:
-            raise HTTPException(403, "This school's account is suspended. Please contact support.")
-        user = db.scalar(select(User).where(User.school_id == school.id, func.lower(User.login_id) == lid.lower()))
-    if not user or not user.active:
-        ratelimit.hit(ip_key, FAILS_PER_IP, 300)
-        raise HTTPException(401, "Wrong login ID or password")
+        user = db.scalar(select(User).where(User.school_id == school.id, func.lower(User.login_id) == lid.lower())) if school else None
+    if user and not user.active:
+        user = None
+    pair_key = f"login-fail:{ip}:{user.id if user else f'{code}/{lid.lower()}'[:80]}"
     now = utcnow()
-    if user.locked_until and user.locked_until > now:
-        mins = int((user.locked_until - now).total_seconds() // 60) + 1
-        raise HTTPException(429, f"Too many wrong attempts. Try again in {mins} min or ask your principal to reset it.")
-    if not verify_password(body.password, user.password_hash):
-        user.failed_logins = (user.failed_logins or 0) + 1
-        if user.failed_logins >= MAX_FAILED:
-            user.locked_until = now + timedelta(minutes=LOCK_MINUTES)
-            user.failed_logins = 0
-        db.commit()
+    if ratelimit.over(pair_key, MAX_FAILED, LOCK_MINUTES * 60) or (user and user.locked_until and user.locked_until > now):
+        raise HTTPException(429, f"Too many wrong attempts. Try again in {LOCK_MINUTES} minutes or ask for a password reset.")
+    ok = verify_password(body.password, user.password_hash if user else _DUMMY_HASH) and user is not None
+    if not ok:
         ratelimit.hit(ip_key, FAILS_PER_IP, 300)
-        raise HTTPException(401, "Wrong login ID or password")
+        ratelimit.hit(pair_key, MAX_FAILED, LOCK_MINUTES * 60)
+        if user:
+            user.failed_logins = (user.failed_logins or 0) + 1
+            if user.failed_logins >= ACCOUNT_MAX_FAILED:
+                user.locked_until = now + timedelta(minutes=LOCK_MINUTES)
+                user.failed_logins = 0
+            db.commit()
+        raise HTTPException(401, WRONG)
+    if school and school.suspended:
+        raise HTTPException(403, "This school's account is suspended. Please contact support.")
     web = body.client == "web"
     if web and user.role.value not in WEB_ROLES:
         raise HTTPException(403, "The web portal is for Admin and Principal accounts. Please use the Prangan app.")
@@ -67,18 +74,24 @@ def me(user: User = Depends(current_user), db: Session = Depends(get_db)):
     return user_out(db, user)
 
 
-@router.post("/password", response_model=UserOut)
-def change_password(body: PasswordChange, user: User = Depends(current_user), db: Session = Depends(get_db)):
+@router.post("/password")
+def change_password(body: PasswordChange, request: Request, user: User = Depends(current_user), db: Session = Depends(get_db)):
+    """Changing the password ends every other session of this user. The reply carries a fresh token for THIS session."""
     if not verify_password(body.old_password, user.password_hash):
         raise HTTPException(400, "Current password is wrong")
-    check_password_rules(body.new_password, user.login_id)
+    minimum = STAFF_MIN_PASSWORD if user.role not in (Role.student, Role.parent) else 6
+    check_password_rules(body.new_password, user.login_id, minimum)
     if body.new_password == body.old_password:
         raise HTTPException(400, "Choose a password different from the temporary one")
     user.password_hash = hash_password(body.new_password)
     user.must_change_password = False
+    db.execute(delete(PushToken).where(PushToken.user_id == user.id))     # phones re-register when they next open the app
+    ratelimit.forget_user(user.id)
     audit(db, user, "password.changed")
     db.commit()
-    return user_out(db, user)
+    out = user_out(db, user).model_dump(mode="json")
+    out["token"] = make_token(user, web=bool(getattr(request.state, "web", False)))
+    return out
 
 
 @router.post("/consent", response_model=UserOut)

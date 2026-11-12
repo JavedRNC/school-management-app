@@ -144,8 +144,8 @@ export function RequestDetailPage() {
             <h2>Contact</h2>
             <dl className="dl">
               <div><dt>Contact person</dt><dd>{r.contact_name}{r.designation ? `, ${r.designation}` : ''}</dd></div><div><dt>Principal</dt><dd>{r.principal_name || '—'}</dd></div>
-              <div><dt>Mobile</dt><dd><a href={`tel:${r.mobile}`}>{r.mobile}</a></dd></div><div><dt>Alternate</dt><dd>{r.alt_phone || '—'}</dd></div>
-              <div><dt>Email</dt><dd><a href={`mailto:${r.email}`}>{r.email}</a></dd></div><div><dt>Prefers</dt><dd>{r.contact_method || '—'}</dd></div>
+              <div><dt>Mobile</dt><dd><a href={`tel:${r.mobile.replace(/[^\d+]/g, '')}`}>{r.mobile}</a></dd></div><div><dt>Alternate</dt><dd>{r.alt_phone || '—'}</dd></div>
+              <div><dt>Email</dt><dd><a href={`mailto:${encodeURIComponent(r.email)}`}>{r.email}</a></dd></div><div><dt>Prefers</dt><dd>{r.contact_method || '—'}</dd></div>
             </dl>
           </section>
           <section className="card stack">

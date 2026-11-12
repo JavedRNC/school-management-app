@@ -6,9 +6,10 @@ from sqlalchemy import delete, func, select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
+from .. import ratelimit
 from ..auth import admin_only, audit, check_password_rules, hash_password
 from ..db import get_db
-from ..models import (AuditLog, ParentLink, Plan, Role, School, SchoolClass, SubscriptionPayment, User, utcnow)
+from ..models import (AuditLog, ParentLink, Plan, PushToken, Role, School, SchoolClass, SubscriptionPayment, User, utcnow)
 from ..perms import MODULES, clean_permissions
 from ..schemas import (AuditOut, PaymentIn, PaymentOut, PlanIn, PlanOut, SchoolAdminUpdate, SchoolCreate, UserCreate,
                        UserOut, UserUpdate)
@@ -157,6 +158,8 @@ def _mask(out: UserOut, full: bool) -> UserOut:
     if full:
         return out
     out.phone = mask_phone(out.phone)
+    if out.login_id and sum(ch.isdigit() for ch in out.login_id) >= 8:      # a parent's login ID is usually their mobile number
+        out.login_id = mask_phone(out.login_id)
     out.email = (out.email[:2] + "•••@" + out.email.split("@")[-1]) if "@" in out.email else ""
     out.address = "Hidden — school hasn't shared contact details" if out.address else ""
     out.dob = None
@@ -229,6 +232,8 @@ def admin_update_user(sid: int, uid: int, body: UserUpdate, me: User = Depends(a
     if pw:
         check_password_rules(pw, data.get("login_id") or u.login_id)
         u.password_hash = hash_password(pw)
+        ratelimit.forget_user(u.id)
+        db.execute(delete(PushToken).where(PushToken.user_id == u.id))   # their phones sign in again
         u.must_change_password = True
         u.failed_logins, u.locked_until = 0, None
     kids = data.pop("children_ids", None)

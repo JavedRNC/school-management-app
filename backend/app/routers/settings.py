@@ -110,6 +110,8 @@ def restore(kind: str, obj_id: int, user: User = Depends(require_area("settings"
         u = db.get(User, obj_id)
         if not u or u.school_id != user.school_id:
             raise HTTPException(404, "Not found")
+        if u.role in (Role.principal, Role.admin) or (u.role in (Role.vice_principal, Role.coordinator) and user.role != Role.principal):
+            raise HTTPException(403, "Only the principal can restore this account")
         if u.role == Role.student and u.class_id:
             c = db.get(SchoolClass, u.class_id)
             if not c or not c.is_active:

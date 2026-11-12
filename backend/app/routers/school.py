@@ -6,10 +6,12 @@ from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
 from ..bell import period_count, schedules
+from .. import ratelimit
 from ..auth import audit, check_password_rules, hash_password, require_area, school_user
 from ..db import get_db
-from ..deps import active_ids, class_students, get_school, name_maps, owned, resolve_student, visible_class_ids
-from ..models import (Assignment, Exam, Mark, ParentLink, Post, Role, SchoolClass, Subject, TimetableEntry, User,
+from ..deps import (active_ids, class_students, get_school, manager_class_ids, name_maps, owned, resolve_student,
+                    visible_class_ids)
+from ..models import (Assignment, Exam, Mark, ParentLink, Post, PushToken, Role, SchoolClass, Subject, TimetableEntry, User,
                       utcnow)
 from ..perms import clean_permissions
 from ..schemas import (AssignmentIn, AssignmentOut, ClassIn, ClassOut, ExamIn, ExamOut, NameIn, SubjectOut,
@@ -152,7 +154,13 @@ def list_users(role: Role | None = None, class_id: int | None = None, active: bo
         q = q.where(User.role == role)
     if class_id:
         q = q.where(User.class_id == class_id)
-    return users_out(db, list(db.scalars(q)))
+    rows = list(db.scalars(q))
+    scope = manager_class_ids(db, user)           # a coordinator limited to some classes sees only those students
+    if scope is not None:
+        kids = {l.parent_id for l in db.scalars(select(ParentLink).join(User, User.id == ParentLink.student_id).where(User.class_id.in_(scope or [-1])))}
+        rows = [u for u in rows if (u.role == Role.student and u.class_id in scope) or (u.role == Role.parent and u.id in kids)
+                or u.role not in (Role.student, Role.parent)]
+    return users_out(db, rows)
 
 
 def _validate_role(db: Session, me: User, role: Role) -> None:
@@ -263,6 +271,8 @@ def update_user(user_id: int, body: UserUpdate, me: User = Depends(require_area(
     if pw:
         check_password_rules(pw, data.get("login_id") or u.login_id)
         u.password_hash = hash_password(pw)
+        ratelimit.forget_user(u.id)
+        db.execute(delete(PushToken).where(PushToken.user_id == u.id))   # their phones sign in again
         u.must_change_password = u.id != me.id   # temporary password unless setting own
         u.failed_logins, u.locked_until = 0, None
     kids = data.pop("children_ids", None)

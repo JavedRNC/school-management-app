@@ -34,7 +34,7 @@ def _wait(url: str, seconds: int = 60) -> None:
 @pytest.fixture(scope="session")
 def servers():
     db = tempfile.NamedTemporaryFile(suffix=".db", delete=False).name
-    env = {**os.environ, "DATABASE_URL": f"sqlite:///{db}", "APP_ENV": "dev", "JWT_SECRET": "e2e-" + "k" * 40, "SEED_DEMO": "1",
+    env = {**os.environ, "DATABASE_URL": f"sqlite:///{db}", "APP_ENV": "dev", "JWT_SECRET": "e2e-" + "k" * 40, "SEED_DEMO": "1", "ALLOW_DEFAULT_ADMIN_PASSWORD": "1",
            "CORS_ORIGINS": WEB}
     build_env = {**os.environ, "VITE_API_URL": API, "VITE_APP_ENV": "dev"}
     subprocess.run(["npm", "run", "build"], cwd=PORTAL, env=build_env, check=True, capture_output=True)

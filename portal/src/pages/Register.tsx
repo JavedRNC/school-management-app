@@ -169,7 +169,7 @@ export function RegisterStatus() {
   async function submit(e: React.FormEvent) {
     e.preventDefault();
     setBusy(true); setError(null); setRes(null);
-    try { setRes(await api<Status>('/public/onboarding/status', { auth: false, query: { reference: ref.trim(), mobile: mobile.trim() } })); }
+    try { setRes(await api<Status>('/public/onboarding/status', { auth: false, body: { reference: ref.trim(), mobile: mobile.trim() } })); }
     catch (err) { setError((err as Error).message); }
     finally { setBusy(false); }
   }
@@ -179,7 +179,7 @@ export function RegisterStatus() {
         <form className="form narrow" onSubmit={submit} noValidate>
           <div><h1>Check a request</h1><p className="muted">Enter the reference number you received and the mobile number you used.</p></div>
           {error ? <div className="alert bad" role="alert">{error}</div> : null}
-          <Text label="Reference number" value={ref} onChange={(v) => setRef(v.toUpperCase())} placeholder="PRN-2026-000123" spellCheck={false} autoCapitalize="characters" required />
+          <Text label="Reference number" value={ref} onChange={(v) => setRef(v.toUpperCase())} placeholder="PRN-2026-AB12CD34" spellCheck={false} autoCapitalize="characters" required />
           <Text label="Mobile number" value={mobile} onChange={setMobile} type="tel" inputMode="tel" autoComplete="tel" required />
           <Button kind="primary" type="submit" busy={busy} disabled={!ref.trim() || !mobile.trim()}>Check status</Button>
           {res ? (

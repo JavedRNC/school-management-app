@@ -81,8 +81,14 @@ def test_public_form_validation_and_duplicates(c):
     h = admin_h(c)
     assert c.get("/admin/onboarding", headers=h).json()["total"] == 1
     # applicant status lookup needs reference AND the mobile used
-    assert c.get("/public/onboarding/status", params={"reference": ref, "mobile": "9999999999"}).status_code == 404
-    s = c.get("/public/onboarding/status", params={"reference": ref.lower(), "mobile": "98765 43210"}).json()
+    assert c.post("/public/onboarding/status", json={"reference": ref, "mobile": "9999999999"}).status_code == 404
+    assert c.get("/public/onboarding/status", params={"reference": ref, "mobile": "9876543210"}).status_code in (404, 405)   # never in a URL
+    import re
+    assert re.fullmatch(r"PRN-\d{4}-[A-Z2-9]{8}", ref)                               # not guessable from another reference
+    ratelimit.reset()
+    # the refusal reads the same for "already a school" and "already a request" (set up below in the workflow test)
+    assert "already have a request or a registration" in again.json()["detail"]
+    s = c.post("/public/onboarding/status", json={"reference": ref.lower(), "mobile": "98765 43210"}).json()
     assert s["status"] == "PENDING" and s["school_name"] == "Sunrise Public School" and "email" not in s
 
 
@@ -110,7 +116,7 @@ def test_admin_workflow_to_onboarded_school(c):
     c.post(f"/admin/onboarding/{rid}/assign", headers=h)
     r = c.post(f"/admin/onboarding/{rid}/status", json={"status": "ADDITIONAL_INFORMATION_REQUIRED", "remarks": "Please share the affiliation number"}, headers=h)
     assert r.status_code == 200
-    pub = c.get("/public/onboarding/status", params={"reference": d["reference"], "mobile": "9876543210"}).json()
+    pub = c.post("/public/onboarding/status", json={"reference": d["reference"], "mobile": "9876543210"}).json()
     assert pub["message"] == "Please share the affiliation number" and "Called" not in str(pub)   # notes stay internal
     assert c.post(f"/admin/onboarding/{rid}/status", json={"status": "APPROVED", "remarks": "ok"}, headers=h).status_code == 200
     ob = c.post(f"/admin/onboarding/{rid}/onboard", json={"code": "sun01"}, headers=h)
@@ -206,12 +212,23 @@ def test_web_sessions(c):
     cw, ca = jwt.decode(web, options={"verify_signature": False}), jwt.decode(appt, options={"verify_signature": False})
     assert cw["web"] is True and cw["exp"] - ca["exp"] < -6 * 86400 + 13 * 3600
     assert c.get("/auth/me", headers={"Authorization": f"Bearer {web}"}).status_code == 200
-    # changing the password ends the web session (the app session is kept so the forced-change flow works)
-    assert c.post("/auth/password", json={"old_password": "demo123", "new_password": "demo1234"},
-                  headers={"Authorization": f"Bearer {web}"}).status_code == 200
-    assert c.get("/auth/me", headers={"Authorization": f"Bearer {web}"}).status_code == 401
-    assert c.post("/auth/password", json={"old_password": "demo1234", "new_password": "demo123"},
-                  headers={"Authorization": f"Bearer {appt}"}).status_code == 200
+    # changing the password ends EVERY session of that user (web and app); the reply carries a fresh one
+    ch = c.post("/auth/password", json={"old_password": "demo123", "new_password": "demo1234"}, headers={"Authorization": f"Bearer {web}"})
+    assert ch.status_code == 200
+    for old_token in (web, appt):
+        assert c.get("/auth/me", headers={"Authorization": f"Bearer {old_token}"}).status_code == 401
+    fresh = ch.json()["token"]
+    assert jwt.decode(fresh, options={"verify_signature": False}).get("web") is True
+    assert c.get("/auth/me", headers={"Authorization": f"Bearer {fresh}"}).status_code == 200
+    from app.auth import hash_password
+    from app.db import SessionLocal as S2
+    with S2() as db:                                                                  # demo password back for later tests
+        u = db.scalar(select(User).where(User.login_id == "principal", User.school_id == 1))
+        u.password_hash = hash_password("demo123")
+        db.commit()
+    # the platform admin's session is short even from the app
+    adm = jwt.decode(admin_h(c)["Authorization"].split()[1], options={"verify_signature": False})
+    assert adm["exp"] - ca["exp"] < -6 * 86400 + 13 * 3600
     # forged / tampered tokens
     assert c.get("/auth/me", headers={"Authorization": "Bearer " + web[:-3] + "abc"}).status_code == 401
     forged = jwt.encode({"sub": "1", "role": "admin", "sid": None}, "x" * 40, algorithm="HS256")
@@ -256,3 +273,63 @@ def test_push_tokens(c):
     from app import push
     assert push.configured() is False
     push.notify([1], "t", "b")            # not configured: a quiet no-op
+
+
+def test_review_fixes(c):
+    """Regression tests for the security review findings."""
+    import io
+    import zipfile
+
+    from app import ratelimit
+    from app.dataimport import MAX_SHARED_STRINGS, _check_zip
+    from fastapi import HTTPException
+    # H3: a workbook whose shared-strings part is huge is refused before it is parsed
+    buf = io.BytesIO()
+    with zipfile.ZipFile(buf, "w", zipfile.ZIP_DEFLATED) as z:
+        z.writestr("xl/sharedStrings.xml", b"<si><t>a</t></si>" * (MAX_SHARED_STRINGS // 17 + 10))
+    try:
+        _check_zip(buf.getvalue())
+        raise AssertionError("oversized shared strings accepted")
+    except HTTPException as e:
+        assert e.status_code == 413
+    # M6: oversized bodies are refused before sign-in and validation errors don't echo the input
+    big = c.post("/auth/login", content=b'{"school_code":"' + b"A" * (2 * 1024 * 1024) + b'"}', headers={"Content-Type": "application/json"})
+    assert big.status_code == 413
+    bad = c.post("/auth/login", json={"school_code": "X" * 500, "login_id": "secret-looking-value", "password": "p"})
+    assert bad.status_code == 422 and "secret-looking-value" not in bad.text and "input" not in bad.json()["detail"][0]
+    # M4: a caller can't dodge a limit by inventing forwarded addresses
+    for i in range(8):
+        r = c.post("/public/onboarding/status", json={"reference": "PRN-2026-AAAAAAAA", "mobile": "9876543210"},
+                   headers={"CF-Connecting-IP": f"1.2.3.{i}", "X-Forwarded-For": f"9.9.9.{i}"})
+    codes = [c.post("/public/onboarding/status", json={"reference": "PRN-2026-AAAAAAAA", "mobile": "9876543210"},
+                    headers={"CF-Connecting-IP": f"5.6.7.{i}"}).status_code for i in range(20)]
+    assert 429 in codes
+    ratelimit.reset()
+    # L4: same message whether the school, the account or the password is wrong
+    msgs = {login(c, code, lid, "nope").json()["detail"] for code, lid in (("NOSUCH", "principal"), ("DEMO01", "nobody"), ("DEMO01", "principal"))}
+    assert msgs == {"Wrong school code, login ID or password"}
+    ratelimit.reset()
+    # M3a: without support access the admin never sees a parent's phone number, not even as the login ID
+    h = admin_h(c)
+    parents = c.get("/admin/schools/1/users", params={"role": "parent"}, headers=h).json()
+    assert parents and all("X" in p["login_id"] or not p["login_id"].isdigit() for p in parents)
+    # M7: Replace works when a removed user has a registered phone (foreign key from push_tokens)
+    from sqlalchemy import select as sel
+
+    from app.db import SessionLocal
+    from app.models import PushToken, Role, User
+    with SessionLocal() as db:
+        t = db.scalar(sel(User).where(User.school_id == 2, User.role == Role.teacher))
+        db.add(PushToken(user_id=t.id, token="tok-" + "z" * 40))
+        db.commit()
+    p2 = principal_h(c, "DEMO02")
+    backup = c.get("/data/backup", headers=p2).content
+    rep = c.post("/data/import", headers=p2, files={"file": ("b.xlsx", backup, "application/octet-stream")},
+                 data={"mode": "replace", "confirm": "true", "confirm_code": "DEMO02", "password": "demo123"})
+    assert rep.status_code == 200 and rep.json()["saved"] is True, rep.text
+    with SessionLocal() as db:
+        assert db.scalar(sel(PushToken).where(PushToken.token == "tok-" + "z" * 40)) is None
+    # informational: cache headers and the API map
+    assert c.get("/users", headers=principal_h(c)).headers["cache-control"] == "no-store"
+    assert c.get("/public/schools").headers.get("cache-control") != "no-store"
+    assert c.get("/docs").status_code == 404 and c.get("/openapi.json").status_code == 404       # tests run as PROD

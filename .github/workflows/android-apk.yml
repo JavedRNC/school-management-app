@@ -93,6 +93,25 @@ jobs:
         env:
           CI: "1"
 
+      # The generated Android project signs release builds with a PUBLIC debug key. With that key anyone could publish a
+      # look-alike "update". The private Prangan key lives in two repository secrets (Settings → Secrets → Actions):
+      #   ANDROID_KEYSTORE_B64 (the keystore file, base64) and ANDROID_KEYSTORE_PASSWORD.
+      - name: Sign with the Prangan release key
+        env:
+          ANDROID_KEYSTORE_B64: ${{ secrets.ANDROID_KEYSTORE_B64 }}
+          ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+        run: |
+          if [ -n "$ANDROID_KEYSTORE_B64" ] && [ -n "$ANDROID_KEYSTORE_PASSWORD" ]; then
+            echo "$ANDROID_KEYSTORE_B64" | base64 -d > android/app/prangan-release.keystore
+            node ../.github/scripts/sign-release.js
+            echo "SIGNED=yes" >> "$GITHUB_ENV"
+          elif [ "$APP_ENV" = "prod" ]; then
+            echo "::error::The live Prangan app must be signed with the private key. Add the secrets ANDROID_KEYSTORE_B64 and ANDROID_KEYSTORE_PASSWORD (see docs/operations.md)."
+            exit 1
+          else
+            echo "::warning::${APP_ENV} app signed with the public debug key because the signing secrets are not set. Fine for testing, never for the live app."
+          fi
+
       - name: Version, phone-only CPU types, more build memory
         run: |
           VERSION=$(node -p "require('./app.json').expo.version")
@@ -104,7 +123,14 @@ jobs:
 
       - name: Build release APK
         working-directory: mobile/android
+        env:
+          ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
         run: ./gradlew assembleRelease --no-daemon
+
+      - name: Show who signed the APK
+        run: |
+          keytool -printcert -jarfile android/app/build/outputs/apk/release/app-release.apk | grep -E "Owner|SHA256" || true
+          rm -f android/app/prangan-release.keystore
 
       - name: Name the APK
         run: |

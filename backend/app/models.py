@@ -545,7 +545,7 @@ class SchoolDetails(Base):
     pin: Mapped[str] = mapped_column(String(10), default="")
     email: Mapped[str] = mapped_column(String(160), default="")
     contact_name: Mapped[str] = mapped_column(String(120), default="")
-    onboarding_id: Mapped[int | None] = mapped_column(Integer, nullable=True)     # request this school came from
+    onboarding_id: Mapped[int | None] = mapped_column(Integer, nullable=True, unique=True)   # request this school came from (one school per request)
     created_at: Mapped[datetime] = mapped_column(DateTime, default=utcnow)
 
 

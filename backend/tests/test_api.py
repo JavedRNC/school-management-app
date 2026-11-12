@@ -48,7 +48,9 @@ def admin(c):
     if r.status_code == 200:
         h = {"Authorization": f"Bearer {r.json()['token']}"}
         if r.json()["user"]["must_change_password"]:
-            assert c.post("/auth/password", json={"old_password": "admin123", "new_password": "Admin#2026"}, headers=h).status_code == 200
+            ch = c.post("/auth/password", json={"old_password": "admin123", "new_password": "Admin#2026"}, headers=h)
+            assert ch.status_code == 200
+            h = {"Authorization": f"Bearer {ch.json()['token']}"}      # a password change ends the old session
         return h
     return login(c, "ADMIN", "admin", "Admin#2026")
 
@@ -65,7 +67,7 @@ def first_school_day(c, h, start, step=1, n=40):
 # ---------------------------------------------------------------- login & passwords
 def test_login_school_code(client):
     login(client, "demo01", "PRINCIPAL")  # case-insensitive
-    assert login(client, "NOPE", "principal", expect=401).json()["detail"] == "School code not found"
+    assert login(client, "NOPE", "principal", expect=401).json()["detail"] == "Wrong school code, login ID or password"
     login(client, "DEMO01", "principal", "wrong", expect=401)
     login(client, "DEMO02", "principal")
     assert client.get("/classes").status_code == 401
@@ -76,6 +78,11 @@ def test_lockout_after_5_wrong(client):
         login(client, "DEMO01", "T005", "bad", expect=401)
     r = login(client, "DEMO01", "T005", PW, expect=429)
     assert "Too many" in r.json()["detail"]
+    login(client, "DEMO01", "T004", PW)                                              # other accounts from this address still work
+    # someone else's wrong guesses (another address) don't lock the owner out until far more of them
+    from app import ratelimit
+    ratelimit.reset()
+    login(client, "DEMO01", "T005", PW)
     h = P(client)
     t5 = next(u for u in client.get("/users", params={"role": "teacher"}, headers=h).json() if u["login_id"] == "T005")
     client.put(f"/users/{t5['id']}", json={"password": "reset123"}, headers=h)  # principal reset unlocks
@@ -94,8 +101,12 @@ def test_temp_password_flow(client):
     assert client.get("/auth/me", headers=t).json()["must_change_password"] is True
     assert client.post("/auth/password", json={"old_password": "temp123", "new_password": "temp123"}, headers=t).status_code == 400
     assert client.post("/auth/password", json={"old_password": "temp123", "new_password": "t099"}, headers=t).status_code == 400
-    assert client.post("/auth/password", json={"old_password": "temp123", "new_password": "mine#456"}, headers=t).json()["must_change_password"] is False
-    assert client.get("/classes", headers=t).status_code == 200
+    assert client.post("/auth/password", json={"old_password": "temp123", "new_password": "short7!"}, headers=t).status_code == 400   # staff: 8+
+    assert client.post("/auth/password", json={"old_password": "temp123", "new_password": "p" * 80}, headers=t).status_code == 400
+    ch = client.post("/auth/password", json={"old_password": "temp123", "new_password": "mine#456"}, headers=t).json()
+    assert ch["must_change_password"] is False
+    assert client.get("/classes", headers=t).status_code == 401                      # the old session ended with the old password
+    assert client.get("/classes", headers={"Authorization": f"Bearer {ch['token']}"}).status_code == 200
 
 
 # ---------------------------------------------------------------- tenancy
@@ -313,7 +324,14 @@ def test_admin_privacy_and_audit(client):
     client.put(f"/admin/schools/{sid}/users/{pr['id']}", json={"password": "newtemp1"}, headers=a)
     hp = login(client, "DEMO01", "principal", "newtemp1")
     assert client.get("/classes", headers=hp).json()["detail"] == "PASSWORD_CHANGE_REQUIRED"
-    assert client.post("/auth/password", json={"old_password": "newtemp1", "new_password": PW}, headers=hp).status_code == 200
+    assert client.post("/auth/password", json={"old_password": "newtemp1", "new_password": "Princ#2026"}, headers=hp).status_code == 200
+    assert client.get("/classes", headers=login(client, "DEMO01", "principal", "Princ#2026")).status_code == 200
+    from app.auth import hash_password                                   # put the demo password back for the tests that follow
+    from app.db import SessionLocal
+    from app.models import User
+    with SessionLocal() as db:
+        db.get(User, pr["id"]).password_hash = hash_password(PW)
+        db.commit()
     assert client.get("/classes", headers=P(client)).status_code == 200
 
 
@@ -332,7 +350,7 @@ def test_admin_schools_plans_subscription(client):
     assert client.post("/admin/schools", json={"code": "new01", "name": "dup", "principal_name": "x", "principal_password": "start123"}, headers=a).status_code == 409
     hp = login(client, "NEW01", "principal", "start123")
     assert client.get("/classes", headers=hp).json()["detail"] == "PASSWORD_CHANGE_REQUIRED"
-    client.post("/auth/password", json={"old_password": "start123", "new_password": "newpass9"}, headers=hp)
+    hp = {"Authorization": f"Bearer {client.post('/auth/password', json={'old_password': 'start123', 'new_password': 'newpass9'}, headers=hp).json()['token']}"}
     assert client.get("/school/me", headers=hp).json()["subscription"]["estimate"]["amount"] == 1000  # minimum applies
     # expire → read-only
     past = (today() - timedelta(days=40)).isoformat()
@@ -374,8 +392,31 @@ def test_legacy_schema_is_reset(tmp_path):
             "cols=[r[1] for r in c.execute('PRAGMA table_info(users)')]; "
             "print('school_id' in cols, c.execute('select value from meta').fetchone()[0])") % str(db)
     out = subprocess.run([sys.executable, "-c", code], capture_output=True, text=True,
-                         env={**os.environ, "DATABASE_URL": f"sqlite:///{db}"}, cwd=os.path.dirname(os.path.dirname(__file__)))
+                         env={**os.environ, "DATABASE_URL": f"sqlite:///{db}", "ALLOW_SCHEMA_RESET": "1"}, cwd=os.path.dirname(os.path.dirname(__file__)))
     assert out.stdout.strip() == "True 9", out.stderr
+
+
+def test_a_database_is_never_wiped_by_default(tmp_path):
+    """A current database that lost its version row (partial restore, wrong DATABASE_URL) must be refused, not dropped."""
+    import sqlite3
+    import subprocess
+    import sys
+    db = tmp_path / "live.db"
+    env = {**os.environ, "DATABASE_URL": f"sqlite:///{db}", "SEED_DEMO": "0"}
+    env.pop("ALLOW_SCHEMA_RESET", None)
+    cwd = os.path.dirname(os.path.dirname(__file__))
+    make = "from app.migrate import migrate; migrate(); from app.seed import ensure_platform, seed_demo_if_empty; ensure_platform(); seed_demo_if_empty()"
+    assert subprocess.run([sys.executable, "-c", make], env=env, cwd=cwd, capture_output=True).returncode == 0
+    con = sqlite3.connect(db)
+    before = con.execute("select count(*) from schools").fetchone()[0]
+    con.execute("delete from meta where key='schema_version'")
+    con.commit()
+    con.close()
+    for extra in ({}, {"ALLOW_SCHEMA_RESET": "1"}):                       # refused by default AND when the switch is on
+        out = subprocess.run([sys.executable, "-c", "from app.migrate import migrate; migrate()"], env={**env, **extra}, cwd=cwd, capture_output=True, text=True)
+        assert out.returncode != 0 and "efus" in out.stderr
+    con = sqlite3.connect(db)
+    assert before > 0 and con.execute("select count(*) from schools").fetchone()[0] == before
 
 
 def test_admin_reset_password_env(client):

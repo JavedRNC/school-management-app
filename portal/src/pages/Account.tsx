@@ -5,7 +5,7 @@ import { homeOf, useAuth } from '../auth';
 import { Button, PageHead, Text, useToast } from '../ui';
 
 export function Account() {
-  const { user, login, logout } = useAuth();
+  const { user, setUser, logout } = useAuth();
   const nav = useNavigate();
   const toast = useToast();
   const [oldPw, setOld] = useState('');
@@ -23,18 +23,12 @@ export function Account() {
     setBusy(true);
     setError(null);
     try {
-      // Changing the password ends every portal session, including this one, so note the school code first
-      // and sign in again with the new password straight after.
-      const code = user!.role === 'admin' ? 'ADMIN' : (await api<{ code: string }>('/school/me').catch(() => null))?.code;
-      await api<User>('/auth/password', { body: { old_password: oldPw, new_password: newPw } });
-      if (code) {
-        const u = await login(code, user!.login_id, newPw);
-        toast('Password changed');
-        nav(homeOf(u), { replace: true });
-      } else {
-        logout();
-        nav('/login', { replace: true });
-      }
+      // Changing the password ends every other session of this account; the reply carries a fresh one for this tab.
+      const res = await api<User & { token: string }>('/auth/password', { body: { old_password: oldPw, new_password: newPw } });
+      const { token, ...me } = res;
+      setUser(me, token);
+      toast('Password changed');
+      nav(homeOf(me), { replace: true });
     } catch (err) {
       setError((err as Error).message);
     } finally {

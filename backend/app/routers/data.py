@@ -3,6 +3,7 @@
 Handlers are plain `def` so FastAPI runs them in its thread pool: a long import never blocks other requests.
 """
 import hashlib
+import os
 import threading
 import time
 from datetime import date, timedelta
@@ -175,8 +176,12 @@ def snapshot_file(me: User = Depends(principal_only), db: Session = Depends(get_
 def import_file(file: UploadFile = File(...), mode: str = Form("merge"), confirm: bool = Form(False),
                 confirm_code: str = Form(""), password: str = Form(""),
                 me: User = Depends(principal_only), db: Session = Depends(get_db)):
+    school = get_school(db, me)
+    if os.getenv("APP_ENV", "prod") == "prod" and os.getenv("ALLOW_DEMO_IMPORT") != "1" and school.code.upper().startswith("DEMO"):
+        # the demo school's sign-in is public: it must not be able to load the live server with uploads
+        raise HTTPException(403, "Import is switched off for the public demo school. Try it in your own school.")
     data = _read(file)
-    return _do_import(db, get_school(db, me), me, data, mode, confirm, confirm_code, password)
+    return _do_import(db, school, me, data, mode, confirm, confirm_code, password)
 
 
 # ---------------------------------------------------------------- admin (only during the school's time-boxed support access)

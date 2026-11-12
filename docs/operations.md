@@ -68,6 +68,14 @@ Never push a feature straight to `test` or `main`. Do not release when Checks is
 
 Recovery drill worth doing once on TEST: download a backup, Replace-import it, confirm the numbers match.
 
+## App signing key
+
+Release APKs are signed with a private key kept in two GitHub repository secrets (repo → Settings → Secrets and variables → Actions):
+`ANDROID_KEYSTORE_B64` and `ANDROID_KEYSTORE_PASSWORD`. Without them DEV and TEST builds fall back to the public debug key (with a
+warning) and the PROD build refuses to run. Keep a private copy of the keystore file and its password somewhere safe (not in Git, not
+in chat): if the key is lost, no update can be installed over the existing app. Android only accepts an update signed with the same key
+as the installed app, so the first build signed with a new key needs a one-time uninstall and reinstall.
+
 ## Secrets
 
 Kept only in Render's Environment pages, one set per service: database address, `JWT_SECRET`, `FIREBASE_SERVICE_ACCOUNT`.
@@ -78,6 +86,7 @@ To rotate `JWT_SECRET`: change it on the service; everyone is signed out once.
 
 - `SEED_DEMO=0` and `ALLOW_SCHEMA_RESET=0` on the PROD API.
 - Reset the Neon password once and update `DATABASE_URL`.
-- Change the platform admin password from the first-run default (the app forces this at first sign-in).
+- The platform admin has no default password: on a new database a random temporary one is written once to the API's log
+  (Render → Logs, search "temporary password"), or set `ADMIN_PASSWORD` before the first start.
 - Consider Render's paid instance: the free one sleeps and the first request then takes up to a minute.
 - Monitoring today is Render's logs and deploy notifications only; error tracking (e.g. Sentry) is not set up.

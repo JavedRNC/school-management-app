@@ -6,8 +6,9 @@ import { TextInput } from '@/components/Field';
 
 import { Splash } from '@/components/RoleGuard';
 import { FadeIn, Hero, Icon, Panel, Screen } from '@/components/ui';
-import { api } from '@/lib/api';
+import { api, setToken } from '@/lib/api';
 import { homeFor, useAuth } from '@/lib/auth';
+import { registerPush } from '@/lib/push';
 import { haptic, useToast } from '@/lib/feedback';
 import { space, useAppTheme } from '@/lib/theme';
 import type { User } from '@/lib/types';
@@ -28,7 +29,8 @@ export default function ChangePassword() {
   if (!user) return <Redirect href="/login" />;
   if (!user.must_change_password) return <Redirect href={homeFor(user) as '/'} />;
 
-  const tooShort = pw.length > 0 && pw.length < 6;
+  const minLen = user && (user.role === 'student' || user.role === 'parent') ? 6 : 8;    // staff and admin: 8
+  const tooShort = pw.length > 0 && pw.length < minLen;
   const sameAsId = pw.trim().toLowerCase() === user.login_id.toLowerCase();
   const mismatch = pw2.length > 0 && pw !== pw2;
   const valid = oldPw && pw.length >= 6 && !sameAsId && pw === pw2 && pw !== oldPw;
@@ -38,8 +40,10 @@ export default function ChangePassword() {
     setBusy(true);
     setError(null);
     try {
-      const u = await api<User>('/auth/password', { body: { old_password: oldPw, new_password: pw } });
+      const u = await api<User & { token?: string }>('/auth/password', { body: { old_password: oldPw, new_password: pw } });
+      if (u.token) await setToken(u.token);     // the old session ended with the old password
       setUser(u);
+      void registerPush();
       if (u.school_id) await refreshSchool();
       toast('Password set — welcome! 🎉');
       router.replace(homeFor(u) as '/');
@@ -67,7 +71,7 @@ export default function ChangePassword() {
             left={<TextInput.Icon icon="lock-outline" />} right={<TextInput.Icon icon={show ? 'eye-off' : 'eye'} onPress={() => setShow((s) => !s)} />}
             error={tooShort || sameAsId} />
           <HelperText type={tooShort || sameAsId ? 'error' : 'info'} visible>
-            {sameAsId ? "Can't be the same as your login ID" : 'At least 6 characters'}
+            {sameAsId ? "Can't be the same as your login ID" : `At least ${minLen} characters`}
           </HelperText>
           <TextInput mode="outlined" label="Confirm new password" value={pw2} onChangeText={setPw2} secureTextEntry={!show}
             left={<TextInput.Icon icon="lock-check-outline" />} error={mismatch} />

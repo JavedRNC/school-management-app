@@ -2,6 +2,8 @@
 
 Good enough for the public onboarding form and login on a single small instance; a shared store (Redis) is the
 upgrade path if the API ever runs on several instances."""
+import ipaddress
+import os
 import threading
 import time
 from collections import deque
@@ -13,15 +15,32 @@ _lock = threading.Lock()
 MAX_KEYS = 20_000
 
 
+def _private(host: str) -> bool:
+    try:
+        ip = ipaddress.ip_address(host)
+    except ValueError:
+        return False
+    return ip.is_private or ip.is_loopback or ip.is_link_local
+
+
 def client_ip(request: Request) -> str:
-    """Caller's address behind Render's proxy. CF-Connecting-IP is set by the edge and can't be forged through it;
-    otherwise the LAST X-Forwarded-For entry is the one our own proxy added."""
-    h = request.headers
-    ip = h.get("cf-connecting-ip") or ""
-    if not ip:
-        xff = [p.strip() for p in (h.get("x-forwarded-for") or "").split(",") if p.strip()]
-        ip = xff[-1] if xff else (request.client.host if request.client else "")
-    return ip[:64] or "unknown"
+    """Caller's address. Forwarded headers are believed ONLY when the direct peer is our own proxy (a private address,
+    as on Render); a caller reaching the app directly can't invent an address to dodge a limit.
+    Behind the proxy, CF-Connecting-IP is set by the edge for every request and replaces anything the caller sent."""
+    peer = request.client.host if request.client else ""
+    # On Render (it sets RENDER=true) every request arrives through its edge, never directly.
+    behind_proxy = bool(os.getenv("RENDER")) or _private(peer)
+    if behind_proxy and os.getenv("TRUST_PROXY_HEADERS", "1") == "1":
+        h = request.headers
+        ip = (h.get("cf-connecting-ip") or "").strip()
+        if not ip:
+            xff = [p.strip() for p in (h.get("x-forwarded-for") or "").split(",") if p.strip()]
+            ip = xff[-1] if xff else ""
+        try:
+            return str(ipaddress.ip_address(ip))
+        except ValueError:
+            pass
+    return peer[:64] or "unknown"
 
 
 def hit(key: str, limit: int, per_seconds: int) -> bool:
@@ -57,6 +76,14 @@ def over(key: str, limit: int, per_seconds: int) -> bool:
 def check(request: Request, name: str, limit: int, per_seconds: int, message: str = "Too many requests. Please try again later.") -> None:
     if not hit(f"{name}:{client_ip(request)}", limit, per_seconds):
         raise HTTPException(429, message)
+
+
+def forget_user(user_id: int) -> None:
+    """A password reset is the way out of a lock: drop the wrong-attempt counters kept for this account."""
+    tail = f":{user_id}"
+    with _lock:
+        for k in [k for k in _hits if k.startswith("login-fail:") and k.endswith(tail)]:
+            del _hits[k]
 
 
 def reset() -> None:

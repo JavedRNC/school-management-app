@@ -3,8 +3,8 @@
 Public: submit a request, look up its status with reference + mobile.
 Admin:  list/search/filter, detail with history, notes, assignment, status changes, and creating the school.
 """
-import hashlib
 import re
+import secrets
 from datetime import date, datetime, timedelta
 
 from fastapi import APIRouter, Depends, HTTPException, Request, Response
@@ -157,37 +157,58 @@ def _duplicate(db: Session, b: OnboardingIn) -> bool:
 
 
 # ---------------------------------------------------------------- public
+REF_ALPHABET = "ABCDEFGHJKMNPQRSTUVWXYZ23456789"      # no 0/O, 1/I/L: read aloud over the phone without mistakes
+DAILY_CAP = 2000                                      # stored requests per 24 h across everyone (protects the database)
+QUIET_AFTER = 50                                      # after this many in 24 h, stop sending a push for each one
+ALREADY = ("We already have a request or a registration for this school. "
+           "If you sent it, use your reference number to check its status; otherwise please contact Prangan support.")
+
+
+def new_reference(db: Session) -> str:
+    """PRN-<year>-<8 random characters>: not guessable from another reference."""
+    for _ in range(8):
+        ref = f"PRN-{date.today().year}-{''.join(secrets.choice(REF_ALPHABET) for _ in range(8))}"
+        if not db.scalar(select(OnboardingRequest.id).where(OnboardingRequest.reference == ref)):
+            return ref
+    raise HTTPException(503, "Please try again")
+
+
 @router.post("/public/onboarding", status_code=201)
 def submit(body: OnboardingIn, request: Request, db: Session = Depends(get_db)):
-    """No login. Limited per address and overall; the reply never says which detail matched an earlier request."""
+    """No login. Limited per address; the reply never says which detail matched an earlier request or school."""
     ratelimit.check(request, "onboard", 5, 3600, "You've sent several requests already. Please try again in an hour.")
-    if not ratelimit.hit("onboard:all", 300, 86400):
-        raise HTTPException(429, "We're receiving too many requests right now. Please try again tomorrow.")
     if not (body.consent_privacy and body.consent_contact):
         raise HTTPException(400, "Please accept the privacy policy and agree to be contacted")
     if body.website:                                     # a bot: look successful, store nothing
-        return {"reference": f"PRN-{date.today().year}-{hashlib.sha256(body.website.encode()).hexdigest()[:6].upper()}", "status": "PENDING"}
-    if existing_school(db, body.reg_no, body.school_name, body.pin):
-        raise HTTPException(409, "This school already appears to be registered with Prangan. Please contact support if you need access.")
-    if _duplicate(db, body):
-        raise HTTPException(409, "A request for this school is already with us. Use your reference number to check its status.")
-    r = OnboardingRequest(reference="-", status="PENDING", **body.model_dump(exclude={"website", "email"}), email=str(body.email).lower())
+        return {"reference": f"PRN-{date.today().year}-{''.join(secrets.choice(REF_ALPHABET) for _ in range(8))}", "status": "PENDING"}
+    if existing_school(db, body.reg_no, body.school_name, body.pin) or _duplicate(db, body):
+        raise HTTPException(409, ALREADY)
+    recent = db.scalar(select(func.count()).select_from(OnboardingRequest).where(OnboardingRequest.created_at > utcnow() - timedelta(hours=24))) or 0
+    if recent >= DAILY_CAP:
+        raise HTTPException(429, "We're receiving too many requests right now. Please try again tomorrow.")
+    r = OnboardingRequest(reference=new_reference(db), status="PENDING", **body.model_dump(exclude={"website", "email"}), email=str(body.email).lower())
     db.add(r)
     db.flush()
-    r.reference = f"PRN-{r.created_at.year if r.created_at else date.today().year}-{r.id:06d}"
     _event(db, r, "created", None, to="PENDING", remarks=f"Submitted from the {'app' if body.source == 'app' else 'website'}")
     db.commit()
-    admins = list(db.scalars(select(User.id).where(User.role == Role.admin, User.active.is_(True))))
-    push.notify(admins, "New school onboarding request", f"{r.school_name}, {r.city}", {"type": "onboarding", "id": r.id})
+    if recent < QUIET_AFTER:
+        admins = list(db.scalars(select(User.id).where(User.role == Role.admin, User.active.is_(True))))
+        push.notify(admins, "New school onboarding request", "Open Prangan to review it.", {"type": "onboarding", "id": r.id})
     return {"reference": r.reference, "status": r.status}
 
 
-@router.get("/public/onboarding/status")
-def public_status(reference: str, mobile: str, request: Request, db: Session = Depends(get_db)):
-    """Applicant checks progress with the reference number AND the mobile number used on the form."""
+class StatusQuery(BaseModel):
+    reference: str = Field(min_length=6, max_length=24)
+    mobile: str = Field(min_length=10, max_length=20)
+
+
+@router.post("/public/onboarding/status")
+def public_status(body: StatusQuery, request: Request, db: Session = Depends(get_db)):
+    """Applicant checks progress with the reference number AND the mobile number used on the form.
+    A POST, so neither value ends up in server or proxy logs."""
     ratelimit.check(request, "onboard-status", 20, 600)
-    r = db.scalar(select(OnboardingRequest).where(OnboardingRequest.reference == reference.strip().upper()[:24]))
-    if not r or r.mobile != norm_mobile(mobile):
+    r = db.scalar(select(OnboardingRequest).where(OnboardingRequest.reference == body.reference.strip().upper()))
+    if not r or not secrets.compare_digest(r.mobile, norm_mobile(body.mobile)):
         raise HTTPException(404, "No request matches that reference and mobile number")
     out = {"reference": r.reference, "school_name": r.school_name, "status": r.status, "submitted_on": r.created_at.date(),
            "updated_on": r.updated_at.date(), "message": ""}

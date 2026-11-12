@@ -58,7 +58,7 @@ def test_01_public_registration_form(page):
         box.check()
     page.get_by_role("button", name="Send request").click()
     ref = page.get_by_test_id("reference").inner_text()
-    assert re.fullmatch(r"PRN-\d{4}-\d{6}", ref)
+    assert re.fullmatch(r"PRN-\d{4}-[A-Z2-9]{8}", ref)
     STATE["ref"] = ref
     # status lookup needs reference + the mobile used
     go(page, "/register/status")
@@ -75,7 +75,7 @@ def test_01_public_registration_form(page):
 
 def test_02_wrong_password_and_forced_password_change(page):
     sign_in(page, "ADMIN", "admin", "not-the-password")
-    page.get_by_role("alert").get_by_text("Wrong login ID or password").wait_for()
+    page.get_by_role("alert").get_by_text("Wrong school code, login ID or password").wait_for()
     sign_in(page, "ADMIN", "admin", "admin123")
     page.wait_for_url(re.compile(r"#/account$"))                                   # temporary password → must change first
     page.get_by_role("heading", name="Set a new password").wait_for()

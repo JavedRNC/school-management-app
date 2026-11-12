@@ -29,7 +29,7 @@ context.md   compact project state for resuming work
 | Student | `DEMO01` | `2026001` … `2026024` | `demo123` |
 | Parent (2 children) | `DEMO01` | `9876500001` | `demo123` |
 | Second school (Sun–Thu week) | `DEMO02` | `principal`, `T001`, `S001` | `demo123` |
-| Super Admin | `ADMIN` | `admin` | `admin123` → must be changed at first login (or set `ADMIN_PASSWORD`) |
+| Super Admin | `ADMIN` | `admin` | set `ADMIN_PASSWORD`, or read the one-time temporary password from the server log on first start (local tests: `ALLOW_DEFAULT_ADMIN_PASSWORD=1` gives `admin123`) |
 
 Demo data loads automatically on an empty database. Set `SEED_DEMO=0` to start empty (only the Super Admin is created).
 
