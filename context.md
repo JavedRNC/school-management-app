@@ -103,3 +103,4 @@ Multi-school with school code login (no email/OTP; principal issues temp passwor
 - Update check: server reads releases/download/<tag>/build.json (no API rate limit), falls back to API, remembers newest in meta 'seen_build'.
 
 - Naming rule (Javed, 12 Nov): use "prangan" in every new name (packages, services, files). Only the existing PROD Render service/URL (school-api-7y80) and the GitHub repo name keep the old wording.
+- TEST = branch test → Render prangan-api-test (https://prangan-api-test.onrender.com, live 12 Nov) + Neon prangan-test + "Prangan Test" APK (com.javedrnc.prangan.test, release test-apk; address in mobile/test.json). Firebase project prangan-b9556 has all 3 Android apps; google-services.json received from Javed (not committed yet — add with push notifications).
