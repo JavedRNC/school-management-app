@@ -229,8 +229,9 @@ def test_cors_and_headers(c):
         return c.options("/auth/login", headers={"Origin": origin, "Access-Control-Request-Method": "POST"})
     assert pre("https://prangan-portal.onrender.com").headers.get("access-control-allow-origin") == "https://prangan-portal.onrender.com"
     assert pre("https://javedrnc.github.io").status_code == 200
+    # other sites, look-alikes, the other environments' portals and localhost are not allowed on PROD
     for bad in ("https://evil.example", "https://prangan-portal.onrender.com.evil.example", "https://xprangan-portal.onrender.com",
-                "http://localhost:5173"):
+                "https://prangan-portal-evil.onrender.com", "https://prangan-portal-dev.onrender.com", "http://localhost:5173", "null"):
         assert pre(bad).headers.get("access-control-allow-origin") is None, bad
     r = c.get("/")
     assert r.headers["x-content-type-options"] == "nosniff" and r.headers["x-frame-options"] == "DENY"

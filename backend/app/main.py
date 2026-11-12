@@ -44,12 +44,14 @@ app = FastAPI(title="Prangan API", version="0.6.0", lifespan=lifespan)
 
 APP_ENV = os.getenv("APP_ENV", "prod")
 # Which websites may call this API from a browser (the Android app is not a browser and is unaffected).
-# Default: the Prangan website, the portal sites on Render, and localhost outside PROD. CORS_ORIGINS (comma list) adds more.
-_extra = [o.strip().rstrip("/") for o in os.getenv("CORS_ORIGINS", "").split(",") if o.strip()]
-_origin_re = r"https://javedrnc\.github\.io|https://prangan-portal(-dev|-test)?(-[a-z0-9]+)?\.onrender\.com"
-if APP_ENV != "prod":
-    _origin_re += r"|http://(localhost|127\.0\.0\.1)(:\d+)?"
-app.add_middleware(CORSMiddleware, allow_origins=_extra, allow_origin_regex=_origin_re, allow_credentials=False,
+# Each environment allows only ITS OWN portal site, plus the public Prangan website; localhost only outside PROD.
+# If Render gives a portal site a different address, list it in CORS_ORIGINS (comma separated) on that API service.
+_portal = {"prod": "https://prangan-portal.onrender.com", "test": "https://prangan-portal-test.onrender.com",
+           "dev": "https://prangan-portal-dev.onrender.com"}.get(APP_ENV, "")
+_origins = [o for o in [_portal, "https://javedrnc.github.io"] if o]
+_origins += [o.strip().rstrip("/") for o in os.getenv("CORS_ORIGINS", "").split(",") if o.strip().startswith("https://") or APP_ENV != "prod" and o.strip()]
+_origin_re = r"http://(localhost|127\.0\.0\.1)(:\d+)?" if APP_ENV != "prod" else None
+app.add_middleware(CORSMiddleware, allow_origins=_origins, allow_origin_regex=_origin_re, allow_credentials=False,
                    allow_methods=["GET", "POST", "PUT", "DELETE"], allow_headers=["Authorization", "Content-Type"],
                    expose_headers=["Content-Disposition"], max_age=600)
 

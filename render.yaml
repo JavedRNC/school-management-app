@@ -84,3 +84,101 @@ services:
         value: "1"
       - key: PYTHON_VERSION
         value: "3.12.7"
+
+  # ---------------- Web portal (Admin + Principal + public registration page): one static site per environment.
+  # Same code everywhere; only the two build settings below differ.
+  - type: web
+    name: prangan-portal-dev
+    runtime: static
+    branch: dev
+    rootDir: portal
+    buildCommand: npm ci && npm run build
+    staticPublishPath: dist
+    envVars:
+      - key: VITE_API_URL
+        value: https://prangan-api-dev.onrender.com
+      - key: VITE_APP_ENV
+        value: dev
+    headers:
+      - path: /*
+        name: X-Frame-Options
+        value: DENY
+      - path: /*
+        name: X-Content-Type-Options
+        value: nosniff
+      - path: /*
+        name: Referrer-Policy
+        value: no-referrer
+      - path: /*
+        name: Strict-Transport-Security
+        value: max-age=31536000; includeSubDomains
+      - path: /*
+        name: Permissions-Policy
+        value: camera=(), microphone=(), geolocation=()
+      - path: /index.html
+        name: Cache-Control
+        value: no-cache
+
+  - type: web
+    name: prangan-portal-test
+    runtime: static
+    branch: test
+    rootDir: portal
+    buildCommand: npm ci && npm run build
+    staticPublishPath: dist
+    envVars:
+      - key: VITE_API_URL
+        value: https://prangan-api-test.onrender.com
+      - key: VITE_APP_ENV
+        value: test
+    headers:
+      - path: /*
+        name: X-Frame-Options
+        value: DENY
+      - path: /*
+        name: X-Content-Type-Options
+        value: nosniff
+      - path: /*
+        name: Referrer-Policy
+        value: no-referrer
+      - path: /*
+        name: Strict-Transport-Security
+        value: max-age=31536000; includeSubDomains
+      - path: /*
+        name: Permissions-Policy
+        value: camera=(), microphone=(), geolocation=()
+      - path: /index.html
+        name: Cache-Control
+        value: no-cache
+
+  - type: web
+    name: prangan-portal
+    runtime: static
+    branch: main
+    rootDir: portal
+    buildCommand: npm ci && npm run build
+    staticPublishPath: dist
+    envVars:
+      - key: VITE_API_URL
+        value: https://school-api-7y80.onrender.com
+      - key: VITE_APP_ENV
+        value: prod
+    headers:
+      - path: /*
+        name: X-Frame-Options
+        value: DENY
+      - path: /*
+        name: X-Content-Type-Options
+        value: nosniff
+      - path: /*
+        name: Referrer-Policy
+        value: no-referrer
+      - path: /*
+        name: Strict-Transport-Security
+        value: max-age=31536000; includeSubDomains
+      - path: /*
+        name: Permissions-Policy
+        value: camera=(), microphone=(), geolocation=()
+      - path: /index.html
+        name: Cache-Control
+        value: no-cache
