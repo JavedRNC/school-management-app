@@ -349,7 +349,7 @@ def test_review_fixes(c):
                 d = src.read(i)
                 if i.filename == "xl/_rels/workbook.xml.rels":
                     d = d.replace(b"worksheets/sheet1.xml", b"ws/s2.xml") if trick == "moved" else d.replace(b"relationships/worksheet", b"relationships/chartsheet", 1)
-                z.writestr(i, d)
+                z.writestr(i.filename, d)
             z.writestr("xl/ws/s2.xml", b"<wrap " + ns + b"><sheetData><row>" + b"<c/>" * 300_000 + b"</row></sheetData></wrap>")
         try:
             Book(buf.getvalue())
