@@ -292,6 +292,29 @@ def test_review_fixes(c):
         raise AssertionError("oversized shared strings accepted")
     except HTTPException as e:
         assert e.status_code == 413
+    # N1: the same goes for any other part that is not a worksheet, whatever it is called
+    for name in ("xl/styles.xml", "xl/media/notes.bin"):
+        buf = io.BytesIO()
+        with zipfile.ZipFile(buf, "w", zipfile.ZIP_DEFLATED) as z:
+            z.writestr(name, b"x" * (13 * 1024 * 1024))
+            z.writestr("xl/worksheets/sheet1.xml", b"<worksheet/>")
+        try:
+            _check_zip(buf.getvalue())
+            raise AssertionError(f"oversized {name} accepted")
+        except HTTPException as e:
+            assert e.status_code == 413
+    # N4: your own password changes only through the change-password route (which applies the rules and renews the session)
+    me = c.get("/auth/me", headers=principal_h(c)).json()
+    assert c.put(f"/users/{me['id']}", json={"password": "short1"}, headers=principal_h(c)).status_code == 400
+    # M3: no second principal without the school's support access; phone numbers stay masked in the admin's audit view
+    ah = admin_h(c)
+    r2 = c.post("/admin/schools/1/users", json={"name": "Side Door", "login_id": "p2", "password": "temp1234", "role": "principal"}, headers=ah)
+    assert r2.status_code == 403, r2.text
+    c.post("/users", json={"name": "Audit Parent", "login_id": "9811122233", "password": "temp1234", "role": "parent", "phone": "9811122233"}, headers=principal_h(c))
+    assert "9811122233" not in c.get("/admin/audit", params={"school_id": 1}, headers=ah).text
+    # N3: the account-wide limit is a time window in memory, cleared by a reset; one address is stopped after 5
+    assert [login(c, "DEMO02", "principal", "bad").status_code for _ in range(6)] == [401] * 5 + [429]
+    ratelimit.reset()
     # M6: oversized bodies are refused before sign-in and validation errors don't echo the input
     big = c.post("/auth/login", content=b'{"school_code":"' + b"A" * (2 * 1024 * 1024) + b'"}', headers={"Content-Type": "application/json"})
     assert big.status_code == 413

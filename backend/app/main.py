@@ -56,9 +56,7 @@ _portal = {"prod": "https://prangan-portal.onrender.com", "test": "https://prang
 _origins = [o for o in [_portal, "https://javedrnc.github.io"] if o]
 _origins += [o.strip().rstrip("/") for o in os.getenv("CORS_ORIGINS", "").split(",") if o.strip().startswith("https://") or APP_ENV != "prod" and o.strip()]
 _origin_re = r"http://(localhost|127\.0\.0\.1)(:\d+)?" if APP_ENV != "prod" else None
-app.add_middleware(CORSMiddleware, allow_origins=_origins, allow_origin_regex=_origin_re, allow_credentials=False,
-                   allow_methods=["GET", "POST", "PUT", "DELETE"], allow_headers=["Authorization", "Content-Type"],
-                   expose_headers=["Content-Disposition"], max_age=600)
+
 
 
 PUBLIC_CACHEABLE = {"/", "/app/version", "/public/schools"}
@@ -104,6 +102,11 @@ class _TooLarge(Exception):
 
 
 app.add_middleware(BodyLimit)
+app.add_middleware(CORSMiddleware, allow_origins=_origins, allow_origin_regex=_origin_re, allow_credentials=False,
+                   allow_methods=["GET", "POST", "PUT", "DELETE"], allow_headers=["Authorization", "Content-Type"],
+                   expose_headers=["Content-Disposition"], max_age=600)
+
+
 
 
 @app.exception_handler(RequestValidationError)

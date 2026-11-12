@@ -79,10 +79,11 @@ def check(request: Request, name: str, limit: int, per_seconds: int, message: st
 
 
 def forget_user(user_id: int) -> None:
-    """A password reset is the way out of a lock: drop the wrong-attempt counters kept for this account."""
-    tail = f":{user_id}"
+    """A password reset is the way out of a lock: drop the wrong-attempt counters kept for this account
+    (and only those — the per-address counters live under a different prefix)."""
+    head = f"login-user:{user_id}:"
     with _lock:
-        for k in [k for k in _hits if k.startswith("login-fail:") and k.endswith(tail)]:
+        for k in [k for k in _hits if k.startswith(head)]:
             del _hits[k]
 
 

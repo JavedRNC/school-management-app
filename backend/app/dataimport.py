@@ -39,7 +39,8 @@ def _norm(h) -> str:
 # ================================================================ reading
 MAX_UNZIPPED = 160 * 1024 * 1024   # .xlsx is a zip: refuse "zip bombs" before parsing (work is bounded by the row budget)
 MAX_MEMBER = 130 * 1024 * 1024
-MAX_SHARED_STRINGS = 16 * 1024 * 1024   # openpyxl holds this part fully in memory (≈8× its size)
+MAX_OTHER_PART = 12 * 1024 * 1024       # openpyxl holds every non-worksheet part fully in memory (≈8–15× its size)
+MAX_SHARED_STRINGS = MAX_OTHER_PART
 MAX_COLS = 40                      # our widest sheet has 15 columns
 MAX_EMPTY_RUN = 1000               # stop reading a sheet after this many blank rows in a row
 MAX_CELL = 32767                   # Excel's own limit
@@ -56,9 +57,10 @@ def _check_zip(data: bytes) -> None:
         raise HTTPException(400, "That file isn't an Excel (.xlsx) workbook") from None
     if len(infos) > 300 or sum(i.file_size for i in infos) > MAX_UNZIPPED or any(i.file_size > MAX_MEMBER for i in infos):
         raise HTTPException(413, "This workbook is too large to import. Split it into smaller files.")
-    # The shared-strings table is loaded into memory whole, before any row budget applies: keep it small.
-    if any(i.file_size > MAX_SHARED_STRINGS for i in infos if i.filename.lower().endswith("sharedstrings.xml")):
-        raise HTTPException(413, "This workbook has too much text to import. Split it into smaller files.")
+    # Everything except the worksheets (read row by row under a budget) is loaded into memory whole by the parser —
+    # styles, shared strings, and any part an attacker names differently — so each such part must be small.
+    if any(i.file_size > MAX_OTHER_PART for i in infos if not re.fullmatch(r"xl/worksheets/[^/]+\.xml", i.filename)):
+        raise HTTPException(413, "This workbook is too large to import. Split it into smaller files.")
 
 
 def _rows(ws, budget: list[int]):

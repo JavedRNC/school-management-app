@@ -43,20 +43,15 @@ def login(body: LoginIn, request: Request, db: Session = Depends(get_db)):
         user = db.scalar(select(User).where(User.school_id == school.id, func.lower(User.login_id) == lid.lower())) if school else None
     if user and not user.active:
         user = None
-    pair_key = f"login-fail:{ip}:{user.id if user else f'{code}/{lid.lower()}'[:80]}"
-    now = utcnow()
-    if ratelimit.over(pair_key, MAX_FAILED, LOCK_MINUTES * 60) or (user and user.locked_until and user.locked_until > now):
+    who = f"login-user:{user.id}:" if user else f"login-name:{code}/{lid.lower()}"[:120] + ":"
+    pair_key, acct_key = who + ip, who + "*"
+    window = LOCK_MINUTES * 60
+    if ratelimit.over(pair_key, MAX_FAILED, window) or ratelimit.over(acct_key, ACCOUNT_MAX_FAILED, window):
         raise HTTPException(429, f"Too many wrong attempts. Try again in {LOCK_MINUTES} minutes or ask for a password reset.")
     ok = verify_password(body.password, user.password_hash if user else _DUMMY_HASH) and user is not None
     if not ok:
-        ratelimit.hit(ip_key, FAILS_PER_IP, 300)
-        ratelimit.hit(pair_key, MAX_FAILED, LOCK_MINUTES * 60)
-        if user:
-            user.failed_logins = (user.failed_logins or 0) + 1
-            if user.failed_logins >= ACCOUNT_MAX_FAILED:
-                user.locked_until = now + timedelta(minutes=LOCK_MINUTES)
-                user.failed_logins = 0
-            db.commit()
+        for key, limit, per in ((ip_key, FAILS_PER_IP, 300), (pair_key, MAX_FAILED, window), (acct_key, ACCOUNT_MAX_FAILED, window)):
+            ratelimit.hit(key, limit, per)
         raise HTTPException(401, WRONG)
     if school and school.suspended:
         raise HTTPException(403, "This school's account is suspended. Please contact support.")

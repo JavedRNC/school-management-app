@@ -1,4 +1,5 @@
 """Super Admin: schools, plans, subscriptions, payments, people (privacy-masked), audit (F2, F25, F26)."""
+import re
 from datetime import date, timedelta
 
 from fastapi import APIRouter, Depends, HTTPException
@@ -184,6 +185,10 @@ def admin_create_user(sid: int, body: UserCreate, me: User = Depends(admin_only)
     s = _school(db, sid)
     if body.role == Role.admin:
         raise HTTPException(400, "Can't create admins here")
+    if body.role == Role.principal and not full_access(s) and _count_role(db, sid, Role.principal):
+        # Recovery for a locked-out principal is a password reset of the existing account (audited and visible to the school).
+        # A second principal login would be a side door into the school's data, so it needs the school's support access.
+        raise HTTPException(403, "This school already has a principal. Reset that account's password, or ask the school for support access to add another.")
     check_password_rules(body.password, body.login_id)
     if body.role == Role.student:
         c = db.get(SchoolClass, body.class_id or 0)
@@ -334,9 +339,19 @@ def record_payment(sid: int, body: PaymentIn, me: User = Depends(admin_only), db
 
 
 # ---------------------------------------------------------------- audit
+_PHONE = re.compile(r"(?<!\d)\d{10,13}(?!\d)")
+
+
 @router.get("/audit", response_model=list[AuditOut])
 def platform_audit(school_id: int | None = None, me: User = Depends(admin_only), db: Session = Depends(get_db)):
     q = select(AuditLog).order_by(AuditLog.at.desc()).limit(300)
     if school_id:
         q = q.where(AuditLog.school_id == school_id)
-    return list(db.scalars(q))
+    open_schools = {s.id for s in db.scalars(select(School)) if full_access(s)}
+    out = []
+    for a in db.scalars(q):
+        o = AuditOut.model_validate(a)
+        if a.school_id and a.school_id not in open_schools:      # phone numbers inside the text stay hidden like everywhere else
+            o.detail = _PHONE.sub(lambda m: mask_phone(m.group(0)), o.detail or "")
+        out.append(o)
+    return out

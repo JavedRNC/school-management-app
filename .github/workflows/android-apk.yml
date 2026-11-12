@@ -129,7 +129,11 @@ jobs:
 
       - name: Show who signed the APK
         run: |
-          keytool -printcert -jarfile android/app/build/outputs/apk/release/app-release.apk | grep -E "Owner|SHA256" || true
+          keytool -printcert -jarfile android/app/build/outputs/apk/release/app-release.apk | tee /tmp/cert.txt | grep -E "Owner|SHA256" || true
+          if [ "$APP_ENV" = "prod" ] && grep -qi "Android Debug" /tmp/cert.txt; then
+            echo "::error::The live app came out signed with the public debug key — not publishing it."
+            exit 1
+          fi
           rm -f android/app/prangan-release.keystore
 
       - name: Name the APK

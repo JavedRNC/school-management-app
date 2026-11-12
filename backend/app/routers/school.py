@@ -268,12 +268,14 @@ def update_user(user_id: int, body: UserUpdate, me: User = Depends(require_area(
     if data.get("active") is False and u.id == me.id:
         raise HTTPException(400, "You can't remove your own account")
     pw = data.pop("password", None)
+    if pw and u.id == me.id:
+        raise HTTPException(400, "Change your own password from Me → Change password")
     if pw:
         check_password_rules(pw, data.get("login_id") or u.login_id)
         u.password_hash = hash_password(pw)
         ratelimit.forget_user(u.id)
         db.execute(delete(PushToken).where(PushToken.user_id == u.id))   # their phones sign in again
-        u.must_change_password = u.id != me.id   # temporary password unless setting own
+        u.must_change_password = True              # a password set by someone else is always temporary
         u.failed_logins, u.locked_until = 0, None
     kids = data.pop("children_ids", None)
     for k in ("name", "login_id", "phone", "email", "address", "blood_group"):

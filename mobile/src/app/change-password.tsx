@@ -33,7 +33,7 @@ export default function ChangePassword() {
   const tooShort = pw.length > 0 && pw.length < minLen;
   const sameAsId = pw.trim().toLowerCase() === user.login_id.toLowerCase();
   const mismatch = pw2.length > 0 && pw !== pw2;
-  const valid = oldPw && pw.length >= 6 && !sameAsId && pw === pw2 && pw !== oldPw;
+  const valid = oldPw && pw.length >= minLen && !sameAsId && pw === pw2 && pw !== oldPw;
 
   async function save() {
     if (!valid) return haptic.error();

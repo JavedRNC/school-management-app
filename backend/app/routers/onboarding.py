@@ -10,6 +10,7 @@ from datetime import date, datetime, timedelta
 from fastapi import APIRouter, Depends, HTTPException, Request, Response
 from pydantic import BaseModel, EmailStr, Field, field_validator
 from sqlalchemy import func, or_, select
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
 from .. import push, ratelimit
@@ -191,9 +192,12 @@ def submit(body: OnboardingIn, request: Request, db: Session = Depends(get_db)):
     db.flush()
     _event(db, r, "created", None, to="PENDING", remarks=f"Submitted from the {'app' if body.source == 'app' else 'website'}")
     db.commit()
-    if recent < QUIET_AFTER:
+    if recent <= QUIET_AFTER:                                       # one push each, then a single "many waiting" notice
         admins = list(db.scalars(select(User.id).where(User.role == Role.admin, User.active.is_(True))))
-        push.notify(admins, "New school onboarding request", "Open Prangan to review it.", {"type": "onboarding", "id": r.id})
+        many = recent == QUIET_AFTER
+        push.notify(admins, "Many onboarding requests are waiting" if many else "New school onboarding request",
+                    "More than 50 in a day. Further alerts are paused; open Prangan to review them." if many else "Open Prangan to review it.",
+                    {"type": "onboarding", "id": r.id})
     return {"reference": r.reference, "status": r.status}
 
 
@@ -371,7 +375,11 @@ def admin_onboard(rid: int, body: OnboardIn, response: Response, me: User = Depe
     old, r.status, r.school_id, r.updated_at = r.status, "ONBOARDED", s.id, utcnow()
     _event(db, r, "status", me, frm=old, to="ONBOARDED", remarks=f"School created with code {s.code}")
     audit(db, me, "onboarding.onboarded", f"{r.reference} → {s.code}", school_id=s.id)
-    db.commit()
+    try:
+        db.commit()
+    except IntegrityError:                                         # another admin created it a moment ago
+        db.rollback()
+        raise HTTPException(409, "This school was just created from this request — it was not created again") from None
     response.headers["Cache-Control"] = "no-store"
     return {"request": admin_detail(rid, me, db),
             "credentials": {"school_code": s.code, "login_id": body.principal_login_id.strip(), "password": pw,
