@@ -190,7 +190,8 @@ def admin_create_user(sid: int, body: UserCreate, me: User = Depends(admin_only)
     s = _school(db, sid)
     if body.role == Role.admin:
         raise HTTPException(400, "Can't create admins here")
-    if not support_access(s) and not (body.role == Role.principal and not _count_role(db, sid, Role.principal)):
+    has_principal = db.scalar(select(func.count()).select_from(User).where(User.school_id == sid, User.role == Role.principal))   # archived ones count too
+    if not support_access(s) and not (body.role == Role.principal and not has_principal):
         # Any login the admin creates could be used to read the school's data, so it needs the school's time-boxed support
         # access. The one exception is giving a school without a principal its first principal.
         # (Recovery for a locked-out principal is a password reset of that account: audited and visible to the school.)

@@ -61,7 +61,7 @@ def _check_zip(data: bytes) -> None:
         # Everything except real worksheets is loaded into memory whole by the parser — styles, shared strings, and any
         # part an attacker names differently — so each such part must be small. Worksheets are read row by row, but one
         # enormous row or cell would still be built in memory, so every worksheet is scanned first (cheap, streaming).
-        budget = [MAX_SCAN_CELLS]
+        budget = [MAX_SCAN_CELLS, MAX_SCAN_ELEMENTS]
         for i in infos:
             if re.fullmatch(r"xl/worksheets/[^/]+\.xml", i.filename):
                 with z.open(i) as f:
@@ -74,38 +74,83 @@ TOO_BIG = "This workbook is too large to import. Split it into smaller files."
 MAX_ROW_CELLS = 200                 # cells in one row (our widest sheet has 15 columns)
 MAX_CELL_BYTES = 200_000            # one cell's XML (Excel allows 32,767 characters)
 MAX_SCAN_CELLS = 5_000_000          # cells in the whole workbook
-_TOKEN = re.compile(rb"<row[ >/]|<c[ >/]")
+MAX_SCAN_ELEMENTS = 14_000_000      # XML elements of any kind in the whole workbook
+SHEET_NS = "http://schemas.openxmlformats.org/spreadsheetml/2006/main"
+CELL_PARTS = {"row", "c", "v", "f", "is", "t", "r", "rPr", "sheetData", "worksheet"}
+MAX_OTHER_ELEMENTS = 100_000
+
+
+class _Refuse(Exception):
+    def __init__(self, status: int, message: str):
+        self.status, self.message = status, message
 
 
 def _scan_sheet(f, budget: list[int]) -> None:
-    """Stream through one worksheet's XML and refuse it if it isn't a worksheet, or has a huge row or cell."""
-    head = f.read(4096)
-    if b"<worksheet" not in head:
-        raise HTTPException(400, "That file isn't a valid Excel (.xlsx) workbook")
-    buf, base, in_row, cell_start = head, 0, 0, None
-    while True:
-        last = 0
-        for m in _TOKEN.finditer(buf):
-            pos = base + m.start()
-            if cell_start is not None and pos - cell_start > MAX_CELL_BYTES:
-                raise HTTPException(413, TOO_BIG)
-            if m.group(0).startswith(b"<row"):
-                in_row, cell_start = 0, None
-            else:
-                in_row += 1
-                budget[0] -= 1
-                cell_start = pos
-                if in_row > MAX_ROW_CELLS or budget[0] < 0:
-                    raise HTTPException(413, TOO_BIG)
-            last = m.end()
-        keep = buf[max(last, len(buf) - 8):]          # a token may be split across two chunks
-        base += len(buf) - len(keep)
-        chunk = f.read(1024 * 1024)
-        if cell_start is not None and base + len(keep) - cell_start > MAX_CELL_BYTES:
-            raise HTTPException(413, TOO_BIG)
-        if not chunk:
+    """Read one worksheet with a real streaming XML parser (so prefixes, whitespace, comments and encodings can't hide
+    anything) and refuse it if its root isn't a spreadsheet worksheet, or it has a huge row, a huge cell, too many cells
+    or elements, or declares entities. Nothing is kept in memory."""
+    from xml.parsers import expat
+
+    par = expat.ParserCreate(namespace_separator=" ")
+    par.buffer_text = True
+    st = {"depth": 0, "in_row": 0, "cell_at": None, "last": 0, "other": 0}
+
+    def gap():
+        """No single run of text (or one tag with its attributes) may be huge, inside a cell or anywhere else."""
+        at = par.CurrentByteIndex
+        if at - st["last"] > MAX_CELL_BYTES:
+            raise _Refuse(413, TOO_BIG)
+        st["last"] = at
+
+    def start(name, _attrs):
+        gap()
+        st["depth"] += 1
+        budget[1] -= 1
+        if budget[1] < 0:
+            raise _Refuse(413, TOO_BIG)
+        ns, _, local = name.rpartition(" ")
+        if ns != SHEET_NS or local not in CELL_PARTS:
+            st["other"] += 1                         # merges, validations, hyperlinks, columns…: a real sheet has few
+            if st["other"] > MAX_OTHER_ELEMENTS:
+                raise _Refuse(413, TOO_BIG)
+        if st["depth"] == 1 and (ns != SHEET_NS or local != "worksheet"):
+            raise _Refuse(400, "That file isn't a valid Excel (.xlsx) workbook")
+        if ns != SHEET_NS:
             return
-        buf = keep + chunk
+        if local == "row":
+            st["in_row"], st["cell_at"] = 0, None
+        elif local == "c":
+            st["in_row"] += 1
+            budget[0] -= 1
+            st["cell_at"] = par.CurrentByteIndex
+            if st["in_row"] > MAX_ROW_CELLS or budget[0] < 0:
+                raise _Refuse(413, TOO_BIG)
+
+    def end(name):
+        gap()
+        st["depth"] -= 1
+        if name.rpartition(" ")[2] == "c":
+            st["cell_at"] = None
+
+    def no_entities(*_a):
+        raise _Refuse(400, "That file isn't a valid Excel (.xlsx) workbook")
+
+    par.StartElementHandler, par.EndElementHandler = start, end
+    par.EntityDeclHandler = par.StartDoctypeDeclHandler = no_entities
+    try:
+        while True:
+            chunk = f.read(256 * 1024)
+            if not chunk:
+                par.Parse(b"", True)
+                return
+            par.Parse(chunk, False)
+            if par.CurrentByteIndex - st["last"] > MAX_CELL_BYTES + len(chunk) or (
+                    st["cell_at"] is not None and par.CurrentByteIndex - st["cell_at"] > MAX_CELL_BYTES + len(chunk)):
+                raise _Refuse(413, TOO_BIG)
+    except _Refuse as e:
+        raise HTTPException(e.status, e.message) from None
+    except expat.ExpatError:
+        raise HTTPException(400, "That file isn't a valid Excel (.xlsx) workbook") from None
 
 
 def _rows(ws, budget: list[int]):

@@ -303,11 +303,23 @@ def test_review_fixes(c):
             raise AssertionError(f"oversized {name} accepted")
         except HTTPException as e:
             assert e.status_code == 413
-    # N1 (round 3): one enormous row, one enormous cell, or a non-worksheet stored under the worksheets folder
-    ws = b"<worksheet><sheetData>"
-    for label, body in (("wide row", ws + b"<row>" + b"<c/>" * 300_000 + b"</row></sheetData></worksheet>"),
-                        ("huge cell", ws + b"<row><c t='inlineStr'><is><t>" + b"A" * 400_000 + b"</t></is></c></row></sheetData></worksheet>"),
-                        ("not a sheet", b"<sst>" + b"<si><t>abc</t></si>" * 1000 + b"</sst>")):
+    # N1: worksheets are checked with a real XML parser before the workbook is opened — an enormous row or cell, a part
+    # that isn't a worksheet, and XML spellings meant to hide them (line breaks, prefixes, comments, entities) are refused
+    ns = b'xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main"'
+    ws = b"<worksheet " + ns + b"><sheetData>"
+    end = b"</sheetData></worksheet>"
+    cases = {
+        "wide row": ws + b"<row>" + b"<c/>" * 300_000 + b"</row>" + end,
+        "wide row, line breaks": ws + b"<row>" + b'<c\nt="n"/>' * 300_000 + b"</row>" + end,
+        "wide row, prefixed": b'<!-- <worksheet --><x:worksheet xmlns:x="http://schemas.openxmlformats.org/spreadsheetml/2006/main"><x:sheetData><x:row>'
+                              + b"<x:c/>" * 300_000 + b"</x:row></x:sheetData></x:worksheet>",
+        "huge cell": ws + b"<row><c t='inlineStr'><is><t>" + b"A" * 400_000 + b"</t></is></c></row>" + end,
+        "huge text elsewhere": ws + b"</sheetData><x>" + b"A" * 400_000 + b"</x></worksheet>",
+        "many other elements": ws + b"</sheetData><mergeCells>" + b'<mergeCell ref="A1:B2"/>' * 150_000 + b"</mergeCells></worksheet>",
+        "not a sheet": b"<!-- <worksheet --><sst " + ns + b">" + b"<si><t>abc</t></si>" * 1000 + b"</sst>",
+        "entities": b'<!DOCTYPE x [<!ENTITY a "aaaa">]>' + ws + end,
+    }
+    for label, body in cases.items():
         buf = io.BytesIO()
         with zipfile.ZipFile(buf, "w", zipfile.ZIP_DEFLATED) as z:
             z.writestr("xl/worksheets/sheet1.xml", body)
@@ -316,6 +328,7 @@ def test_review_fixes(c):
             raise AssertionError(f"{label} accepted")
         except HTTPException as e:
             assert e.status_code in (400, 413), label
+    _check_zip(c.get("/data/template", headers=principal_h(c)).content)          # our own files still pass
     # M3 (round 3): without support access the admin can't create or change ANY other login of a school
     ah0 = admin_h(c)
     for role in ("vice_principal", "coordinator", "teacher", "parent"):
@@ -323,6 +336,12 @@ def test_review_fixes(c):
         assert r0.status_code == 403, (role, r0.text)
     some_teacher = next(u for u in c.get("/admin/schools/1/users", params={"role": "teacher"}, headers=ah0).json())
     assert c.put(f"/admin/schools/1/users/{some_teacher['id']}", json={"password": "temp1234"}, headers=ah0).status_code == 403
+    # …and archiving the principal doesn't open a way to create a "first" one
+    pr0 = c.get("/admin/schools/2/users", params={"role": "principal"}, headers=ah0).json()[0]
+    c.put(f"/admin/schools/2/users/{pr0['id']}", json={"active": False}, headers=ah0)
+    again = c.post("/admin/schools/2/users", json={"name": "New Head", "login_id": "head2", "password": "temp1234", "role": "principal"}, headers=ah0)
+    assert again.status_code == 403, again.text
+    c.put(f"/admin/schools/2/users/{pr0['id']}", json={"active": True}, headers=ah0)
     # N4: your own password changes only through the change-password route (which applies the rules and renews the session)
     me = c.get("/auth/me", headers=principal_h(c)).json()
     assert c.put(f"/users/{me['id']}", json={"password": "short1"}, headers=principal_h(c)).status_code == 400
