@@ -104,3 +104,16 @@ Multi-school with school code login (no email/OTP; principal issues temp passwor
 
 - Naming rule (Javed, 12 Nov): use "prangan" in every new name (packages, services, files). Only the existing PROD Render service/URL (school-api-7y80) and the GitHub repo name keep the old wording.
 - TEST = branch test → Render prangan-api-test (https://prangan-api-test.onrender.com, live 12 Nov) + Neon prangan-test + "Prangan Test" APK (com.javedrnc.prangan.test, release test-apk; address in mobile/test.json). Firebase project prangan-b9556 has all 3 Android apps; google-services.json received from Javed (not committed yet — add with push notifications).
+
+## Web portal, onboarding, push, security hardening (12 Nov) — on dev + test, NOT on main yet
+- portal/ = React+TS (Vite, HashRouter) for Admin + Principal + public "Register your school" (/#/register, /#/register/status). Token in sessionStorage; build settings VITE_API_URL, VITE_APP_ENV. Render static sites prangan-portal-dev/-test/(prod) per docs/operations.md. Docs: docs/portal.md, docs/operations.md.
+- Backend v9 (additive): school_details, onboarding_requests, onboarding_events, push_tokens. Routers: onboarding.py, portal.py; ratelimit.py (in-memory), push.py (FCM v1, needs FIREBASE_SERVICE_ACCOUNT), importprobe.py (memory-limited child parse).
+- Auth now: every token carries pw stamp → all sessions end on password change/reset; POST /auth/password returns new `token`; admin tokens 12 h; web login `client:"web"` (Admin/Principal only). Login: generic message, limits per IP / IP+account / account (memory). Staff self-chosen passwords ≥8.
+- No default admin password: random temp logged once ("temporary password" in Render logs) or ADMIN_PASSWORD; tests use ALLOW_DEFAULT_ADMIN_PASSWORD=1. ALLOW_SCHEMA_RESET default 0. API docs off on prod. CORS: each env allows only its own portal + github.io (CORS_ORIGINS adds).
+- Admin may create/change a school's logins only during support access (exceptions: first principal; reset existing principal).
+- Import limits for 512 MB server: 600k cells, 2 MB per non-sheet part, sheets by relationship + expat pre-scan + child probe (env IMPORT_MAX_CELLS, IMPORT_MAX_PART_MB, IMPORT_PROBE_MB). Import blocked for DEMO* schools on prod.
+- App: register-school.tsx (from login), admin-requests/, lib/push.ts (expo-notifications, google-services.json). APK signing: secrets ANDROID_KEYSTORE_B64 + ANDROID_KEYSTORE_PASSWORD (PROD build fails without; dev/test fall back to debug key).
+- Tests: backend 63 (pytest), portal 10 browser tests (portal/e2e, python playwright); .github/workflows/checks.yml on dev/test/main.
+- Security review (independent, 6 rounds): no open Critical/High/Moderate in code. Open by owner action: signing secrets (H1). Accepted/known: principal-reset by admin (audited), in-memory rate limits, GPS check-in trust, coordinator scope on timetable/dashboard, token in AsyncStorage.
+- Release state: dev = test = this work. main (PROD) untouched since rebrand build 11; "release to prod" also switches the app id to com.javedrnc.prangan (new install needed) and needs the signing secrets first.
+

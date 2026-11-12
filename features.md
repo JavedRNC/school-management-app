@@ -404,6 +404,9 @@ Today the timetable has a fixed 5 numbered periods and no times. Proposal:
 - Admin changes the server from Admin → Me after logging in (for testing / moving servers). Since nobody is logged in on the login screen, the only way there is a hidden gesture (e.g. tap the logo 7 times), and the change still needs an Admin login before it is kept.
 - If someone already changed the server on their phone, the update resets it to the built-in server.
 
+### F34 · Web portal, school onboarding requests, push notifications ✅ `L` — requested 12 Nov (on DEV/TEST)
+- Portal for Admin and Principal, public "Register your school" page, admin review → school creation, app screens, Firebase push to Admin. See docs/portal.md.
+
 ## 🖥️ Infrastructure & effort plan
 
 **Today (free tier, fine for testing):** Render free API (sleeps when idle) · Neon free Postgres · no file storage.
