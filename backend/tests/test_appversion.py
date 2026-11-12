@@ -56,3 +56,21 @@ def test_public_version_and_admin_settings(c):
     assert c.put("/admin/app-version", json={"url": "http://x"}, headers=h).status_code == 400
     p = c.post("/auth/login", json={"school_code": "DEMO01", "login_id": "principal", "password": "demo123"}).json()["token"]
     assert c.put("/admin/app-version", json={}, headers={"Authorization": f"Bearer {p}"}).status_code == 403
+
+
+def test_build_lookup_falls_back_and_is_remembered(c, monkeypatch):
+    h = admin(c)
+    c.put("/admin/app-version", json={"auto_latest": True}, headers=h)
+
+    # build.json unreachable → API body is used
+    monkeypatch.setattr(av, "_fetch", lambda url: (_ for _ in ()).throw(OSError("404")) if url == av.BUILD_FILE
+                        else b'{"body": "Build 12 from commit abc"}')
+    assert av._from_api() == 12
+    monkeypatch.setattr(av, "_fetch", lambda url: b'{"build": 15, "commit": "abc"}')
+    assert av._from_build_file() == 15
+    # the newest build seen is kept when GitHub can't be reached after a restart
+    monkeypatch.setattr(av, "github_latest", lambda: (15, ""))
+    assert c.get("/app/version").json()["latest_build"] == 15
+    monkeypatch.setattr(av, "github_latest", lambda: (None, ""))
+    v = c.get("/app/version").json()
+    assert v["latest_build"] == 15 and v["source"] == "github"

@@ -74,6 +74,8 @@ jobs:
           mkdir -p ../dist
           cp android/app/build/outputs/apk/release/app-release.apk ../dist/Prangan.apk
           cp ../dist/Prangan.apk ../dist/SchoolHub.apk   # old download links keep working
+          echo "{\"build\": ${GITHUB_RUN_NUMBER}, \"commit\": \"${GITHUB_SHA}\"}" > ../dist/build.json   # the server reads this to offer updates
+          cat ../dist/build.json
           ls -lh ../dist
 
       - uses: actions/upload-artifact@v4
@@ -95,3 +97,4 @@ jobs:
           files: |
             dist/Prangan.apk
             dist/SchoolHub.apk
+            dist/build.json

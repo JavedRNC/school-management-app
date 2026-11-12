@@ -12,7 +12,7 @@ from sqlalchemy.orm import Session
 
 from ..auth import admin_only, audit
 from ..db import get_db
-from ..models import AppVersion, User, utcnow
+from ..models import AppVersion, Meta, User, utcnow
 
 router = APIRouter(tags=["app"])
 REPO = os.getenv("GITHUB_REPO", "JavedRNC/school-management-app")
@@ -21,21 +21,42 @@ _cache: dict = {"at": 0.0, "build": None, "notes": ""}
 CACHE_SECONDS = 120   # GitHub allows ~60 unauthenticated calls/hour; this uses 30 at most
 
 
+BUILD_FILE = f"https://github.com/{REPO}/releases/download/latest-apk/build.json"
+API_URL = f"https://api.github.com/repos/{REPO}/releases/tags/latest-apk"
+
+
+def _fetch(url: str) -> bytes:
+    req = urllib.request.Request(url, headers={"Accept": "application/vnd.github+json, application/json", "User-Agent": "prangan-api"})
+    with urllib.request.urlopen(req, timeout=6) as r:
+        return r.read(200_000)
+
+
+def _from_build_file() -> int | None:
+    """build.json is uploaded next to the APK. A plain download: not subject to GitHub's API rate limit,
+    which shared hosting IPs (Render) often hit."""
+    n = json.loads(_fetch(BUILD_FILE)).get("build")
+    return int(n) if n else None
+
+
+def _from_api() -> int | None:
+    m = re.search(r"Build (\d+)", json.loads(_fetch(API_URL)).get("body") or "")
+    return int(m.group(1)) if m else None
+
+
 def github_latest() -> tuple[int | None, str]:
-    """Newest build number from the 'latest-apk' release body ("Build 12 from commit …"), cached 2 minutes."""
+    """Newest published build number, cached 2 minutes. A failed lookup keeps the last known number."""
     now = time.monotonic()
     if now - _cache["at"] < CACHE_SECONDS:
         return _cache["build"], _cache["notes"]
     _cache["at"] = now
-    try:
-        req = urllib.request.Request(f"https://api.github.com/repos/{REPO}/releases/tags/latest-apk",
-                                     headers={"Accept": "application/vnd.github+json", "User-Agent": "prangan-api"})
-        with urllib.request.urlopen(req, timeout=5) as r:
-            data = json.loads(r.read(200_000))
-        m = re.search(r"Build (\d+)", data.get("body") or "")
-        _cache["build"] = int(m.group(1)) if m else None
-    except Exception as e:  # noqa: BLE001 — GitHub down/rate-limited: fall back to the admin's number
-        logging.getLogger("appversion").warning("GitHub release check failed: %s", e)
+    for source in (_from_build_file, _from_api):
+        try:
+            n = source()
+            if n:
+                _cache["build"] = max(n, _cache["build"] or 0)
+                break
+        except Exception as e:  # noqa: BLE001 — GitHub down/rate-limited: try the next source, then the admin's number
+            logging.getLogger("appversion").warning("Build lookup via %s failed: %s", source.__name__, e)
     return _cache["build"], _cache["notes"]
 
 
@@ -54,6 +75,15 @@ def effective(db: Session) -> dict:
     source = "admin"
     if row.auto_latest:
         gh, _ = github_latest()
+        seen = db.get(Meta, "seen_build")        # survives restarts and GitHub outages
+        seen_n = int(seen.value) if seen and seen.value.isdigit() else 0
+        if gh and gh > seen_n:
+            if seen:
+                seen.value = str(gh)
+            else:
+                db.add(Meta(key="seen_build", value=str(gh)))
+            db.commit()
+        gh = max(gh or 0, seen_n)
         if gh:
             latest, source = max(gh, row.latest_build), "github"
     return {"latest_build": latest, "min_build": min(row.min_build, latest) if latest else row.min_build,
