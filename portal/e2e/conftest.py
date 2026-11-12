@@ -82,8 +82,22 @@ def phone(browser, servers):
     ctx.close()
 
 
-def pytest_runtest_logreport(report):
-    """On GitHub Actions, show each failure as an annotation on the run (readable without opening the log)."""
-    if report.failed and os.getenv("GITHUB_ACTIONS"):
-        text = str(report.longrepr)[-900:].replace("%", "%25").replace("\r", "").replace("\n", "%0A")
-        print(f"\n::error title={report.nodeid.split('::')[-1]} ({report.when})::{text}")
+@pytest.hookimpl(hookwrapper=True)
+def pytest_runtest_makereport(item, call):
+    outcome = yield
+    rep = outcome.get_result()
+    if rep.when == "call":
+        item.failed_call = rep.failed
+        if rep.failed and os.getenv("GITHUB_ACTIONS"):
+            # an annotation on the run: which line failed, and what the page showed at that moment
+            crash = getattr(rep.longrepr, "reprcrash", None)
+            where = f"line {crash.lineno}: {crash.message[:300]}" if crash else str(rep.longrepr)[-300:]
+            seen = ""
+            pg = item.funcargs.get("page") or item.funcargs.get("phone")
+            if pg is not None:
+                try:
+                    seen = f" | url={pg.url} | page says: {pg.inner_text('body')[:400]}"
+                except Exception:  # noqa: BLE001
+                    pass
+            text = (where + seen).replace("%", "%25").replace("\r", "").replace("\n", " / ")
+            print(f"\n::error title={item.name}::{text}")
