@@ -95,3 +95,10 @@ Multi-school with school code login (no email/OTP; principal issues temp passwor
 - F32: mobile/src/lib/saveFile.ts saveToPhone() — Android saves via SAF folder picker (Directory.pickDirectoryAsync, starts at Documents; folder uri kept in AsyncStorage 'save_folder'; Download root not selectable on Android 11+), toast "saved in <folder>" with Share action; falls back to share sheet if write fails; iOS = share sheet. Used by DataTools (template/backup/undo/login CSV), add-many CSV, receipt "Save PDF on phone".
 - F33: server address hidden from everyone but Admin. api.ts: DEFAULT_URL, override key 'api_url_admin' (old 'api_url' dropped on start), tryServer/keepServer/revertServer — a new server is on trial until an Admin signs in on it. Login: no server link; tap logo 7× shows field. Me → Server row + switch sheet for Admin only. "Can't reach the server" text no longer shows the URL.
 - Update popup: AppVersion defaults auto_latest=True, min_build=0 → every new APK build prompts optional update (builds ≥4). Forced only if Admin sets min build in Admin → App updates.
+
+## Environments (12 Nov)
+- PROD = branch main → Render school-api (school-api-7y80.onrender.com) + Neon prod DB + "Prangan" APK (release latest-apk) + website.
+- DEV = branch dev → Render school-api-dev (env APP_ENV=dev, APK_RELEASE_TAG=dev-apk, APK_FILE=PranganDev.apk) + separate Neon DB + "Prangan Dev" APK (package com.javedrnc.schoolhub.dev, release dev-apk). Dev API address lives in mobile/dev.json (empty = dev APK build skipped).
+- Flow: Claude commits to dev → Javed tests in Prangan Dev → on "release", `git merge --ff-only dev` into main and push. Never push features straight to main.
+- Update check: server reads releases/download/<tag>/build.json (no API rate limit), falls back to API, remembers newest in meta 'seen_build'.
+

@@ -62,3 +62,15 @@ npm install
 npx expo start
 ```
 Open in **Expo Go** (Android/iPhone). Phone-only setup with live reload: see [docs/termux.md](docs/termux.md).
+
+## Environments
+| | PROD (live schools) | DEV (testing) |
+|---|---|---|
+| Git branch | `main` | `dev` |
+| Server (Render) | `school-api` | `school-api-dev` |
+| Database (Neon) | live database | separate test database, demo data only |
+| App | **Prangan** (`latest-apk` release, website download) | **Prangan Dev** (`dev-apk` release), installs next to the real app |
+
+Changes go to `dev` first. After testing in Prangan Dev they are released by merging `dev` into `main`.
+The test server address is kept in `mobile/dev.json`.
+

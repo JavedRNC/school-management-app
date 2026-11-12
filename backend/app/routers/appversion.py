@@ -16,13 +16,15 @@ from ..models import AppVersion, Meta, User, utcnow
 
 router = APIRouter(tags=["app"])
 REPO = os.getenv("GITHUB_REPO", "JavedRNC/school-management-app")
-DEFAULT_URL = f"https://github.com/{REPO}/releases/download/latest-apk/Prangan.apk"
+# PROD reads the "latest-apk" release; the DEV server sets APK_RELEASE_TAG=dev-apk and APK_FILE=PranganDev.apk.
+TAG = os.getenv("APK_RELEASE_TAG", "latest-apk")
+DEFAULT_URL = f"https://github.com/{REPO}/releases/download/{TAG}/{os.getenv('APK_FILE', 'Prangan.apk')}"
 _cache: dict = {"at": 0.0, "build": None, "notes": ""}
 CACHE_SECONDS = 120   # GitHub allows ~60 unauthenticated calls/hour; this uses 30 at most
 
 
-BUILD_FILE = f"https://github.com/{REPO}/releases/download/latest-apk/build.json"
-API_URL = f"https://api.github.com/repos/{REPO}/releases/tags/latest-apk"
+BUILD_FILE = f"https://github.com/{REPO}/releases/download/{TAG}/build.json"
+API_URL = f"https://api.github.com/repos/{REPO}/releases/tags/{TAG}"
 
 
 def _fetch(url: str) -> bytes:

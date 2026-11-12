@@ -2,8 +2,10 @@
 # Database: free Postgres on Neon (neon.com). Render asks for DATABASE_URL during setup —
 # paste the Neon connection string (postgresql://...?sslmode=require).
 services:
+  # ---------------- PROD: live schools. Deploys from the main branch.
   - type: web
     name: school-api
+    branch: main
     runtime: python
     rootDir: backend
     plan: free
@@ -20,5 +22,35 @@ services:
         value: Asia/Kolkata
       - key: SEED_DEMO
         value: "1"           # set to "0" before going live with real school data
+      - key: PYTHON_VERSION
+        value: "3.12.7"
+
+  # ---------------- DEV: test server, demo data only. Deploys from the dev branch.
+  # Give it its OWN Neon database (never the live one).
+  - type: web
+    name: school-api-dev
+    branch: dev
+    runtime: python
+    rootDir: backend
+    plan: free
+    region: ohio
+    buildCommand: pip install -r requirements.txt
+    startCommand: uvicorn app.main:app --host 0.0.0.0 --port $PORT
+    healthCheckPath: /
+    envVars:
+      - key: DATABASE_URL
+        sync: false          # the DEV Neon connection string
+      - key: JWT_SECRET
+        generateValue: true
+      - key: APP_ENV
+        value: dev
+      - key: APK_RELEASE_TAG
+        value: dev-apk
+      - key: APK_FILE
+        value: PranganDev.apk
+      - key: SCHOOL_TZ
+        value: Asia/Kolkata
+      - key: SEED_DEMO
+        value: "1"
       - key: PYTHON_VERSION
         value: "3.12.7"

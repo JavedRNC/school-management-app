@@ -7,7 +7,7 @@ import { TextInput } from '@/components/Field';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { FadeIn, Icon, IconName, PressScale } from '@/components/ui';
-import { APP_VERSION_LABEL } from '@/components/UpdateGate';
+import { APP_NAME_LABEL, IS_DEV_APP } from '@/components/UpdateGate';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
 import { api, cleanUrl, getBaseUrl, keepServer, loadStored, revertServer, serverOnTrial, tryServer } from '@/lib/api';
@@ -108,6 +108,11 @@ export default function Login() {
           </Animated.View>
           <Text variant="headlineLarge" style={{ color: '#fff', fontWeight: '700', marginTop: space.md }}>Prangan</Text>
           <Text variant="titleSmall" style={{ color: t.custom.amber, marginTop: -2 }}>प्रांगण</Text>
+          {IS_DEV_APP ? (
+            <View style={{ backgroundColor: t.custom.amber, borderRadius: radius.pill, paddingHorizontal: 12, paddingVertical: 3, marginTop: 6 }}>
+              <Text variant="labelMedium" style={{ color: '#1A1300', fontWeight: '700' }}>Test app · demo data only</Text>
+            </View>
+          ) : null}
           <Text variant="bodyMedium" style={{ color: 'rgba(255,255,255,0.82)' }}>Everything your school needs, in one place</Text>
         </LinearGradient>
 
@@ -170,7 +175,7 @@ export default function Login() {
               <HelperText type="info">For the Prangan admin only. Kept after an admin sign-in.</HelperText>
             </FadeIn>
           ) : null}
-          <Text variant="labelSmall" style={{ textAlign: 'center', color: t.colors.outline, marginTop: space.xl }}>Prangan v{APP_VERSION_LABEL}</Text>
+          <Text variant="labelSmall" style={{ textAlign: 'center', color: t.colors.outline, marginTop: space.xl }}>{APP_NAME_LABEL}</Text>
           <View style={{ height: insets.bottom + space.lg }} />
         </View>
       </ScrollView>

@@ -49,4 +49,4 @@ for r in (auth.router, school.router, academics.router, dashboard.router, settin
 
 @app.get("/")
 def health():
-    return {"ok": True, "app": "prangan-api", "version": app.version}
+    return {"ok": True, "app": "prangan-api", "version": app.version, "env": os.getenv("APP_ENV", "prod")}

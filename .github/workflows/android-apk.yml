@@ -1,11 +1,13 @@
 # F17 · Builds an installable Android APK in the cloud (no computer, no Expo account needed).
-# Runs on every push to main that changes mobile/, or by hand (Actions → Android APK → Run workflow).
-# The APK is published on the "Latest app" release: https://github.com/<owner>/<repo>/releases/tag/latest-apk
+# Two environments:
+#   main → PROD: "Prangan" app, talks to the live server, published on the "latest-apk" release (website download).
+#   dev  → DEV:  "Prangan Dev" app (installs next to the real one), talks to the test server in mobile/dev.json,
+#                published on the "dev-apk" release. Skipped until mobile/dev.json has the test server address.
 name: Android APK
 
 on:
   push:
-    branches: [main]
+    branches: [main, dev]
     paths: ["mobile/**", ".github/workflows/android-apk.yml"]
   workflow_dispatch:
 
@@ -13,13 +15,39 @@ permissions:
   contents: write
 
 concurrency:
-  group: android-apk
+  group: android-apk-${{ github.ref_name }}
   cancel-in-progress: true
 
 jobs:
+  plan:
+    runs-on: ubuntu-latest
+    outputs:
+      env: ${{ steps.p.outputs.env }}
+      go: ${{ steps.p.outputs.go }}
+      api: ${{ steps.p.outputs.api }}
+    steps:
+      - uses: actions/checkout@v4
+      - id: p
+        run: |
+          if [ "${GITHUB_REF_NAME}" = "main" ]; then
+            echo "env=prod" >> "$GITHUB_OUTPUT"; echo "go=yes" >> "$GITHUB_OUTPUT"
+          else
+            API=$(node -p "require('./mobile/dev.json').apiUrl || ''")
+            echo "env=dev" >> "$GITHUB_OUTPUT"; echo "api=${API}" >> "$GITHUB_OUTPUT"
+            if [ -n "$API" ]; then echo "go=yes" >> "$GITHUB_OUTPUT"; else
+              echo "go=no" >> "$GITHUB_OUTPUT"
+              echo "::warning::Dev app not built: put the test server address in mobile/dev.json first."
+            fi
+          fi
+
   build:
+    needs: plan
+    if: needs.plan.outputs.go == 'yes'
     runs-on: ubuntu-latest
     timeout-minutes: 60
+    env:
+      APP_ENV: ${{ needs.plan.outputs.env }}
+      DEV_API: ${{ needs.plan.outputs.api }}
     defaults:
       run:
         working-directory: mobile
@@ -48,8 +76,13 @@ jobs:
             const fs=require('fs'); const p='app.json'; const j=JSON.parse(fs.readFileSync(p));
             j.expo.android = Object.assign({}, j.expo.android, { versionCode: Number(process.env.GITHUB_RUN_NUMBER) });
             j.expo.extra = Object.assign({}, j.expo.extra, { buildNumber: Number(process.env.GITHUB_RUN_NUMBER) });
+            if (process.env.APP_ENV === 'dev') {            // separate app that installs next to the real one
+              j.expo.name = 'Prangan Dev'; j.expo.scheme = 'prangan-dev';
+              j.expo.android.package = j.expo.android.package + '.dev';
+              j.expo.extra.apiUrl = process.env.DEV_API; j.expo.extra.appEnv = 'dev';
+            }
             fs.writeFileSync(p, JSON.stringify(j, null, 2));"
-          grep -n "buildNumber\|versionCode" app.json
+          grep -n "buildNumber\|versionCode\|\"name\"\|package\|apiUrl" app.json
 
       - name: Generate native Android project
         run: npx expo prebuild --platform android --no-install
@@ -72,19 +105,24 @@ jobs:
       - name: Name the APK
         run: |
           mkdir -p ../dist
-          cp android/app/build/outputs/apk/release/app-release.apk ../dist/Prangan.apk
-          cp ../dist/Prangan.apk ../dist/SchoolHub.apk   # old download links keep working
-          echo "{\"build\": ${GITHUB_RUN_NUMBER}, \"commit\": \"${GITHUB_SHA}\"}" > ../dist/build.json   # the server reads this to offer updates
+          echo "{\"build\": ${GITHUB_RUN_NUMBER}, \"commit\": \"${GITHUB_SHA}\", \"env\": \"${APP_ENV}\"}" > ../dist/build.json   # the server reads this to offer updates
+          if [ "$APP_ENV" = "dev" ]; then
+            cp android/app/build/outputs/apk/release/app-release.apk ../dist/PranganDev.apk
+          else
+            cp android/app/build/outputs/apk/release/app-release.apk ../dist/Prangan.apk
+            cp ../dist/Prangan.apk ../dist/SchoolHub.apk   # old download links keep working
+          fi
           cat ../dist/build.json
           ls -lh ../dist
 
       - uses: actions/upload-artifact@v4
         with:
-          name: Prangan-apk-${{ github.run_number }}
-          path: dist/Prangan.apk
+          name: Prangan-${{ env.APP_ENV }}-apk-${{ github.run_number }}
+          path: dist/*.apk
           retention-days: 14
 
-      - name: Publish to the "latest-apk" release
+      - name: Publish PROD to the "latest-apk" release
+        if: env.APP_ENV == 'prod'
         uses: softprops/action-gh-release@v2
         with:
           tag_name: latest-apk
@@ -97,4 +135,20 @@ jobs:
           files: |
             dist/Prangan.apk
             dist/SchoolHub.apk
+            dist/build.json
+
+      - name: Publish DEV to the "dev-apk" release
+        if: env.APP_ENV == 'dev'
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: dev-apk
+          target_commitish: dev
+          name: "Prangan Dev — test app (not for schools)"
+          prerelease: true
+          make_latest: false
+          body: |
+            Build ${{ github.run_number }} from commit ${{ github.sha }} (dev branch).
+            Test app: installs next to the real Prangan app and talks to the test server ${{ env.DEV_API }}. Demo data only.
+          files: |
+            dist/PranganDev.apk
             dist/build.json

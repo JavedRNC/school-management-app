@@ -17,6 +17,9 @@ import { Icon, TopLayer } from './ui';
 export const APP_BUILD: number | null = Number((Constants.expoConfig?.extra as { buildNumber?: number } | undefined)?.buildNumber) || null;
 /** Same text Android shows under App info, e.g. "1.0.0.8" (app.json version + build number). */
 export const APP_VERSION_LABEL = `${Constants.expoConfig?.version ?? '1.0.0'}${APP_BUILD ? `.${APP_BUILD}` : ' (test build)'}`;
+/** True in the "Prangan Dev" test app (dev branch builds, test server). */
+export const IS_DEV_APP = (Constants.expoConfig?.extra as { appEnv?: string } | undefined)?.appEnv === 'dev';
+export const APP_NAME_LABEL = `${IS_DEV_APP ? 'Prangan Dev (test app)' : 'Prangan'} v${APP_VERSION_LABEL}`;
 const KEY_SKIPPED = 'update_skipped_build';
 const CHECK_EVERY_MS = 5 * 60 * 1000;
 const RETRY_MS = [15_000, 45_000, 120_000];     // server asleep / no network: try again soon

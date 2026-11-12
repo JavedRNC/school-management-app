@@ -11,7 +11,7 @@ import { space, Tone, useAppTheme } from '@/lib/theme';
 import type { User } from '@/lib/types';
 
 import { useOps } from './OpsGrid';
-import { APP_VERSION_LABEL } from './UpdateGate';
+import { APP_NAME_LABEL } from './UpdateGate';
 import { StatusBanner } from './StatusBanner';
 import { FadeIn, Hero, IconBadge, IconName, Panel, Row, Screen, Sheet, ToneChip, UserAvatar, TopLayer } from './ui';
 
@@ -150,7 +150,7 @@ export function ProfileView({ extra }: { extra?: string }) {
         <Button mode="contained-tonal" icon="logout" onPress={() => setConfirmOut(true)} buttonColor={t.colors.errorContainer} textColor={t.colors.onErrorContainer}
           contentStyle={{ paddingVertical: 6 }}>Log out</Button>
       </FadeIn>
-      <Text variant="labelSmall" style={{ textAlign: 'center', color: t.colors.outline, marginTop: space.lg }}>Prangan v{APP_VERSION_LABEL}</Text>
+      <Text variant="labelSmall" style={{ textAlign: 'center', color: t.colors.outline, marginTop: space.lg }}>{APP_NAME_LABEL}</Text>
 
       <Sheet visible={pwOpen} onDismiss={() => setPwOpen(false)} title="Change password">
         <TextInput mode="outlined" label="Current password" value={oldPw} onChangeText={setOld} secureTextEntry={!show} style={{ marginBottom: space.md }} />
