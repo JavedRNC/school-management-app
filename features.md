@@ -364,12 +364,6 @@ Schools pay for **the modules they use**. Admin controls everything manually, in
 - Parents/students view, swipe and download; who can upload is a permission (F24).
 - **Storage quota** by plan (F26); old albums can be archived.
 
-### F32 · Save files straight to the phone 📝 `S` — requested 12 Nov
-> Javed: "Get the template" opens the share window instead of downloading the file.
-- Android: "Get the template", "Download backup", login lists (CSV) and receipts save directly into a folder (first time: pick a folder, e.g. Downloads, using Android's folder picker; remembered after that). Toast: "Saved to Downloads · Open".
-- Keep a small "Share" button next to it for sending on WhatsApp / email.
-- iPhone: share sheet stays (iOS has no Downloads folder), but "Save to Files" shown first.
-
 ---
 
 ### F28 · Period timings (bell schedule) ✅ `S–M` — requested by Javed 11 Nov
@@ -396,6 +390,12 @@ Today the timetable has a fixed 5 numbered periods and no times. Proposal:
 - Principal exports the whole school to one .xlsx in the same format (plus history: attendance, marks, leaves, fees, receipts, notices, polls…), re-importable for restore.
 - Restore into an empty/damaged school; audit-logged; personal data warning (DPDP).
 - Platform-level safety net already: Neon point-in-time restore.
+
+### F32 · Save files straight to the phone 📝 `S` — requested 12 Nov
+> Javed: "Get the template" opens the share window instead of downloading the file.
+- Android: "Get the template", "Download backup", login lists (CSV) and receipts save directly into a folder (first time: pick a folder, e.g. Downloads, using Android's folder picker; remembered after that). Toast: "Saved to Downloads · Open".
+- Keep a small "Share" button next to it for sending on WhatsApp / email.
+- iPhone: share sheet stays (iOS has no Downloads folder), but "Save to Files" shown first.
 
 ## 🖥️ Infrastructure & effort plan
 
