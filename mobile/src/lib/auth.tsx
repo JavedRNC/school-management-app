@@ -1,3 +1,4 @@
+import { registerPush, unregisterPush } from './push';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { router } from 'expo-router';
 import { createContext, ReactNode, useCallback, useContext, useEffect, useState } from 'react';
@@ -48,6 +49,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const logout = useCallback(async () => {
+    await unregisterPush();          // while the session is still valid
     await setToken(null);
     await AsyncStorage.removeItem(KEY_USER);
     setUserState(null);
@@ -76,7 +78,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           await logout(); // stored by the old single-school app version
         } else {
           setUserState(u);
-          api<User>('/auth/me').then(setUser).catch(() => {});
+          api<User>('/auth/me').then((me) => { setUser(me); if (!me.must_change_password) void registerPush(); }).catch(() => {});
           if (u.school_id) api<SchoolInfo>('/school/me').then(setSchool).catch(() => {});
         }
       }
@@ -91,6 +93,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     await setToken(res.token);
     await AsyncStorage.setItem(KEY_SCHOOL_CODE, schoolCode.trim().toUpperCase());
     setUser(res.user);
+    if (!res.user.must_change_password) void registerPush();
     if (res.user.school_id && !res.user.must_change_password) {
       api<SchoolInfo>('/school/me').then(setSchool).catch(() => {});
     } else {

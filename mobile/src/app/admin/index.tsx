@@ -9,6 +9,7 @@ import {
 import { api } from '@/lib/api';
 import { useAuth } from '@/lib/auth';
 import { greeting, space, useAppTheme } from '@/lib/theme';
+import type { RequestSummary } from '@/lib/onboarding';
 import type { AdminOverview, SchoolStatus } from '@/lib/types';
 import { useLoad } from '@/lib/useLoad';
 
@@ -16,6 +17,7 @@ export default function AdminOverviewScreen() {
   const t = useAppTheme();
   const { user } = useAuth();
   const { data, error, loading, reload, refresh, refreshing } = useLoad(() => api<AdminOverview>('/admin/overview'));
+  const reqs = useLoad(() => api<RequestSummary>('/admin/onboarding/summary'));
 
   return (
     <Screen onRefresh={refresh} refreshing={refreshing}
@@ -55,6 +57,9 @@ export default function AdminOverviewScreen() {
             </View>
           </FadeIn>
 
+          <Panel title="Onboarding requests" icon="inbox-arrow-down-outline" tone={reqs.data?.pending ? 'warning' : undefined}
+            subtitle={reqs.data ? (reqs.data.pending ? `${reqs.data.pending} waiting for you · ${reqs.data.total} in all` : `Nothing waiting · ${reqs.data.total} in all`) : 'Schools asking to join Prangan'}
+            onPress={() => router.push('/admin-requests' as never)} right={<Icon name="chevron-right" size={22} color={t.colors.outline} />} />
           <Panel title="Platform banners" subtitle="Announcements shown in every school's app" icon="bullhorn-variant-outline"
             onPress={() => router.push('/admin-banners' as never)} right={<Icon name="chevron-right" size={22} color={t.colors.outline} />} />
           <SectionTitle title="Schools by status" />

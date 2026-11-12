@@ -168,6 +168,19 @@ export default function Login() {
             </Text>
           </FadeIn>
 
+          <FadeIn index={3}>
+            <TouchableRipple onPress={() => { haptic.tap(); router.push('/register-school' as never); }}
+              style={{ marginTop: space.xl, borderRadius: radius.xl, backgroundColor: t.colors.elevation.level1, padding: space.lg, ...cardEdge(t) }}>
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: space.md }}>
+                <Icon name="domain-plus" size={26} color={t.colors.primary} />
+                <View style={{ flex: 1 }}>
+                  <Text variant="titleSmall" style={{ fontWeight: '700', color: t.colors.onSurface }}>Register your school with Prangan</Text>
+                  <Text variant="bodySmall" style={{ color: t.colors.onSurfaceVariant }}>New here? Send a request and we'll call you.</Text>
+                </View>
+                <Icon name="chevron-right" size={22} color={t.colors.outline} />
+              </View>
+            </TouchableRipple>
+          </FadeIn>
           {showServer ? (
             <FadeIn style={{ marginTop: space.xl }}>
               <TextInput mode="outlined" label="Server address" value={server} onChangeText={setServer} autoCapitalize="none" autoCorrect={false}

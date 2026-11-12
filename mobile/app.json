@@ -20,8 +20,10 @@
       "package": "com.javedrnc.prangan",
       "permissions": [
         "ACCESS_COARSE_LOCATION",
-        "ACCESS_FINE_LOCATION"
-      ]
+        "ACCESS_FINE_LOCATION",
+        "POST_NOTIFICATIONS"
+      ],
+      "googleServicesFile": "./google-services.json"
     },
     "web": {
       "favicon": "./assets/favicon.png"
@@ -33,6 +35,14 @@
         "expo-location",
         {
           "locationWhenInUsePermission": "Prangan uses your location only when you check in or out, to confirm you're at school."
+        }
+      ],
+      [
+        "expo-notifications",
+        {
+          "icon": "./assets/android-icon-monochrome.png",
+          "color": "#16307A",
+          "defaultChannel": "default"
         }
       ]
     ],

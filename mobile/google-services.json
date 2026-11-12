@@ -1,0 +1,67 @@
+{
+  "project_info": {
+    "project_number": "880317546110",
+    "project_id": "prangan-b9556",
+    "storage_bucket": "prangan-b9556.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:880317546110:android:af219e3a8423d3f994a22f",
+        "android_client_info": {
+          "package_name": "com.javedrnc.prangan"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyBPrmnchziAEVMgrpSkeoYZS4Y74QDAk_g"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    },
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:880317546110:android:25fba0437f2fbeab94a22f",
+        "android_client_info": {
+          "package_name": "com.javedrnc.prangan.dev"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyBPrmnchziAEVMgrpSkeoYZS4Y74QDAk_g"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    },
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:880317546110:android:e698568d9c20c8c894a22f",
+        "android_client_info": {
+          "package_name": "com.javedrnc.prangan.test"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyBPrmnchziAEVMgrpSkeoYZS4Y74QDAk_g"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

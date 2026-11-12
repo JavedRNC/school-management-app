@@ -75,6 +75,7 @@ export function ProfileView({ extra }: { extra?: string }) {
   const isPrincipal = user.role === 'principal';
   const links: Link[] = [];
   if (user.role === 'admin') {
+    links.push({ title: 'Onboarding requests', desc: 'Schools asking to join Prangan', icon: 'inbox-arrow-down-outline', to: '/admin-requests' });
     links.push({ title: 'App updates', desc: 'Update popup: optional or forced', icon: 'cellphone-arrow-down', to: '/admin-updates' });
   }
   if (school) {
