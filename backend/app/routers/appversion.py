@@ -16,7 +16,7 @@ from ..models import AppVersion, User, utcnow
 
 router = APIRouter(tags=["app"])
 REPO = os.getenv("GITHUB_REPO", "JavedRNC/school-management-app")
-DEFAULT_URL = f"https://github.com/{REPO}/releases/download/latest-apk/SchoolHub.apk"
+DEFAULT_URL = f"https://github.com/{REPO}/releases/download/latest-apk/Prangan.apk"
 _cache: dict = {"at": 0.0, "build": None, "notes": ""}
 CACHE_SECONDS = 600
 
@@ -29,7 +29,7 @@ def github_latest() -> tuple[int | None, str]:
     _cache["at"] = now
     try:
         req = urllib.request.Request(f"https://api.github.com/repos/{REPO}/releases/tags/latest-apk",
-                                     headers={"Accept": "application/vnd.github+json", "User-Agent": "school-hub-api"})
+                                     headers={"Accept": "application/vnd.github+json", "User-Agent": "prangan-api"})
         with urllib.request.urlopen(req, timeout=5) as r:
             data = json.loads(r.read(200_000))
         m = re.search(r"Build (\d+)", data.get("body") or "")

@@ -1,7 +1,7 @@
 # context.md — session recovery (keep terse; update every 2–3 tasks or after major work)
 
 ## Project
-School Hub: school mgmt app. Roles: Principal, Teacher, Student. Owner: Javed (GitHub JavedRNC, works from Android phone, no PC).
+Prangan (प्रांगण, was "Prangan"): school mgmt app. Brand: ink-blue + marigold arch/book/diya logo (website/assets/logo.svg; app icons mobile/assets). Android package stays com.javedrnc.schoolhub (updates install over old). Release ships Prangan.apk + Prangan.apk (old links). Roles: Principal, Teacher, Student. Owner: Javed (GitHub JavedRNC, works from Android phone, no PC).
 Repo: JavedRNC/school-management-app — PUBLIC, branch main, Claude has push access.
 
 ## Live
@@ -77,7 +77,7 @@ Multi-school with school code login (no email/OTP; principal issues temp passwor
 - Backend: SchoolShowcase (opt-in, city) schema v8; GET /public/schools (name, city, board, demo flag, crest; stats exclude DEMO schools; cached 5 min); principal GET/PUT /school/showcase; admin PUT /admin/schools/{id}/showcase. App: components/WebsiteListing.tsx in School settings.
 
 ## Android APK (F17)
-- .github/workflows/android-apk.yml: push to main (mobile/**) or manual → APK at github.com/JavedRNC/school-management-app/releases/tag/latest-apk (SchoolHub.apk). versionCode = run number. apiUrl baked from app.json. Debug-key signed (fine for sideload; Play Store needs real keystore secrets).
+- .github/workflows/android-apk.yml: push to main (mobile/**) or manual → APK at github.com/JavedRNC/school-management-app/releases/tag/latest-apk (Prangan.apk). versionCode = run number. apiUrl baked from app.json. Debug-key signed (fine for sideload; Play Store needs real keystore secrets).
 
 ## Status / to-do
 - [ ] Javed: reset Neon password (was shared in chat) and update DATABASE_URL on Render.

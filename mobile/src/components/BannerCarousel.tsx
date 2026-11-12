@@ -116,7 +116,7 @@ export function BannerCarousel({ style }: { style?: ViewStyle }) {
               <Text variant="labelSmall" style={{ color: t.colors.onSurfaceVariant, marginTop: space.sm }}>Until {shortDate(detail.end_date)}</Text>
             ) : null}
             {detail?.platform ? (
-              <Text variant="labelSmall" style={{ color: t.colors.onSurfaceVariant, marginTop: 4 }}>From School Hub</Text>
+              <Text variant="labelSmall" style={{ color: t.colors.onSurfaceVariant, marginTop: 4 }}>From Prangan</Text>
             ) : null}
           </Dialog.Content>
           <Dialog.Actions>

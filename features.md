@@ -1,4 +1,4 @@
-# 🏫 School Hub — Feature Backlog
+# 🏫 Prangan — Feature Backlog
 
 > **How this file works**
 > Javed adds feature requests here over time. Claude records them, adds suggestions, and **implements only after Javed says "implement"** (for a feature, a group, or a phase).

@@ -55,7 +55,7 @@ export class LocationError extends Error {
 export async function readPosition(): Promise<{ lat: number; lng: number; accuracy: number | null; mocked: boolean }> {
   const perm = await Location.requestForegroundPermissionsAsync();
   if (perm.status !== 'granted') {
-    throw new LocationError('Location permission is off. Allow location for School Hub to check in.', !perm.canAskAgain);
+    throw new LocationError('Location permission is off. Allow location for Prangan to check in.', !perm.canAskAgain);
   }
   const enabled = await Location.hasServicesEnabledAsync().catch(() => true);
   if (!enabled) throw new LocationError('Turn on Location (GPS) on your phone and try again.');

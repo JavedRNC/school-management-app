@@ -1,7 +1,7 @@
 import { LinearGradient } from 'expo-linear-gradient';
 import { Redirect, router } from 'expo-router';
 import { useEffect, useRef, useState } from 'react';
-import { Animated, Easing, KeyboardAvoidingView, Platform, ScrollView, View } from 'react-native';
+import { Animated, Easing, Image, KeyboardAvoidingView, Platform, ScrollView, View } from 'react-native';
 import { Button, HelperText, Text, TouchableRipple } from 'react-native-paper';
 import { TextInput } from '@/components/Field';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -80,12 +80,12 @@ export default function Login() {
           <View style={{ position: 'absolute', width: 260, height: 260, borderRadius: 130, backgroundColor: 'rgba(255,255,255,0.06)', top: -80, left: -80 }} />
           <View style={{ position: 'absolute', width: 180, height: 180, borderRadius: 90, backgroundColor: 'rgba(245,166,35,0.18)', bottom: -40, right: -30 }} />
           <Animated.View style={{ transform: [{ translateY: float.interpolate({ inputRange: [0, 1], outputRange: [0, -8] }) }] }}>
-            <View style={{ width: 72, height: 72, borderRadius: 22, backgroundColor: t.custom.amber, alignItems: 'center', justifyContent: 'center',
-              ...glow(t.custom.amber, true) }}>
-              <Icon name="school" size={40} color="#1A1300" />
+            <View style={{ width: 84, height: 84, borderRadius: 24, overflow: 'hidden', ...glow(t.custom.amber, true) }}>
+              <Image source={require('../../assets/icon.png')} style={{ width: 84, height: 84 }} accessibilityLabel="Prangan logo" />
             </View>
           </Animated.View>
-          <Text variant="headlineLarge" style={{ color: '#fff', fontWeight: '700', marginTop: space.md }}>School Hub</Text>
+          <Text variant="headlineLarge" style={{ color: '#fff', fontWeight: '700', marginTop: space.md }}>Prangan</Text>
+          <Text variant="titleSmall" style={{ color: t.custom.amber, marginTop: -2 }}>प्रांगण</Text>
           <Text variant="bodyMedium" style={{ color: 'rgba(255,255,255,0.82)' }}>Everything your school needs, in one place</Text>
         </LinearGradient>
 

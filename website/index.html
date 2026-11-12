@@ -3,13 +3,14 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-  <title>School Hub · School management app for Indian schools</title>
+  <title>Prangan · School management app for Indian schools</title>
   <meta name="description" content="Attendance, marks, timetable with bell timings, fees with UPI receipts, notices, leaves and transport — one Android app for principals, teachers, parents and students. Available in English and Hindi on this site.">
   <meta name="theme-color" content="#16307A">
-  <meta property="og:title" content="School Hub — one app for the whole school">
+  <meta property="og:title" content="Prangan — one app for the whole school">
   <meta property="og:description" content="Attendance, marks, fees with UPI receipts, timetable, notices and more for Indian schools.">
   <meta property="og:image" content="assets/principal.webp">
   <link rel="icon" href="favicon.svg" type="image/svg+xml">
+  <link rel="apple-touch-icon" href="apple-touch-icon.png">
   <meta name="color-scheme" content="light dark">
   <link rel="preload" href="fonts/martel-latin-800-normal.woff2" as="font" type="font/woff2" crossorigin>
   <link rel="preload" href="fonts/mukta-latin-400-normal.woff2" as="font" type="font/woff2" crossorigin>
@@ -21,9 +22,9 @@
 
 <header class="nav" id="top">
   <div class="wrap nav-row">
-    <a class="brand" href="#top" aria-label="School Hub home">
+    <a class="brand" href="#top" aria-label="Prangan home">
       <img src="assets/logo.svg" alt="" width="36" height="36">
-      <span>School Hub</span>
+      <span>Prangan <small class="brand-hi" lang="hi">प्रांगण</small></span>
     </a>
     <nav class="nav-links" aria-label="Sections">
       <a href="#roles" data-i18n="nav.roles">For everyone</a>
@@ -45,7 +46,7 @@
     <div class="wrap hero-grid">
       <div class="hero-copy">
         <h1 data-i18n="hero.title">Your whole school day, in one app.</h1>
-        <p class="lead" data-i18n="hero.lead">Attendance before the first bell, marks after the test, fees with UPI receipts, notices that reach every parent — School Hub gives principals, teachers, parents and students the same clear picture.</p>
+        <p class="lead" data-i18n="hero.lead">Attendance before the first bell, marks after the test, fees with UPI receipts, notices that reach every parent — Prangan gives principals, teachers, parents and students the same clear picture.</p>
         <div class="hero-actions">
           <a class="btn btn-gold" href="#download">
             <svg aria-hidden="true" viewBox="0 0 24 24"><path d="M12 3v12m0 0-5-5m5 5 5-5M5 21h14"/></svg>
@@ -54,8 +55,9 @@
           <a class="btn btn-ghost" href="#demo" data-i18n="hero.demo">Try the demo school</a>
         </div>
         <p class="fine" data-i18n="hero.fine">Free to try on any Android phone. Your school's data stays private.</p>
+        <p class="meaning" data-i18n="hero.meaning"><b lang="hi">प्रांगण</b> (Prangan) is the school courtyard — the place where principals, teachers, parents and students all meet.</p>
       </div>
-      <figure class="phone" aria-label="School Hub on a phone">
+      <figure class="phone" aria-label="Prangan on a phone">
         <img src="assets/principal.webp" width="300" height="649" alt="Principal's home screen: today's attendance, fees collected and leave requests" data-i18n-attr="alt:img.principal">
       </figure>
     </div>
@@ -64,7 +66,7 @@
     <div class="wrap">
       <div class="day" aria-labelledby="day-title">
         <div class="day-head">
-          <h2 id="day-title" data-i18n="day.title">A school day with School Hub</h2>
+          <h2 id="day-title" data-i18n="day.title">A school day with Prangan</h2>
           <p class="day-now" aria-live="polite"><span class="dot" aria-hidden="true"></span><span id="day-now-text">—</span></p>
         </div>
         <ol class="day-track" id="day-track">
@@ -176,8 +178,8 @@
   <section class="block block-ink" id="schools">
     <div class="wrap">
       <div class="schools-head">
-        <h2 class="h2" data-i18n="sc.title">Schools on School Hub</h2>
-        <p class="sub" data-i18n="sc.sub">Schools listed here chose to show their name. Crests are drawn by School Hub from each school's initials — they are not the schools' own logos.</p>
+        <h2 class="h2" data-i18n="sc.title">Schools on Prangan</h2>
+        <p class="sub" data-i18n="sc.sub">Schools listed here chose to show their name. Crests are drawn by Prangan from each school's initials — they are not the schools' own logos.</p>
       </div>
       <div class="stats" id="stats" hidden>
         <p><b id="st-schools">0</b><span data-i18n="sc.st1">schools</span></p>
@@ -189,7 +191,7 @@
         <li class="crest-skel"></li><li class="crest-skel"></li><li class="crest-skel"></li>
       </ul>
       <p class="schools-note" id="schools-note" data-i18n="sc.loading">Loading the list…</p>
-      <p class="schools-join" data-i18n="sc.join">Is your school on School Hub? The principal can list it from Me → School settings → Show on website.</p>
+      <p class="schools-join" data-i18n="sc.join">Is your school on Prangan? The principal can list it from Me → School settings → Show on website.</p>
     </div>
   </section>
 
@@ -198,9 +200,9 @@
     <div class="wrap dl-grid">
       <div class="dl-card">
         <img class="dl-logo" src="assets/logo.svg" alt="" width="72" height="72">
-        <h2 class="h2" data-i18n="d.title">Download School Hub for Android</h2>
+        <h2 class="h2" data-i18n="d.title">Download Prangan for Android</h2>
         <p class="dl-meta"><span id="dl-build" data-i18n="d.latest">Latest version</span><span id="dl-size"></span></p>
-        <a class="btn btn-gold btn-big" id="dl-btn" href="https://github.com/JavedRNC/school-management-app/releases/download/latest-apk/SchoolHub.apk" download>
+        <a class="btn btn-gold btn-big" id="dl-btn" href="https://github.com/JavedRNC/school-management-app/releases/download/latest-apk/Prangan.apk" download>
           <svg aria-hidden="true" viewBox="0 0 24 24"><path d="M12 3v12m0 0-5-5m5 5 5-5M5 21h14"/></svg>
           <span data-i18n="d.btn">Download the app (APK)</span>
         </a>
@@ -213,8 +215,8 @@
       <div class="install">
         <h3 data-i18n="d.how">How to install</h3>
         <ol class="install-steps">
-          <li data-i18n="d.i1">Tap <b>Download the app</b>. Chrome may say the file can be harmful — tap <b>Download anyway</b>. It's the School Hub app from our official release page.</li>
-          <li data-i18n="d.i2">Open the downloaded <b>SchoolHub.apk</b>. If Android asks, allow <b>Install unknown apps</b> for Chrome (only once).</li>
+          <li data-i18n="d.i1">Tap <b>Download the app</b>. Chrome may say the file can be harmful — tap <b>Download anyway</b>. It's the Prangan app from our official release page.</li>
+          <li data-i18n="d.i2">Open the downloaded <b>Prangan.apk</b>. If Android asks, allow <b>Install unknown apps</b> for Chrome (only once).</li>
           <li data-i18n="d.i3">Tap <b>Install</b>, then <b>Open</b>.</li>
           <li data-i18n="d.i4">Enter your <b>school code</b>, <b>login ID</b> and the password your school gave you. Set your own password when asked.</li>
         </ol>
@@ -243,14 +245,14 @@
       <details><summary data-i18n="q.3">Is the app in Hindi?</summary><p data-i18n="q.3a">The app is in English today. This website is in Hindi and English, and Hindi in the app is planned.</p></details>
       <details><summary data-i18n="q.4">What does it cost?</summary><p data-i18n="q.4a">Schools pay per student per month for the sections they use, with a small minimum. Some schools are sponsored and use it free. Try the demo school first; the plan is set up when your school is added.</p></details>
       <details><summary data-i18n="q.5">Can we move our existing records?</summary><p data-i18n="q.5a">Yes. Download the Excel template from the app, fill in your classes, teachers and students, and upload it. The app checks every row before saving anything.</p></details>
-      <details><summary data-i18n="q.6">Is there an iPhone app?</summary><p data-i18n="q.6a">Not yet. School Hub is available for Android phones.</p></details>
+      <details><summary data-i18n="q.6">Is there an iPhone app?</summary><p data-i18n="q.6a">Not yet. Prangan is available for Android phones.</p></details>
     </div>
   </section>
 </main>
 
 <footer class="foot">
   <div class="wrap foot-row">
-    <p class="brand brand-foot"><img src="assets/logo.svg" alt="" width="28" height="28"><span>School Hub</span></p>
+    <p class="brand brand-foot"><img src="assets/logo.svg" alt="" width="28" height="28"><span>Prangan</span></p>
     <p data-i18n="foot.made">Made in India for Indian schools.</p>
     <p class="foot-links"><a href="#download" data-i18n="nav.download">Get the app</a><a href="#faq" data-i18n="nav.faq">Questions</a><a href="https://github.com/JavedRNC/school-management-app/releases/tag/latest-apk" data-i18n="foot.rel">Release notes</a></p>
   </div>

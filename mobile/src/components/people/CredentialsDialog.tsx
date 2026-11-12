@@ -10,7 +10,7 @@ export type Credentials = { name: string; schoolCode: string; loginId: string; p
 export function CredentialsDialog({ creds, onDismiss }: { creds: Credentials | null; onDismiss: () => void }) {
   const t = useAppTheme();
   if (!creds) return null;
-  const message = `School Hub sign-in for ${creds.name}\nSchool code: ${creds.schoolCode}\nLogin ID: ${creds.loginId}\nTemporary password: ${creds.password}\nYou'll be asked to set your own password at first login.`;
+  const message = `Prangan sign-in for ${creds.name}\nSchool code: ${creds.schoolCode}\nLogin ID: ${creds.loginId}\nTemporary password: ${creds.password}\nYou'll be asked to set your own password at first login.`;
   const Line = ({ label, value }: { label: string; value: string }) => (
     <View style={{ flexDirection: 'row', justifyContent: 'space-between', paddingVertical: 6 }}>
       <Text variant="bodyMedium" style={{ color: t.colors.onSurfaceVariant }}>{label}</Text>

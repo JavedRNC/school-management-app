@@ -107,8 +107,8 @@ export function UpdateGate() {
         <Dialog.Content>
           <Text variant="bodyMedium" style={{ textAlign: 'center', color: t.colors.onSurfaceVariant }}>
             {forced
-              ? 'This version of School Hub is no longer supported. Please install the latest version to continue.'
-              : 'A newer version of School Hub is ready with improvements and fixes.'}
+              ? 'This version of Prangan is no longer supported. Please install the latest version to continue.'
+              : 'A newer version of Prangan is ready with improvements and fixes.'}
           </Text>
           {info.message ? (
             <View style={{ marginTop: space.md, backgroundColor: t.colors.surfaceVariant, borderRadius: radius.lg, padding: space.md }}>

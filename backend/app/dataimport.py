@@ -1487,7 +1487,7 @@ def run_import(db: Session, school: M.School, me: M.User, data: bytes, mode: str
         raise HTTPException(400, "Choose Merge or Replace")
     book = Book(data)
     if not book.sheets:
-        raise HTTPException(400, "No School Hub sheets found in this file. Download the template from the app and fill it in.")
+        raise HTTPException(400, "No Prangan sheets found in this file. Download the template from the app and fill it in.")
     imp = Importer(db, school, me, mode, book, confirm)
     report = imp.run()
     return report, imp.credentials

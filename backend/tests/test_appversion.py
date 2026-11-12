@@ -44,7 +44,7 @@ def admin(c):
 
 def test_public_version_and_admin_settings(c):
     v = c.get("/app/version").json()                       # no login needed
-    assert v["latest_build"] == 7 and v["min_build"] == 0 and v["url"].endswith("SchoolHub.apk") and v["source"] == "github"
+    assert v["latest_build"] == 7 and v["min_build"] == 0 and v["url"].endswith("Prangan.apk") and v["source"] == "github"
     h = admin(c)
     assert c.put("/admin/app-version", json={"min_build": 9}, headers=h).status_code == 400     # above newest
     r = c.put("/admin/app-version", json={"min_build": 5, "message": "Fees screen fix"}, headers=h).json()

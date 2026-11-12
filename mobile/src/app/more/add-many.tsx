@@ -202,7 +202,7 @@ export default function AddMany() {
 
   // ------------------------------------------------------------------ credentials
   const credText = (list: NewLogin[]) =>
-    ['School Hub logins (temporary passwords — change at first sign-in)', '',
+    ['Prangan logins (temporary passwords — change at first sign-in)', '',
       ...list.map((c) => `${c.name} (${ROLE_LABEL[c.role as PersonRole] ?? c.role}${c.class ? ` ${c.class}` : ''}) — ID: ${c.login_id} · Password: ${c.password}`)].join('\n');
 
   async function shareText() {

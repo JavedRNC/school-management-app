@@ -54,7 +54,7 @@ function List() {
     const amt = r.overdue > 0 ? r.overdue : r.outstanding;
     const msg = `Dear ${r.parent_name || 'Parent'}, this is a gentle reminder from ${school?.name ?? 'the school'} that fees of ${inr(amt)} `
       + `for ${r.name}${r.class_name ? ` (${r.class_name})` : ''} ${r.overdue > 0 ? `are overdue${r.oldest_due ? ` since ${fmtDate(r.oldest_due)}` : ''}` : 'are due'}. `
-      + 'You can pay at the school office or by UPI in the School Hub app. Please ignore if already paid. Thank you.';
+      + 'You can pay at the school office or by UPI in the Prangan app. Please ignore if already paid. Thank you.';
     Linking.openURL(`https://wa.me/91${digits}?text=${encodeURIComponent(msg)}`).catch(() => toast("Couldn't open WhatsApp", { error: true }));
   }
 

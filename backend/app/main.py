@@ -39,7 +39,7 @@ async def lifespan(_app: FastAPI):
     yield
 
 
-app = FastAPI(title="School Hub API", version="0.6.0", lifespan=lifespan)
+app = FastAPI(title="Prangan API", version="0.6.0", lifespan=lifespan)
 app.add_middleware(CORSMiddleware, allow_origins=["*"], allow_methods=["*"], allow_headers=["*"])
 
 for r in (auth.router, school.router, academics.router, dashboard.router, settings.router, admin.router,
@@ -49,4 +49,4 @@ for r in (auth.router, school.router, academics.router, dashboard.router, settin
 
 @app.get("/")
 def health():
-    return {"ok": True, "app": "school-hub-api", "version": app.version}
+    return {"ok": True, "app": "prangan-api", "version": app.version}

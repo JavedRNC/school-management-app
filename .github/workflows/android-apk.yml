@@ -72,23 +72,26 @@ jobs:
       - name: Name the APK
         run: |
           mkdir -p ../dist
-          cp android/app/build/outputs/apk/release/app-release.apk ../dist/SchoolHub.apk
+          cp android/app/build/outputs/apk/release/app-release.apk ../dist/Prangan.apk
+          cp ../dist/Prangan.apk ../dist/SchoolHub.apk   # old download links keep working
           ls -lh ../dist
 
       - uses: actions/upload-artifact@v4
         with:
-          name: SchoolHub-apk-${{ github.run_number }}
-          path: dist/SchoolHub.apk
+          name: Prangan-apk-${{ github.run_number }}
+          path: dist/Prangan.apk
           retention-days: 14
 
       - name: Publish to the "latest-apk" release
         uses: softprops/action-gh-release@v2
         with:
           tag_name: latest-apk
-          name: "School Hub — latest Android app"
+          name: "Prangan — latest Android app"
           make_latest: true
           body: |
             Build ${{ github.run_number }} from commit ${{ github.sha }}.
-            Download **SchoolHub.apk** below on your Android phone and open it to install (allow "Install unknown apps" for your browser once).
+            Download **Prangan.apk** below on your Android phone and open it to install (allow "Install unknown apps" for your browser once).
             The app talks to https://school-api-7y80.onrender.com
-          files: dist/SchoolHub.apk
+          files: |
+            dist/Prangan.apk
+            dist/SchoolHub.apk

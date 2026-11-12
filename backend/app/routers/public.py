@@ -1,4 +1,4 @@
-"""Public data for the School Hub website: schools that opted in to be listed + platform-wide totals.
+"""Public data for the Prangan website: schools that opted in to be listed + platform-wide totals.
 Nothing personal: names of schools, city, board, and aggregate counts only."""
 import hashlib
 import time
@@ -84,7 +84,7 @@ def set_showcase(body: ShowcaseIn, me: User = Depends(require(Role.principal)), 
     s = db.get(School, me.school_id)
     row = _get(db, s.id)
     row.show, row.city, row.updated_at = body.show, body.city.strip(), utcnow()
-    audit(db, me, "website.listing", f"{'shown' if body.show else 'hidden'} on the School Hub website")
+    audit(db, me, "website.listing", f"{'shown' if body.show else 'hidden'} on the Prangan website")
     db.commit()
     _cache["data"] = None
     return _out(row, s)

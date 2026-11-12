@@ -248,3 +248,7 @@ body.switching [data-i18n] { opacity: .15; }
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { animation: none !important; transition: none !important; scroll-behavior: auto !important; }
 }
+
+.brand-hi { font: 600 .8rem/1 var(--font-body); opacity: .75; margin-left: 4px; }
+.meaning { margin-top: 18px; max-width: 46ch; font-size: .95rem; opacity: .85; padding-left: 12px; border-left: 3px solid var(--gold, #F5A400); }
+.meaning b { font-family: var(--font-head); }

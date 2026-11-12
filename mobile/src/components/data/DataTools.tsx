@@ -100,7 +100,7 @@ export function DataTools({ base, schoolCode, schoolName }: { base: string; scho
     haptic.tap();
     setBusy(kind);
     try {
-      const name = `SchoolHub-${kind === 'backup' ? 'Backup' : 'Template'}-${schoolCode}-${stamp()}.xlsx`;
+      const name = `Prangan-${kind === 'backup' ? 'Backup' : 'Template'}-${schoolCode}-${stamp()}.xlsx`;
       await downloadAndShare(`${getBaseUrl()}${base}/${kind}`, name, kind === 'backup' ? 'Save the backup' : 'Save the template');
       haptic.success();
       toast(kind === 'backup' ? 'Backup ready — keep it somewhere safe' : 'Template ready — fill it in and import it here');
@@ -121,7 +121,7 @@ export function DataTools({ base, schoolCode, schoolName }: { base: string; scho
     haptic.tap();
     setBusy('undo');
     try {
-      await downloadAndShare(`${getBaseUrl()}${base}/snapshot/file`, `SchoolHub-Before-Replace-${schoolCode}-${stamp()}.xlsx`, 'Save the undo backup');
+      await downloadAndShare(`${getBaseUrl()}${base}/snapshot/file`, `Prangan-Before-Replace-${schoolCode}-${stamp()}.xlsx`, 'Save the undo backup');
       haptic.success();
       toast('Undo backup ready');
     } catch (e) {
@@ -220,7 +220,7 @@ export function DataTools({ base, schoolCode, schoolName }: { base: string; scho
         return;
       }
       const csv = csvOf(list, schoolCode);
-      const name = `SchoolHub-new-logins-${schoolCode}-${stamp()}.csv`;
+      const name = `Prangan-new-logins-${schoolCode}-${stamp()}.csv`;
       if (Platform.OS === 'web') {
         const a = document.createElement('a');
         a.href = URL.createObjectURL(new Blob([csv], { type: 'text/csv' }));

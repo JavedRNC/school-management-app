@@ -524,7 +524,7 @@ class AppVersion(Base):
 
 # ================================================================ Website — schools that agree to be listed
 class SchoolShowcase(Base):
-    """Opt-in: the school appears on the public School Hub website (name, city, board and a generated crest — no real logos)."""
+    """Opt-in: the school appears on the public Prangan website (name, city, board and a generated crest — no real logos)."""
     __tablename__ = "school_showcase"
     school_id: Mapped[int] = mapped_column(ForeignKey("schools.id"), primary_key=True)
     show: Mapped[bool] = mapped_column(Boolean, default=False)

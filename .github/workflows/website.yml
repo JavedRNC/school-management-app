@@ -1,4 +1,4 @@
-# Publishes website/ (the bilingual School Hub site) to GitHub Pages on every push to main that changes it.
+# Publishes website/ (the bilingual Prangan site) to GitHub Pages on every push to main that changes it.
 # One-time setup by the repo owner: Settings → Pages → Build and deployment → Source: "GitHub Actions".
 name: Website
 

@@ -27,7 +27,7 @@ function Crest({ c, size = 56 }: { c: Showcase['crest']; size?: number }) {
   );
 }
 
-/** Principal: list (or hide) the school on the public School Hub website. */
+/** Principal: list (or hide) the school on the public Prangan website. */
 export function WebsiteListing() {
   const t = useAppTheme();
   const toast = useToast();
@@ -48,7 +48,7 @@ export function WebsiteListing() {
     try {
       const r = await api<Showcase>('/school/showcase', { method: 'PUT', body: { show, city: city.trim() } });
       setD(r);
-      toast(show ? 'Your school is listed on the School Hub website' : 'Your school is hidden from the website');
+      toast(show ? 'Your school is listed on the Prangan website' : 'Your school is hidden from the website');
     } catch (e) {
       toast((e as Error).message, { error: true });
     } finally {
@@ -58,7 +58,7 @@ export function WebsiteListing() {
 
   return (
     <FadeIn index={3}>
-      <Panel title="Show on website" icon="web" subtitle="List your school on the School Hub website">
+      <Panel title="Show on website" icon="web" subtitle="List your school on the Prangan website">
         <View style={{ flexDirection: 'row', alignItems: 'center', gap: space.md, marginBottom: space.md }}>
           <Crest c={d.crest} />
           <View style={{ flex: 1 }}>

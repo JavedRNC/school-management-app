@@ -34,7 +34,7 @@
         el.setAttribute(attr, t(key));
       });
       $$(".lang button").forEach((b) => b.setAttribute("aria-pressed", String(b.dataset.lang === lang)));
-      document.title = lang === "hi" ? "School Hub · भारतीय स्कूलों के लिए स्कूल मैनेजमेंट ऐप" : "School Hub · School management app for Indian schools";
+      document.title = lang === "hi" ? "प्रांगण · भारतीय स्कूलों के लिए स्कूल मैनेजमेंट ऐप" : "Prangan · School management app for Indian schools";
       renderNow();
       renderSchools();
       renderBuild();
@@ -106,7 +106,7 @@
     });
   });
 
-  // ------------------------------------------------------------ schools (from the School Hub server)
+  // ------------------------------------------------------------ schools (from the Prangan server)
   let schoolsData = null, schoolsState = "loading";
   const esc = (s) => String(s || "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c]);
   const MOTIF = {

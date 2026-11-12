@@ -1,4 +1,4 @@
-# School Hub — School Management Platform
+# Prangan — School Management Platform
 
 One Android app (React Native / Expo) + Python API (FastAPI) for **many schools**. Each school signs in with its own **school code**; the platform owner manages everything as **Super Admin**.
 

@@ -131,7 +131,7 @@ export function ProfileView({ extra }: { extra?: string }) {
         <Button mode="contained-tonal" icon="logout" onPress={() => setConfirmOut(true)} buttonColor={t.colors.errorContainer} textColor={t.colors.onErrorContainer}
           contentStyle={{ paddingVertical: 6 }}>Log out</Button>
       </FadeIn>
-      <Text variant="labelSmall" style={{ textAlign: 'center', color: t.colors.outline, marginTop: space.lg }}>School Hub v0.5</Text>
+      <Text variant="labelSmall" style={{ textAlign: 'center', color: t.colors.outline, marginTop: space.lg }}>Prangan v0.5</Text>
 
       <Sheet visible={pwOpen} onDismiss={() => setPwOpen(false)} title="Change password">
         <TextInput mode="outlined" label="Current password" value={oldPw} onChangeText={setOld} secureTextEntry={!show} style={{ marginBottom: space.md }} />

@@ -1,7 +1,13 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" role="img" aria-label="School Hub">
-  <rect width="64" height="64" rx="16" fill="#16307A"/>
-  <path d="M14 26 32 15l18 11" fill="none" stroke="#F2A900" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"/>
-  <path d="M17 30v15c5-2 10-2 15 1 5-3 10-3 15-1V30c-5-2-10-2-15 1-5-3-10-3-15-1Z" fill="#fff"/>
-  <path d="M32 31v15" stroke="#16307A" stroke-width="2"/>
-  <circle cx="32" cy="21.5" r="2.6" fill="#F2A900"/>
-</svg>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><defs>
+  <radialGradient id="bg" cx="50%" cy="28%" r="78%"><stop offset="0" stop-color="#2447A8"/><stop offset="1" stop-color="#132A6E"/></radialGradient>
+  <linearGradient id="gold" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#FFC531"/><stop offset="1" stop-color="#F09A00"/></linearGradient>
+</defs><rect width="512" height="512" rx="116" fill="url(#bg)"/><g transform="translate(0,-12)">
+  <path d="M136 398V246c0-36 20-62 48-78 22-12 40-26 52-48l20-36 20 36c12 22 30 36 52 48 28 16 48 42 48 78v152" fill="none" stroke="url(#gold)" stroke-width="30" stroke-linecap="round" stroke-linejoin="round"/>
+  <circle cx="256" cy="62" r="14" fill="url(#gold)"/>
+  <path d="M176 352c28-12 56-12 80 6 24-18 52-18 80-6v-86c-28-12-56-12-80 6-24-18-52-18-80-6Z" fill="#FFFFFF"/>
+  <path d="M256 272v86" stroke="#132A6E" stroke-width="7" stroke-linecap="round"/>
+  <path d="M256 160c18 22 26 38 26 52a26 26 0 0 1-52 0c0-14 8-30 26-52Z" fill="url(#gold)"/>
+  <path d="M256 190c8 10 11 17 11 23a11 11 0 0 1-22 0c0-6 3-13 11-23Z" fill="#FFF3C4"/>
+  <path d="M112 418h288" stroke="#F5A400" stroke-width="22" stroke-linecap="round"/>
+  <circle cx="204" cy="452" r="7" fill="#F5A400" opacity=".7"/><circle cx="256" cy="452" r="7" fill="#F5A400"/><circle cx="308" cy="452" r="7" fill="#F5A400" opacity=".7"/>
+</g></svg>

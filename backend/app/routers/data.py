@@ -34,7 +34,7 @@ EXPORT_GAP = 20                          # seconds
 
 
 def _file(content: bytes, school: School, kind: str) -> Response:
-    name = f"SchoolHub-{'Backup' if kind == 'backup' else 'Template'}-{school.code}-{date.today().isoformat()}.xlsx"
+    name = f"Prangan-{'Backup' if kind == 'backup' else 'Template'}-{school.code}-{date.today().isoformat()}.xlsx"
     return Response(content, media_type=XLSX, headers={"Content-Disposition": f'attachment; filename="{name}"',
                                                         "Cache-Control": "no-store"})
 
@@ -131,7 +131,7 @@ def _snapshot_file(db: Session, school: School) -> Response:
     snap = _latest_snapshot(db, school.id)
     if not snap:  # noqa: SIM108
         raise HTTPException(404, "No undo backup yet — one is saved automatically before every Replace import")
-    name = f"SchoolHub-Before-Replace-{school.code}-{snap.created_at:%Y-%m-%d-%H%M}.xlsx"
+    name = f"Prangan-Before-Replace-{school.code}-{snap.created_at:%Y-%m-%d-%H%M}.xlsx"
     return Response(snap.content, media_type=XLSX, headers={"Content-Disposition": f'attachment; filename="{name}"',
                                                              "Cache-Control": "no-store"})
 

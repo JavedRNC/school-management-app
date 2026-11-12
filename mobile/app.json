@@ -1,7 +1,7 @@
 {
   "expo": {
-    "name": "School Hub",
-    "slug": "school-hub",
+    "name": "Prangan",
+    "slug": "prangan",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
@@ -11,7 +11,7 @@
     },
     "android": {
       "adaptiveIcon": {
-        "backgroundColor": "#E6F4FE",
+        "backgroundColor": "#16307A",
         "foregroundImage": "./assets/android-icon-foreground.png",
         "backgroundImage": "./assets/android-icon-background.png",
         "monochromeImage": "./assets/android-icon-monochrome.png"
@@ -26,13 +26,13 @@
     "web": {
       "favicon": "./assets/favicon.png"
     },
-    "scheme": "schoolhub",
+    "scheme": "prangan",
     "plugins": [
       "expo-router",
       [
         "expo-location",
         {
-          "locationWhenInUsePermission": "School Hub uses your location only when you check in or out, to confirm you're at school."
+          "locationWhenInUsePermission": "Prangan uses your location only when you check in or out, to confirm you're at school."
         }
       ]
     ],

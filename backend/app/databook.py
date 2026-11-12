@@ -293,7 +293,7 @@ def _col(i: int) -> str:
 
 
 def readme_rows(kind: str, school_name: str) -> list[list]:
-    rows = [[f"School Hub · {'Backup' if kind == 'backup' else 'Import template'} · {school_name}"], [""],
+    rows = [[f"Prangan · {'Backup' if kind == 'backup' else 'Import template'} · {school_name}"], [""],
             ["How to use"],
             ["1. Fill one sheet per topic. Leave a sheet empty to skip it — nothing is deleted by an import."],
             ["2. In the app: Me → Import & backup → Import file. You'll see a check of every row before anything is saved."],
@@ -330,7 +330,7 @@ def export_workbook(db, school, kind: str = "backup", with_vault: bool = True) -
     sname = {i: s.name for i, s in subjects.items()}
     H = lambda n: [h for _, h in SPEC[n]]  # noqa: E731
 
-    w.sheet("Read me", ["School Hub"], readme_rows(kind, school.name), widths={0: 34, 1: 110})
+    w.sheet("Read me", ["Prangan"], readme_rows(kind, school.name), widths={0: 34, 1: 110})
     prefs = get_prefs(db, sid)
     q = prefs.leave_quotas or {}
     sv = {"name": school.name, "address": school.address, "phone": school.phone, "board": school.board,
