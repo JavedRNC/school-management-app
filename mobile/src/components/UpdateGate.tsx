@@ -1,6 +1,6 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import Constants from 'expo-constants';
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { AppState, Linking, Platform, View } from 'react-native';
 import { Button, Dialog, Text } from 'react-native-paper';
 
@@ -16,7 +16,8 @@ import { Icon, TopLayer } from './ui';
  *  below the minimum → a forced, undismissable "Update now"; older than the newest → an optional prompt with "Later". */
 export const APP_BUILD: number | null = Number((Constants.expoConfig?.extra as { buildNumber?: number } | undefined)?.buildNumber) || null;
 const KEY_SKIPPED = 'update_skipped_build';
-const CHECK_EVERY_MS = 30 * 60 * 1000;
+const CHECK_EVERY_MS = 5 * 60 * 1000;
+const RETRY_MS = [15_000, 45_000, 120_000];     // server asleep / no network: try again soon
 
 type Version = { latest_build: number; min_build: number; message: string; url: string };
 
@@ -41,8 +42,10 @@ export function UpdateGate() {
   const [info, setInfo] = useState<Version | null>(null);
   const [mode, setMode] = useState<'forced' | 'optional' | null>(null);
 
-  const check = useCallback(async () => {
+  const retry = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const check = useCallback(async (attempt = 0) => {
     if (!APP_BUILD || Platform.OS === 'web') return;          // Expo Go / web preview: nothing to update
+    if (retry.current) { clearTimeout(retry.current); retry.current = null; }
     try {
       const v = await api<Version>('/app/version');
       setInfo(v);
@@ -54,7 +57,8 @@ export function UpdateGate() {
       }
       setMode(null);
     } catch {
-      /* offline or server asleep — try again later */
+      // offline or server asleep — try again shortly, then leave it to the next foreground check
+      if (attempt < RETRY_MS.length) retry.current = setTimeout(() => { void check(attempt + 1); }, RETRY_MS[attempt]);
     }
   }, []);
 
@@ -67,7 +71,7 @@ export function UpdateGate() {
         check();
       }
     });
-    return () => sub.remove();
+    return () => { sub.remove(); if (retry.current) clearTimeout(retry.current); };
   }, [check]);
 
   useEffect(() => {

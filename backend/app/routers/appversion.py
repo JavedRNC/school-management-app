@@ -18,11 +18,11 @@ router = APIRouter(tags=["app"])
 REPO = os.getenv("GITHUB_REPO", "JavedRNC/school-management-app")
 DEFAULT_URL = f"https://github.com/{REPO}/releases/download/latest-apk/Prangan.apk"
 _cache: dict = {"at": 0.0, "build": None, "notes": ""}
-CACHE_SECONDS = 600
+CACHE_SECONDS = 120   # GitHub allows ~60 unauthenticated calls/hour; this uses 30 at most
 
 
 def github_latest() -> tuple[int | None, str]:
-    """Newest build number from the 'latest-apk' release body ("Build 12 from commit …"), cached 10 minutes."""
+    """Newest build number from the 'latest-apk' release body ("Build 12 from commit …"), cached 2 minutes."""
     now = time.monotonic()
     if now - _cache["at"] < CACHE_SECONDS:
         return _cache["build"], _cache["notes"]
