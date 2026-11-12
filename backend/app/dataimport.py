@@ -40,7 +40,7 @@ def _norm(h) -> str:
 # ================================================================ reading
 MAX_UNZIPPED = 160 * 1024 * 1024   # .xlsx is a zip: refuse "zip bombs" before parsing (work is bounded by the row budget)
 MAX_MEMBER = 130 * 1024 * 1024
-MAX_OTHER_PART = int(os.getenv("IMPORT_MAX_PART_MB", "4")) * 1024 * 1024   # openpyxl holds every non-worksheet part fully in memory (≈8–15× its size)
+MAX_OTHER_PART = int(os.getenv("IMPORT_MAX_PART_MB", "2")) * 1024 * 1024   # openpyxl holds every non-worksheet part fully in memory (≈8–15× its size)
 MAX_SHARED_STRINGS = MAX_OTHER_PART
 MAX_COLS = 40                      # our widest sheet has 15 columns
 MAX_EMPTY_RUN = 1000               # stop reading a sheet after this many blank rows in a row
@@ -62,6 +62,7 @@ def _check_zip(data: bytes) -> None:
         # Everything except real worksheets is loaded into memory whole by the parser — styles, shared strings, and any
         # part an attacker names differently — so each such part must be small. Worksheets are read row by row, but one
         # enormous row or cell would still be built in memory, so every worksheet is scanned first (cheap, streaming).
+        _check_relationships(z, {i.filename for i in infos})
         budget = [MAX_SCAN_CELLS, MAX_SCAN_ELEMENTS]
         for i in infos:
             if re.fullmatch(r"xl/worksheets/[^/]+\.xml", i.filename):
@@ -78,13 +79,77 @@ def _check_zip(data: bytes) -> None:
 TOO_BIG = "This workbook is too large to import. Split it into smaller files."
 MAX_ROW_CELLS = 200                 # cells in one row (our widest sheet has 15 columns)
 MAX_CELL_BYTES = 200_000            # one cell's XML (Excel allows 32,767 characters)
-# Parsed rows are kept in memory (about 120 bytes a cell), so the total is sized for the 512 MB server: 1.5 million cells
-# ≈ 270 MB. On a bigger server raise IMPORT_MAX_CELLS (and IMPORT_MAX_PART_MB).
-MAX_SCAN_CELLS = int(os.getenv("IMPORT_MAX_CELLS", "1500000"))
+# Parsed rows are kept in memory, so the total is sized for the 512 MB server: 600,000 cells measured at about 160 MB,
+# and a trial parse in a memory-limited child process (importprobe.py) comes first.
+# On a bigger server raise IMPORT_MAX_CELLS, IMPORT_MAX_PART_MB and IMPORT_PROBE_MB.
+MAX_SCAN_CELLS = int(os.getenv("IMPORT_MAX_CELLS", "600000"))
 MAX_SCAN_ELEMENTS = 14_000_000      # XML elements of any kind in the whole workbook
 SHEET_NS = "http://schemas.openxmlformats.org/spreadsheetml/2006/main"
 CELL_PARTS = {"row", "c", "v", "f", "is", "t", "r", "rPr", "sheetData", "worksheet"}
 MAX_OTHER_ELEMENTS = 100_000
+
+
+BAD_XLSX = "That file isn't a valid Excel (.xlsx) workbook"
+
+
+def _check_relationships(z, names: set[str]) -> None:
+    """The workbook decides which parts are read as sheets. Each of them must be a real part under xl/worksheets/ (those
+    are scanned before parsing); chart, dialog and macro sheets are not accepted at all."""
+    from xml.parsers import expat
+
+    rels = "xl/_rels/workbook.xml.rels"
+    if rels not in names or "xl/workbook.xml" not in names:
+        raise HTTPException(400, BAD_XLSX)
+    found: list[tuple[str, str, str]] = []
+    par = expat.ParserCreate()
+    par.StartElementHandler = lambda name, a: found.append((a.get("Type", ""), a.get("Target", ""), a.get("TargetMode", ""))) if name.endswith("Relationship") else None
+    par.EntityDeclHandler = par.StartDoctypeDeclHandler = lambda *_a: (_ for _ in ()).throw(expat.ExpatError("no"))
+    try:
+        par.Parse(z.read(rels)[: 2 * 1024 * 1024], True)
+    except expat.ExpatError:
+        raise HTTPException(400, BAD_XLSX) from None
+    if len(found) > 200:
+        raise HTTPException(413, TOO_BIG)
+    for kind, target, mode in found:
+        kind = kind.rsplit("/", 1)[-1].lower()
+        if kind in ("chartsheet", "dialogsheet", "macrosheet") or mode.lower() == "external":
+            raise HTTPException(400, "This workbook has a chart, macro or external sheet. Use the Prangan template.")
+        if kind == "worksheet":
+            path = target.lstrip("/") if target.startswith("/") else "xl/" + target
+            parts: list[str] = []
+            for seg in path.split("/"):
+                if seg == "..":
+                    parts = parts[:-1]
+                elif seg not in ("", "."):
+                    parts.append(seg)
+            path = "/".join(parts)
+            if path not in names or not re.fullmatch(r"xl/worksheets/[^/]+\.xml", path):
+                raise HTTPException(400, BAD_XLSX)
+
+
+def _probe(data: bytes) -> None:
+    """Trial-parse in a child process with a hard memory and time limit (see importprobe.py). Only a file that the
+    child could parse within the limit is parsed here."""
+    import json
+    import subprocess
+    import sys
+
+    from . import auth
+    env = {**os.environ, "IMPORT_PROBE_KEY": auth.secret(), "IMPORT_PROBE": "0", "PYTHONDONTWRITEBYTECODE": "1"}
+    try:
+        out = subprocess.run([sys.executable, "-m", "app.importprobe"], input=data, capture_output=True, timeout=200, env=env,
+                             cwd=os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+    except subprocess.TimeoutExpired:
+        raise HTTPException(413, TOO_BIG) from None
+    if out.returncode == 0:
+        return
+    if out.returncode == 4:
+        try:
+            why = json.loads(out.stdout or b"{}")
+            raise HTTPException(int(why.get("status", 400)), why.get("detail") or BAD_XLSX)
+        except ValueError:
+            pass
+    raise HTTPException(413, TOO_BIG)
 
 
 def _root_of(f) -> tuple[str, str] | None:
@@ -217,8 +282,12 @@ class Book:
         from .databook import Signer
 
         _check_zip(data)
+        if os.getenv("IMPORT_PROBE", "1") == "1":
+            _probe(data)                                   # proves the file fits in memory before this process opens it
         try:
             wb = load_workbook(io.BytesIO(data), read_only=True, data_only=True)
+        except MemoryError:
+            raise HTTPException(413, TOO_BIG) from None
         except Exception:  # noqa: BLE001 — any parse failure is a bad upload
             raise HTTPException(400, "That file isn't an Excel (.xlsx) workbook. Download the template from the app and fill it in.") from None
         self.sheets: dict[str, list[tuple[int, dict]]] = {}

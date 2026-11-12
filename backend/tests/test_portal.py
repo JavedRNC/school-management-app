@@ -337,7 +337,35 @@ def test_review_fixes(c):
             raise AssertionError(f"{hidden} accepted")
         except HTTPException as e:
             assert e.status_code == 400, hidden
-    _check_zip(c.get("/data/template", headers=principal_h(c)).content)          # our own files still pass
+    # …including one that hides behind a different root tag and is wired in through the workbook's relationships,
+    # and chart/macro sheets; our own files still pass, through the memory-limited trial parse as well
+    from app.dataimport import Book
+    real = c.get("/data/template", headers=principal_h(c)).content
+    src = zipfile.ZipFile(io.BytesIO(real))
+    for trick in ("moved", "chartsheet"):
+        buf = io.BytesIO()
+        with zipfile.ZipFile(buf, "w", zipfile.ZIP_DEFLATED) as z:
+            for i in src.infolist():
+                d = src.read(i)
+                if i.filename == "xl/_rels/workbook.xml.rels":
+                    d = d.replace(b"worksheets/sheet1.xml", b"ws/s2.xml") if trick == "moved" else d.replace(b"relationships/worksheet", b"relationships/chartsheet", 1)
+                z.writestr(i, d)
+            z.writestr("xl/ws/s2.xml", b"<wrap " + ns + b"><sheetData><row>" + b"<c/>" * 300_000 + b"</row></sheetData></wrap>")
+        try:
+            Book(buf.getvalue())
+            raise AssertionError(f"{trick} accepted")
+        except HTTPException as e:
+            assert e.status_code == 400, trick
+    assert len(Book(real).sheets) > 5
+    import os
+    os.environ["IMPORT_PROBE_MB"] = "20"                                             # the child's memory limit really bites
+    try:
+        Book(real)
+        raise AssertionError("trial parse ignored its memory limit")
+    except HTTPException as e:
+        assert e.status_code in (400, 413)                                           # refused; nothing reaches this process
+    finally:
+        del os.environ["IMPORT_PROBE_MB"]
     # M3 (round 3): without support access the admin can't create or change ANY other login of a school
     ah0 = admin_h(c)
     for role in ("vice_principal", "coordinator", "teacher", "parent"):
