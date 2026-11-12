@@ -1,7 +1,7 @@
 # context.md — session recovery (keep terse; update every 2–3 tasks or after major work)
 
 ## Project
-Prangan (प्रांगण, was "Prangan"): school mgmt app. Brand: ink-blue + marigold arch/book/diya logo (website/assets/logo.svg; app icons mobile/assets). Android package stays com.javedrnc.schoolhub (updates install over old). Release ships Prangan.apk + Prangan.apk (old links). Roles: Principal, Teacher, Student. Owner: Javed (GitHub JavedRNC, works from Android phone, no PC).
+Prangan (प्रांगण; first builds were called "School Hub"): school mgmt app. Brand: ink-blue + marigold arch/book/diya logo (website/assets/logo.svg; app icons mobile/assets). Android package is com.javedrnc.prangan since 12 Nov (Javed: use Prangan everywhere); earlier builds used com.javedrnc.schoolhub, so they do not update in place — install new, uninstall old.apk + Prangan.apk (old links). Roles: Principal, Teacher, Student. Owner: Javed (GitHub JavedRNC, works from Android phone, no PC).
 Repo: JavedRNC/school-management-app — PUBLIC, branch main, Claude has push access.
 
 ## Live
@@ -98,7 +98,8 @@ Multi-school with school code login (no email/OTP; principal issues temp passwor
 
 ## Environments (12 Nov)
 - PROD = branch main → Render school-api (school-api-7y80.onrender.com) + Neon prod DB + "Prangan" APK (release latest-apk) + website.
-- DEV = branch dev → Render school-api-dev (env APP_ENV=dev, APK_RELEASE_TAG=dev-apk, APK_FILE=PranganDev.apk) + separate Neon DB + "Prangan Dev" APK (package com.javedrnc.schoolhub.dev, release dev-apk). Dev API address lives in mobile/dev.json (empty = dev APK build skipped).
+- DEV = branch dev → Render prangan-api-dev (env APP_ENV=dev, APK_RELEASE_TAG=dev-apk, APK_FILE=PranganDev.apk) + separate Neon DB + "Prangan Dev" APK (package com.javedrnc.prangan.dev, release dev-apk). Dev API address lives in mobile/dev.json (empty = dev APK build skipped).
 - Flow: Claude commits to dev → Javed tests in Prangan Dev → on "release", `git merge --ff-only dev` into main and push. Never push features straight to main.
 - Update check: server reads releases/download/<tag>/build.json (no API rate limit), falls back to API, remembers newest in meta 'seen_build'.
 
+- Naming rule (Javed, 12 Nov): use "prangan" in every new name (packages, services, files). Only the existing PROD Render service/URL (school-api-7y80) and the GitHub repo name keep the old wording.

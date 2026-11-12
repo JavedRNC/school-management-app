@@ -78,7 +78,7 @@ jobs:
             j.expo.extra = Object.assign({}, j.expo.extra, { buildNumber: Number(process.env.GITHUB_RUN_NUMBER) });
             if (process.env.APP_ENV === 'dev') {            // separate app that installs next to the real one
               j.expo.name = 'Prangan Dev'; j.expo.scheme = 'prangan-dev';
-              j.expo.android.package = j.expo.android.package + '.dev';
+              j.expo.android.package = j.expo.android.package + '.dev';   // com.javedrnc.prangan.dev
               j.expo.extra.apiUrl = process.env.DEV_API; j.expo.extra.appEnv = 'dev';
             }
             fs.writeFileSync(p, JSON.stringify(j, null, 2));"
@@ -110,7 +110,6 @@ jobs:
             cp android/app/build/outputs/apk/release/app-release.apk ../dist/PranganDev.apk
           else
             cp android/app/build/outputs/apk/release/app-release.apk ../dist/Prangan.apk
-            cp ../dist/Prangan.apk ../dist/SchoolHub.apk   # old download links keep working
           fi
           cat ../dist/build.json
           ls -lh ../dist
@@ -134,7 +133,6 @@ jobs:
             The app talks to https://school-api-7y80.onrender.com
           files: |
             dist/Prangan.apk
-            dist/SchoolHub.apk
             dist/build.json
 
       - name: Publish DEV to the "dev-apk" release

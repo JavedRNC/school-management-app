@@ -67,7 +67,7 @@ Open in **Expo Go** (Android/iPhone). Phone-only setup with live reload: see [do
 | | PROD (live schools) | DEV (testing) |
 |---|---|---|
 | Git branch | `main` | `dev` |
-| Server (Render) | `school-api` | `school-api-dev` |
+| Server (Render) | `school-api` | `prangan-api-dev` |
 | Database (Neon) | live database | separate test database, demo data only |
 | App | **Prangan** (`latest-apk` release, website download) | **Prangan Dev** (`dev-apk` release), installs next to the real app |
 

@@ -4,7 +4,7 @@
 services:
   # ---------------- PROD: live schools. Deploys from the main branch.
   - type: web
-    name: school-api
+    name: school-api          # created before the rename to Prangan; its address is fixed, so the name stays
     branch: main
     runtime: python
     rootDir: backend
@@ -28,7 +28,7 @@ services:
   # ---------------- DEV: test server, demo data only. Deploys from the dev branch.
   # Give it its OWN Neon database (never the live one).
   - type: web
-    name: school-api-dev
+    name: prangan-api-dev
     branch: dev
     runtime: python
     rootDir: backend
