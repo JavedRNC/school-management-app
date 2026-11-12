@@ -1,4 +1,4 @@
-import { HashRouter, Navigate, Route, Routes } from 'react-router-dom';
+import { HashRouter, Navigate, Route, Routes, useLocation } from 'react-router-dom';
 import { APP_ENV } from './api';
 import { AuthProvider, homeOf, useAuth } from './auth';
 import { Shell } from './layout';
@@ -18,9 +18,12 @@ import type { Role } from './api';
 /** Shows a page only to the given roles. This is navigation convenience — the API enforces every permission itself. */
 function Guard({ roles, children }: { roles: Role[]; children: React.ReactNode }) {
   const { user } = useAuth();
-  if (!user) return <Navigate to="/login" replace />;
-  if (user.must_change_password) return <Navigate to="/account" replace />;
-  if (!roles.includes(user.role)) return <Navigate to={homeOf(user)} replace />;
+  const loc = useLocation();
+  // keyed by the visit, so a redirect always fires again when the same guarded address is opened a second time
+  const go = (to: string) => <Navigate key={`${loc.key}:${to}`} to={to} replace />;
+  if (!user) return go('/login');
+  if (user.must_change_password) return go('/account');
+  if (!roles.includes(user.role)) return go(homeOf(user));
   return <Shell>{children}</Shell>;
 }
 

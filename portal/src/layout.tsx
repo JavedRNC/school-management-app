@@ -27,7 +27,7 @@ export function Shell({ children, bare }: { children: ReactNode; bare?: boolean 
       { to: '/account', label: 'Account', icon: 'key' }]
     : [{ to: '/school', label: 'Dashboard', icon: 'home', end: true }, { to: '/school/people', label: 'People', icon: 'people' },
       { to: '/school/data', label: 'Import & export', icon: 'data' }, { to: '/account', label: 'Account', icon: 'key' }];
-  const out = () => { logout(); nav('/login', { replace: true }); };
+  const out = () => { nav('/login', { replace: true }); logout(); };   // leave the guarded page first, then end the session
   const link = (i: Item) => (
     <NavLink key={i.to} to={i.to} end={i.end} className={({ isActive }) => (isActive ? 'active' : '')}>
       <Icon name={i.icon} /><span>{i.label}</span>

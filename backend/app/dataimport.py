@@ -51,16 +51,61 @@ def _check_zip(data: bytes) -> None:
     import zipfile
 
     try:
-        with zipfile.ZipFile(io.BytesIO(data)) as z:
-            infos = z.infolist()
+        z = zipfile.ZipFile(io.BytesIO(data))
     except zipfile.BadZipFile:
         raise HTTPException(400, "That file isn't an Excel (.xlsx) workbook") from None
-    if len(infos) > 300 or sum(i.file_size for i in infos) > MAX_UNZIPPED or any(i.file_size > MAX_MEMBER for i in infos):
-        raise HTTPException(413, "This workbook is too large to import. Split it into smaller files.")
-    # Everything except the worksheets (read row by row under a budget) is loaded into memory whole by the parser —
-    # styles, shared strings, and any part an attacker names differently — so each such part must be small.
-    if any(i.file_size > MAX_OTHER_PART for i in infos if not re.fullmatch(r"xl/worksheets/[^/]+\.xml", i.filename)):
-        raise HTTPException(413, "This workbook is too large to import. Split it into smaller files.")
+    with z:
+        infos = z.infolist()
+        if len(infos) > 300 or sum(i.file_size for i in infos) > MAX_UNZIPPED or any(i.file_size > MAX_MEMBER for i in infos):
+            raise HTTPException(413, TOO_BIG)
+        # Everything except real worksheets is loaded into memory whole by the parser — styles, shared strings, and any
+        # part an attacker names differently — so each such part must be small. Worksheets are read row by row, but one
+        # enormous row or cell would still be built in memory, so every worksheet is scanned first (cheap, streaming).
+        budget = [MAX_SCAN_CELLS]
+        for i in infos:
+            if re.fullmatch(r"xl/worksheets/[^/]+\.xml", i.filename):
+                with z.open(i) as f:
+                    _scan_sheet(f, budget)
+            elif i.file_size > MAX_OTHER_PART:
+                raise HTTPException(413, TOO_BIG)
+
+
+TOO_BIG = "This workbook is too large to import. Split it into smaller files."
+MAX_ROW_CELLS = 200                 # cells in one row (our widest sheet has 15 columns)
+MAX_CELL_BYTES = 200_000            # one cell's XML (Excel allows 32,767 characters)
+MAX_SCAN_CELLS = 5_000_000          # cells in the whole workbook
+_TOKEN = re.compile(rb"<row[ >/]|<c[ >/]")
+
+
+def _scan_sheet(f, budget: list[int]) -> None:
+    """Stream through one worksheet's XML and refuse it if it isn't a worksheet, or has a huge row or cell."""
+    head = f.read(4096)
+    if b"<worksheet" not in head:
+        raise HTTPException(400, "That file isn't a valid Excel (.xlsx) workbook")
+    buf, base, in_row, cell_start = head, 0, 0, None
+    while True:
+        last = 0
+        for m in _TOKEN.finditer(buf):
+            pos = base + m.start()
+            if cell_start is not None and pos - cell_start > MAX_CELL_BYTES:
+                raise HTTPException(413, TOO_BIG)
+            if m.group(0).startswith(b"<row"):
+                in_row, cell_start = 0, None
+            else:
+                in_row += 1
+                budget[0] -= 1
+                cell_start = pos
+                if in_row > MAX_ROW_CELLS or budget[0] < 0:
+                    raise HTTPException(413, TOO_BIG)
+            last = m.end()
+        keep = buf[max(last, len(buf) - 8):]          # a token may be split across two chunks
+        base += len(buf) - len(keep)
+        chunk = f.read(1024 * 1024)
+        if cell_start is not None and base + len(keep) - cell_start > MAX_CELL_BYTES:
+            raise HTTPException(413, TOO_BIG)
+        if not chunk:
+            return
+        buf = keep + chunk
 
 
 def _rows(ws, budget: list[int]):

@@ -303,6 +303,26 @@ def test_review_fixes(c):
             raise AssertionError(f"oversized {name} accepted")
         except HTTPException as e:
             assert e.status_code == 413
+    # N1 (round 3): one enormous row, one enormous cell, or a non-worksheet stored under the worksheets folder
+    ws = b"<worksheet><sheetData>"
+    for label, body in (("wide row", ws + b"<row>" + b"<c/>" * 300_000 + b"</row></sheetData></worksheet>"),
+                        ("huge cell", ws + b"<row><c t='inlineStr'><is><t>" + b"A" * 400_000 + b"</t></is></c></row></sheetData></worksheet>"),
+                        ("not a sheet", b"<sst>" + b"<si><t>abc</t></si>" * 1000 + b"</sst>")):
+        buf = io.BytesIO()
+        with zipfile.ZipFile(buf, "w", zipfile.ZIP_DEFLATED) as z:
+            z.writestr("xl/worksheets/sheet1.xml", body)
+        try:
+            _check_zip(buf.getvalue())
+            raise AssertionError(f"{label} accepted")
+        except HTTPException as e:
+            assert e.status_code in (400, 413), label
+    # M3 (round 3): without support access the admin can't create or change ANY other login of a school
+    ah0 = admin_h(c)
+    for role in ("vice_principal", "coordinator", "teacher", "parent"):
+        r0 = c.post("/admin/schools/1/users", json={"name": "Side Door", "login_id": f"sd-{role}", "password": "temp1234", "role": role}, headers=ah0)
+        assert r0.status_code == 403, (role, r0.text)
+    some_teacher = next(u for u in c.get("/admin/schools/1/users", params={"role": "teacher"}, headers=ah0).json())
+    assert c.put(f"/admin/schools/1/users/{some_teacher['id']}", json={"password": "temp1234"}, headers=ah0).status_code == 403
     # N4: your own password changes only through the change-password route (which applies the rules and renews the session)
     me = c.get("/auth/me", headers=principal_h(c)).json()
     assert c.put(f"/users/{me['id']}", json={"password": "short1"}, headers=principal_h(c)).status_code == 400

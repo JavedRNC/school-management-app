@@ -206,7 +206,7 @@ def test_07_roles_are_enforced_by_the_server_not_just_the_menu(page):
     page.evaluate("""() => { const s = JSON.parse(sessionStorage.getItem('prangan.session')); s.user.role = 'admin'; sessionStorage.setItem('prangan.session', JSON.stringify(s)); }""")
     page.reload()
     go(page, "/admin/schools")
-    page.get_by_role("alert").get_by_text("Not allowed for your role").wait_for()
+    page.get_by_role("alert").get_by_text("Not allowed for your role").first.wait_for()
     page.problems.clear()
     # teachers can't use the portal at all
     _, people = call("GET", "/users?role=teacher", token)

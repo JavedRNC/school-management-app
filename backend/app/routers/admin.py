@@ -32,6 +32,11 @@ def _count_role(db: Session, sid: int, role: Role) -> int:
     return db.scalar(select(func.count()).select_from(User).where(User.school_id == sid, User.role == role, User.active.is_(True))) or 0
 
 
+def support_access(s: School) -> bool:
+    """The school's time-boxed permission for the admin to act inside it (principal grants it for 24 hours)."""
+    return bool(s.support_access_until and s.support_access_until > utcnow())
+
+
 def full_access(s: School) -> bool:
     return bool(s.share_contact_with_admin or (s.support_access_until and s.support_access_until > utcnow()))
 
@@ -185,10 +190,11 @@ def admin_create_user(sid: int, body: UserCreate, me: User = Depends(admin_only)
     s = _school(db, sid)
     if body.role == Role.admin:
         raise HTTPException(400, "Can't create admins here")
-    if body.role == Role.principal and not full_access(s) and _count_role(db, sid, Role.principal):
-        # Recovery for a locked-out principal is a password reset of the existing account (audited and visible to the school).
-        # A second principal login would be a side door into the school's data, so it needs the school's support access.
-        raise HTTPException(403, "This school already has a principal. Reset that account's password, or ask the school for support access to add another.")
+    if not support_access(s) and not (body.role == Role.principal and not _count_role(db, sid, Role.principal)):
+        # Any login the admin creates could be used to read the school's data, so it needs the school's time-boxed support
+        # access. The one exception is giving a school without a principal its first principal.
+        # (Recovery for a locked-out principal is a password reset of that account: audited and visible to the school.)
+        raise HTTPException(403, "Ask the school to allow support access (Privacy settings in the app) before adding people for it.")
     check_password_rules(body.password, body.login_id)
     if body.role == Role.student:
         c = db.get(SchoolClass, body.class_id or 0)
@@ -228,6 +234,9 @@ def admin_update_user(sid: int, uid: int, body: UserUpdate, me: User = Depends(a
     u = db.get(User, uid)
     if not u or u.school_id != sid:
         raise HTTPException(404, "User not found")
+    if u.role != Role.principal and not support_access(s):
+        # changing or resetting any other login would be a side door into the school's data
+        raise HTTPException(403, "Ask the school to allow support access (Privacy settings in the app) before changing its people.")
     data = body.model_dump(exclude_unset=True)
     full = full_access(s)
     if not full:  # without permission, admin can't overwrite masked contact fields
