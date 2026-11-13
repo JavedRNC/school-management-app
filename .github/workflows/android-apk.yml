@@ -1,6 +1,7 @@
 # F17 · Builds an installable Android APK in the cloud (no computer, no Expo account needed).
 # Two environments:
 #   main → PROD: "Prangan" app, talks to the live server, published on the "latest-apk" release (website download).
+# All three apps are signed with the private Prangan key (repository secrets added 13 Nov 2026).
 #   test → TEST: "Prangan Test" app, server in mobile/test.json, "test-apk" release. Same rules as dev.
 #   dev  → DEV:  "Prangan Dev" app (installs next to the real one), talks to the test server in mobile/dev.json,
 #                published on the "dev-apk" release. Skipped until mobile/dev.json has the test server address.
