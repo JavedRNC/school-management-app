@@ -2,10 +2,9 @@
 import datetime as dt
 import re
 
-from conftest import TAG, call, ok
+from conftest import TAG, TODAY, call, ok
 from helpers import confirm, dialog, go, heading, tab, toast
 
-TODAY = dt.date.today().isoformat()
 
 
 def test_classes_add_edit_and_refuse_to_archive_a_class_with_students(principal_page, school, seeded):
@@ -166,7 +165,7 @@ def test_attendance_is_saved_and_read_back(principal_page, school, seeded):
 def test_attendance_on_a_holiday_needs_a_deliberate_override(principal_page, school, seeded):
     page = principal_page
     t = school["principal"]["token"]
-    day = (dt.date.today() - dt.timedelta(days=3)).isoformat()
+    day = (TODAY - dt.timedelta(days=3)).isoformat()
     hol = ok(call("POST", "/holidays", t, {"name": f"Founders day {TAG}", "start_date": day, "end_date": day, "kind": "holiday", "is_off": True}))
     try:
         go(page, "/school/attendance")
@@ -251,7 +250,7 @@ def test_notice_and_homework_posting(principal_page, school, seeded):
     form.get_by_role("alert").filter(has_text="Homework is for one class").wait_for()
     form.get_by_label("Class").select_option(label=f"6-{TAG}")
     form.get_by_label("Subject").select_option(label=f"Maths {TAG}")
-    form.get_by_label("Due on").fill((dt.date.today() + dt.timedelta(days=2)).isoformat())
+    form.get_by_label("Due on").fill((TODAY + dt.timedelta(days=2)).isoformat())
     form.get_by_role("button", name="Post homework").click()
     toast(page, "Homework posted")
     hw = page.locator("article", has_text=f"Fractions worksheet {TAG}")
@@ -269,12 +268,12 @@ def test_calendar_holiday_add_edit_remove_and_national_holidays_only_once(princi
     heading(page, "Calendar")
     page.get_by_role("button", name="Add holiday or event").click()
     form = dialog(page)
-    form.get_by_label("First day").fill(TODAY)
-    form.get_by_label("Last day").fill((dt.date.today() - dt.timedelta(days=1)).isoformat())
+    form.get_by_label("First day").fill(TODAY.isoformat())
+    form.get_by_label("Last day").fill((TODAY - dt.timedelta(days=1)).isoformat())
     form.get_by_role("button", name="Add to calendar").click()
     form.get_by_role("alert").filter(has_text="Give it a name").wait_for()
     form.get_by_role("alert").filter(has_text="The last day is before the first day").wait_for()
-    first = dt.date.today().replace(day=20)
+    first = TODAY.replace(day=20)
     form.get_by_label("Name").fill(f"Sports meet {TAG}")
     form.get_by_label("First day").fill(first.isoformat())
     form.get_by_label("Last day").fill((first + dt.timedelta(days=1)).isoformat())
@@ -298,12 +297,15 @@ def test_calendar_holiday_add_edit_remove_and_national_holidays_only_once(princi
     confirm(page, "Remove")
     toast(page, f"Sports meet {TAG} removed")
     # national holidays: adding twice never duplicates
-    year = dt.date.today().year
+    year = TODAY.year
     page.get_by_role("button", name="Add national holidays").click()
     confirm(page, "Add holidays")
     page.locator(".toast").filter(has_text=re.compile("national holidays added|already in your calendar")).wait_for()
     page.get_by_role("button", name="Add national holidays").click()
     confirm(page, "Add holidays")
     toast(page, "They were already in your calendar")
-    names = [h["name"] for h in ok(call("GET", "/holidays", t, query={"start": f"{year}-01-01", "end": f"{year}-12-31"}))]
-    assert names.count("Republic Day") == 1 and names.count("Independence Day") == 1
+    days = ok(call("GET", "/holidays", t, query={"start": f"{year}-01-01", "end": f"{year}-12-31"}))
+    names = [h["name"] for h in days]
+    for h in days:                                                                # leave no closed days behind for later runs
+        call("DELETE", f"/holidays/{h['id']}", t)
+    assert names.count("Republic Day") == 1 and names.count("Independence Day") == 1 and names.count("Gandhi Jayanti") == 1

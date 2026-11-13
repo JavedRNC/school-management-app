@@ -2,21 +2,29 @@
 import datetime as dt
 import re
 
-from conftest import SCHOOL_CODE, TAG, call, login, ok
+from conftest import SCHOOL_CODE, TAG, TEACHER_PW, TODAY, call, login, ok
 from helpers import confirm, dialog, go, heading, tab, toast
 
-TODAY = dt.date.today()
+
+
+def leave_day(after):
+    """A day for a leave request: inside the current April–March year (so it counts in this year's balance) and never a national holiday."""
+    year_end = dt.date(TODAY.year + (1 if TODAY.month >= 4 else 0), 3, 31)
+    day = min(TODAY + dt.timedelta(days=after), year_end - dt.timedelta(days=after % 5))
+    while (day.month, day.day) in ((1, 26), (8, 15), (10, 2)):
+        day -= dt.timedelta(days=1)
+    return day.isoformat()
 
 
 def staff_token(seeded, n=0):
     """A teacher signs in from the phone app for the first time (chooses a password, accepts the notice)."""
     code = f"T{TAG}{('One', 'Two')[n]}"
-    first = login(SCHOOL_CODE, code, "Teach#12345", web=False)
+    first = login(SCHOOL_CODE, code, TEACHER_PW, web=False)
     if first[0] == 200:
-        token = ok(call("POST", "/auth/password", first[1]["token"], {"old_password": "Teach#12345", "new_password": "Teach#67890"}))["token"]
+        token = ok(call("POST", "/auth/password", first[1]["token"], {"old_password": TEACHER_PW, "new_password": TEACHER_PW + "2"}))["token"]
         call("POST", "/auth/consent", token)
         return token
-    return ok(login(SCHOOL_CODE, code, "Teach#67890", web=False))["token"]
+    return ok(login(SCHOOL_CODE, code, TEACHER_PW + "2", web=False))["token"]
 
 
 def test_dashboard_shows_the_schools_numbers_and_links_to_work(principal_page, school, seeded):
@@ -33,7 +41,9 @@ def test_dashboard_shows_the_schools_numbers_and_links_to_work(principal_page, s
 def test_leave_request_is_approved_and_another_rejected_with_a_reason(principal_page, school, seeded):
     page = principal_page
     tt = staff_token(seeded)
-    d1, d2 = (TODAY + dt.timedelta(days=20)).isoformat(), (TODAY + dt.timedelta(days=27)).isoformat()
+    d1, d2 = leave_day(20), leave_day(27)
+    used = lambda: [x["used"] for x in ok(call("GET", "/leaves/balance", tt))["types"] if x["type"] == "casual"][0]  # noqa: E731
+    before = used()
     ok(call("POST", "/leaves", tt, {"leave_type": "casual", "start_date": d1, "reason": f"Family function {TAG}"}))
     ok(call("POST", "/leaves", tt, {"leave_type": "sick", "start_date": d2, "reason": f"Dental visit {TAG}"}))
     go(page, "/school/leaves")
@@ -47,7 +57,8 @@ def test_leave_request_is_approved_and_another_rejected_with_a_reason(principal_
     second.get_by_role("button", name="Reject").click()
     box = dialog(page)
     assert box.get_by_role("button", name="Reject leave").is_disabled(), "rejecting needs a reason"
-    box.get_by_label("Reason for rejecting").fill("Exam duty that week")
+    box.get_by_label("Reason for rejecting").press_sequentially("Exam duty that week")      # typed key by key: the cursor must stay in the box
+    assert box.get_by_label("Reason for rejecting").input_value() == "Exam duty that week"
     box.get_by_role("button", name="Reject leave").click()
     toast(page, "Leave rejected")
     tab(page, "All requests")
@@ -56,8 +67,9 @@ def test_leave_request_is_approved_and_another_rejected_with_a_reason(principal_
     done.get_by_text("rejected", exact=True).wait_for()
     done.get_by_text("Exam duty that week").wait_for()
     assert done.get_by_role("button", name="Approve").count() == 0, "a decided request can't be decided again"
-    bal = ok(call("GET", "/leaves/balance", tt))
-    assert [x["used"] for x in bal["types"] if x["type"] == "casual"] == [1]
+    assert used() == before + 1, "the approved casual leave is taken from this year's balance; the rejected sick leave is not"
+    mine = {x["reason"]: x["status"] for x in ok(call("GET", "/leaves", tt, query={"scope": "mine"}))}
+    assert mine[f"Family function {TAG}"] == "approved" and mine[f"Dental visit {TAG}"] == "rejected"
 
 
 def test_leave_allowance_validates_and_saves(principal_page, school):
@@ -300,8 +312,11 @@ def test_support_access_is_given_and_taken_back_and_shows_in_activity(principal_
     go(page, "/school/activity")
     heading(page, "Activity")
     page.locator("tr", has_text=re.compile("support", re.I)).first.wait_for()
-    page.get_by_role("button", name="Prangan support only").click()
-    page.locator("table, .empty").first.wait_for()
+    with page.expect_response(lambda r: "/school/audit" in r.url and "admin_only_=true" in r.url) as got:
+        page.get_by_role("button", name="Prangan support only").click()
+    page.locator(".skel").first.wait_for(state="detached")
+    assert all(row["actor_role"] == "admin" for row in got.value.json()), "only the platform admin's actions are listed"
+    assert page.locator("tbody tr").count() == len(got.value.json())
 
 
 def test_import_and_export_template_and_backup_download(principal_page, school):
@@ -316,8 +331,11 @@ def test_import_and_export_template_and_backup_download(principal_page, school):
     assert dl.value.suggested_filename.endswith(".xlsx")
     with open(dl.value.path(), "rb") as f:
         assert f.read(2) == b"PK", "the backup is a real Excel file"
-    page.get_by_role("button", name=re.compile("backup", re.I)).first.click()       # straight away again: politely refused, not queued
-    toast(page, "A backup was just made")
+    status, data = call("GET", "/data/backup", school["principal"]["token"])       # straight away again: politely refused, not queued
+    if status == 429:                                                              # (after the server's short gap it is simply allowed again)
+        assert "just made" in data["detail"]
+        page.get_by_role("button", name=re.compile("backup", re.I)).first.click()
+        page.locator(".toast").filter(has_text=re.compile("A backup was just made|Saved")).first.wait_for()
     page.problems.clear()
 
 

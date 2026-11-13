@@ -1,10 +1,11 @@
 """Passwords: an admin resets a principal, the principal must choose a new one, and old sessions stop working. Runs last because it ends the shared session."""
 import re
+import secrets
 
-from conftest import SCHOOL_CODE, TAG, call, login, ok
+from conftest import PRINCIPAL_PW, SCHOOL_CODE, _open, call, fresh_principal, login, ok
 from helpers import dialog, go, heading, sign_in, tab, toast
 
-NEW_PW = f"Chosen#{TAG}9x"
+NEW_PW = "Chosen#" + secrets.token_urlsafe(8) + "9x"
 
 
 def test_admin_resets_the_principal_who_must_then_choose_a_password(admin_page, page, school):
@@ -55,8 +56,19 @@ def test_admin_resets_the_principal_who_must_then_choose_a_password(admin_page, 
     page.problems.clear()                                                          # the refused attempt above is expected
 
 
-def test_changing_your_own_password_keeps_this_tab_signed_in(principal_page, school):
-    page = principal_page
+def test_changing_your_own_password_keeps_this_tab_signed_in(browser, admin, school):
+    # starts from a known password of its own, so it does not depend on the test above
+    first = fresh_principal(admin, school["id"])
+    ok(call("POST", "/auth/password", first["token"], {"old_password": PRINCIPAL_PW, "new_password": NEW_PW}))
+    school["principal"] = {k: ok(login(SCHOOL_CODE, "principal", NEW_PW))[k] for k in ("token", "user")}
+    ctx, page = _open(browser, school["principal"])
+    try:
+        _change_own_password(page, school)
+    finally:
+        ctx.close()
+
+
+def _change_own_password(page, school):
     go(page, "/account")
     heading(page, "Account")
     page.get_by_label("Current password").fill("wrong-current-password")

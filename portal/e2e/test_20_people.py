@@ -1,5 +1,7 @@
 """Principal: People — add, edit, search, reset password, remove and restore, add many."""
-from conftest import TAG, call, login, ok
+import random
+
+from conftest import STUDENT_PW, TAG, call, login, ok
 from helpers import confirm, dialog, go, heading, tab, toast
 
 
@@ -84,13 +86,13 @@ def test_reset_password_gives_a_one_time_password_that_works(principal_page, see
     box.get_by_role("button", name="Done").click()
     status, data = login("E2EQA1", f"S{TAG}2", "Fresh#Pass77", web=False)
     assert status == 200 and data["user"]["must_change_password"] is True
-    assert login("E2EQA1", f"S{TAG}2", "Stud#12345", web=False)[0] == 401, "the old password must stop working"
+    assert login("E2EQA1", f"S{TAG}2", STUDENT_PW, web=False)[0] == 401, "the old password must stop working"
 
 
 def test_remove_then_restore_from_the_archive(principal_page, school, seeded):
     page = principal_page
     t = school["principal"]["token"]
-    ok(call("POST", "/users", t, {"name": f"Esha Temp {TAG}", "login_id": f"S{TAG}7", "password": "Stud#12345", "role": "student", "class_id": seeded["klass"]["id"]}))
+    ok(call("POST", "/users", t, {"name": f"Esha Temp {TAG}", "login_id": f"S{TAG}7", "password": STUDENT_PW, "role": "student", "class_id": seeded["klass"]["id"]}))
     open_people(page, seeded)
     page.get_by_role("button", name=f"Remove Esha Temp {TAG}").click()
     dialog(page).get_by_role("button", name="Cancel").click()                      # cancelling keeps the person
@@ -99,12 +101,12 @@ def test_remove_then_restore_from_the_archive(principal_page, school, seeded):
     confirm(page, "Remove")
     toast(page, f"Esha Temp {TAG} removed")
     page.locator("td.primary-cell", has_text=f"Esha Temp {TAG}").wait_for(state="detached")
-    assert login("E2EQA1", f"S{TAG}7", "Stud#12345", web=False)[0] == 401, "a removed person cannot sign in"
+    assert login("E2EQA1", f"S{TAG}7", STUDENT_PW, web=False)[0] == 401, "a removed person cannot sign in"
     go(page, "/school/settings")
     tab(page, "Archive")
     page.get_by_role("button", name=f"Restore Esha Temp {TAG} · student").click()
     toast(page, "restored")
-    assert login("E2EQA1", f"S{TAG}7", "Stud#12345", web=False)[0] == 200
+    assert login("E2EQA1", f"S{TAG}7", STUDENT_PW, web=False)[0] == 200
 
 
 def test_parent_is_linked_to_children(principal_page, school, seeded):
@@ -113,11 +115,12 @@ def test_parent_is_linked_to_children(principal_page, school, seeded):
     tab(page, "Parents")
     page.get_by_role("button", name="Add parent").click()
     form = dialog(page)
-    mobile = "97" + TAG[2:] + "55501"
+    mobile = "97" + "".join(random.choices("0123456789", k=8))
     form.get_by_label("Full name").fill(f"Mr Verma {TAG}")
     form.get_by_label("Mobile number (login ID)").fill(mobile)
     form.get_by_label("Children").fill(f"S{TAG}1")
     form.get_by_role("button", name=f"Aman Verma {TAG} · S{TAG}1").click()
+    form.get_by_label("Relation to the child").select_option("Guardian")
     form.get_by_role("button", name="Add parent").click()
     toast(page, "added")
     page.get_by_label("Search").fill(mobile)

@@ -174,10 +174,11 @@ export function printNode(el: HTMLElement | null) {
   holder.appendChild(el.cloneNode(true));
   document.body.appendChild(holder);
   document.body.classList.add('printing');
-  const done = () => { document.body.classList.remove('printing'); holder.remove(); window.removeEventListener('afterprint', done); };
+  let timer = 0;
+  const done = () => { window.clearTimeout(timer); document.body.classList.remove('printing'); holder.remove(); window.removeEventListener('afterprint', done); };
   window.addEventListener('afterprint', done);
+  timer = window.setTimeout(done, 60000);       // browsers that never fire afterprint
   window.print();
-  setTimeout(done, 60000);       // browsers that never fire afterprint
 }
 
 export const today = () => {

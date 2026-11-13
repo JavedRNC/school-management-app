@@ -1,9 +1,10 @@
 """Platform admin: dashboard, schools, subscription, users, payments, plans, announcements, app updates, requests, activity."""
 import datetime as dt
+import time
 import random
 import re
 
-from conftest import PRINCIPAL_PW, SCHOOL_CODE, TAG, call, local_only, login, ok
+from conftest import PARENT_PW, PRINCIPAL_PW, REMOTE, SCHOOL_CODE, TAG, TODAY, call, local_only, login, ok
 from helpers import confirm, dialog, go, heading, sign_in, tab, toast
 
 
@@ -98,7 +99,7 @@ def test_add_school_and_first_sign_in_of_its_principal(admin_page, page):
 def test_school_details_are_saved(admin_page, admin, school):
     page = admin_page
     open_school(page, school)
-    note = f"Checked by run {TAG}"
+    note = f"e2e-run {TAG} {int(time.time())} checked"                            # keeps the marker that says this run is using the school
     page.get_by_label("Private notes (only admins see these)").fill(note)
     page.get_by_label("City / town").fill("Ranchi")
     page.get_by_label("PIN code").fill("83400x1")                                  # letters are dropped
@@ -109,7 +110,11 @@ def test_school_details_are_saved(admin_page, admin, school):
     assert ok(call("GET", f"/admin/schools/{school['id']}/details", admin["token"]))["pin"] == "834001"
     page.get_by_label("School name").fill("")
     page.get_by_role("alert").filter(has_text="Enter the school name").wait_for()
+    puts = []
+    page.on("request", lambda r: puts.append(r.url) if r.method == "PUT" else None)
     page.get_by_role("button", name="Save details").click()
+    page.wait_for_timeout(700)
+    assert not puts, "pressing Save with an empty name sends nothing"
     assert ok(call("GET", f"/admin/schools/{school['id']}", admin["token"]))["name"] == "E2E Test School", "an empty name is never saved"
 
 
@@ -184,22 +189,37 @@ def test_recording_a_payment_extends_the_paid_until_date(admin_page, admin, scho
     form.get_by_label("Period from (optional)").fill("")
     form.get_by_label("Period to (optional)").fill("")
     form.get_by_label("Reference").fill(f"UTR{TAG}")
+    if REMOTE:
+        # on the shared environment: a ₹1 entry that does not move the paid-until date, so runs don't add up
+        form.get_by_label("Amount (₹)").fill("1")
+        form.get_by_role("switch", name="Extend the paid-until date").click()
     form.get_by_role("button", name="Record payment").click()
     toast(page, "Payment recorded")
-    page.locator("tr", has_text=f"UTR{TAG}").get_by_text("₹4,500").wait_for()
+    page.locator("tr", has_text=f"UTR{TAG}").get_by_text("₹1" if REMOTE else "₹4,500", exact=True).wait_for()
     after = ok(call("GET", f"/admin/schools/{sid}", admin["token"]))["valid_until"]
-    assert after and (before is None or after > before)
+    if REMOTE:
+        assert after == before
+    else:
+        assert after and (before is None or after > before)
 
 
 def test_users_are_protected_without_support_access_and_manageable_with_it(admin_page, admin, school):
     page = admin_page
     t = school["principal"]["token"]
     mobile = "95" + "".join(random.choices("0123456789", k=8))
-    ok(call("POST", "/users", t, {"name": f"Parent Masked {TAG}", "login_id": mobile, "password": "Parent#123", "role": "parent", "phone": mobile}))
+    ok(call("POST", "/users", t, {"name": f"Parent Masked {TAG}", "login_id": mobile, "password": PARENT_PW, "role": "parent", "phone": mobile}))
     open_school(page, school, "Users")
     page.get_by_role("button", name="Show users").click()
     page.locator("td.primary-cell", has_text="Asha Tester").wait_for()
-    page.get_by_role("button", name="Edit Asha Tester").wait_for()                 # the principal can always be helped
+    # the principal can always be helped; what is hidden is locked and is never sent back to the server
+    page.get_by_role("button", name="Edit Asha Tester").click()
+    form = dialog(page)
+    assert form.get_by_label("Phone").is_disabled()
+    form.get_by_label("Full name").fill("Asha Tester")
+    with page.expect_request(lambda r: r.method == "PUT" and "/users/" in r.url) as sent:
+        form.get_by_role("button", name="Save changes").click()
+    assert set(sent.value.post_data_json) <= {"name", "login_id"}, sent.value.post_data_json
+    toast(page, "Asha Tester saved")
     page.get_by_label("Role").select_option("parent")
     row = page.locator("tr", has_text=f"Parent Masked {TAG}")
     row.wait_for()
@@ -282,7 +302,7 @@ def test_announcement_for_every_school(admin_page, admin):
     form.get_by_label("Title").fill(f"Maintenance tonight {TAG}")
     form.get_by_label("Message (optional)").fill("The app will be slow from 11 pm to midnight.")
     form.get_by_label("Colour").select_option("red")
-    form.get_by_label("Show until (optional)").fill((dt.date.today() + dt.timedelta(days=1)).isoformat())
+    form.get_by_label("Show until (optional)").fill(TODAY.isoformat())             # gone by tomorrow even if this run is cut short
     form.get_by_role("button", name="Show banner").click()
     toast(page, "Banner is live")
     try:
@@ -375,7 +395,7 @@ def test_registration_request_is_reviewed_and_rejected_with_a_reason(page, admin
     page.get_by_text("Rejected", exact=True).wait_for()
     go(admin_page, "/admin/audit")
     heading(admin_page, "Activity log")
-    admin_page.get_by_text(re.compile("Onboarding", re.I)).first.wait_for()
+    admin_page.locator("tr", has_text=ref).first.wait_for()                       # this very request is in the trail
     page.problems.clear()                                                          # the 404 for the wrong mobile number is expected
 
 

@@ -1,10 +1,11 @@
 """Phone layout, keyboard use, accessibility basics, read-only subscriptions, and what people see when something goes wrong."""
+import datetime as dt
 import re
 
 import pytest
 
-from conftest import TAG, _open, call, ok
-from helpers import dialog, go, heading, no_sideways_scroll, tab, toast
+from conftest import TAG, TODAY, _open, call, ok
+from helpers import dialog, go, heading, no_sideways_scroll, sign_in, tab, toast
 
 SCHOOL_PAGES = [("/school", "E2E Test School"), ("/school/people", "People"), ("/school/classes", "Classes & subjects"), ("/school/timetable", "Timetable"), ("/school/attendance", "Attendance"),
                 ("/school/exams", "Exams & marks"), ("/school/notices", "Notices & homework"), ("/school/calendar", "Calendar"), ("/school/leaves", "Leaves"), ("/school/staff", "Staff attendance"),
@@ -84,6 +85,7 @@ def test_forms_work_from_the_keyboard_and_keep_focus_inside(principal_page, seed
     page.get_by_role("tab", name="Classes").focus()
     page.keyboard.press("ArrowRight")
     assert page.get_by_role("tab", name="Subjects", exact=True).get_attribute("aria-selected") == "true"
+    assert page.get_by_role("tab", name="Subjects", exact=True).evaluate("e => e === document.activeElement"), "focus moves with the selection"
     page.keyboard.press("ArrowLeft")
     assert page.get_by_role("tab", name="Classes", exact=True).get_attribute("aria-selected") == "true"
 
@@ -125,17 +127,19 @@ def test_losing_the_connection_while_saving_keeps_the_form_and_says_so(principal
     page.problems.clear()
 
 
-def test_double_clicking_save_creates_only_one(principal_page, school, seeded):
+def test_double_clicking_save_sends_one_request_and_creates_one(principal_page, school, seeded):
     page = principal_page
-    go(page, "/school/classes")
-    tab(page, "Subjects")
-    page.get_by_role("button", name="Add subject").click()
+    go(page, "/school/exams")                                                      # two exams with one name are allowed, so a double save would show
+    page.get_by_role("button", name="Add exam").click()
     form = dialog(page)
-    form.get_by_label("Subject name").fill(f"Twice {TAG}")
-    form.get_by_role("button", name="Add subject").dblclick()
+    form.get_by_label("Exam name").fill(f"Twice {TAG}")
+    posts = []
+    page.on("request", lambda r: posts.append(r.url) if r.method == "POST" and r.url.endswith("/exams") else None)
+    form.get_by_role("button", name="Add exam").dblclick()
     toast(page, f"Twice {TAG} added")
     form.wait_for(state="detached")
-    names = [s["name"] for s in ok(call("GET", "/subjects", school["principal"]["token"]))]
+    assert len(posts) == 1, "the second click does nothing while the first save is on its way"
+    names = [e["name"] for e in ok(call("GET", "/exams", school["principal"]["token"]))]
     assert names.count(f"Twice {TAG}") == 1
 
 
@@ -155,9 +159,14 @@ def test_expired_subscription_makes_the_portal_read_only(browser, admin, school,
         assert page.get_by_role("button", name=re.compile(rf"^Aman Verma {TAG}: ")).is_disabled()
         status, data = call("POST", "/subjects", school["principal"]["token"], {"name": f"Blocked {TAG}"})
         assert status in (402, 403), f"the server refuses changes too ({status} {data})"
+        for path, title in (("/school/fees", "Fees"), ("/school/exams", "Exams & marks")):
+            go(page, path)
+            heading(page, title)
+            page.get_by_role("note").filter(has_text="changes are switched off").wait_for()
+        assert page.get_by_role("button", name="Add exam").count() == 0
     finally:
-        ctx.close()
         ok(call("PUT", f"/admin/schools/{sid}", admin["token"], {"is_free": True, "trial_until": old["trial_until"], "valid_until": old["valid_until"], "grace_days": old["grace_days"]}))
+        ctx.close()
     assert ok(call("GET", "/school/me", school["principal"]["token"]))["can_write"] is True
 
 
@@ -212,6 +221,54 @@ def test_unsaved_attendance_is_not_lost_or_saved_under_another_day_by_accident(p
     page.get_by_role("button", name="Previous day").click()
     dialog(page).get_by_role("button", name="Leave", exact=True).click()
     page.get_by_role("button", name="Today").wait_for()                            # now on the earlier day, loaded fresh
+    t = school["principal"]["token"]
+    for day in (TODAY, TODAY - dt.timedelta(days=1)):                              # the abandoned change reached neither day
+        rows = ok(call("GET", "/attendance", t, query={"class_id": seeded["klass"]["id"], "day": day}))["rows"]
+        assert [r["present"] for r in rows if r["name"] == f"Chirag Rao {TAG}"] != [False]
+
+
+def test_a_slow_register_can_never_be_saved_under_the_day_just_chosen(principal_page, school, seeded):
+    page = principal_page
+    t = school["principal"]["token"]
+    earlier = TODAY - dt.timedelta(days=2)
+    go(page, "/school/attendance")
+    page.get_by_label("Class").select_option(label=f"6-{TAG}")
+    student = page.get_by_role("button", name=re.compile(rf"^Aman Verma {TAG}: "))
+    student.wait_for()
+    posts = []
+    page.on("request", lambda r: posts.append(r.url) if r.method == "POST" and r.url.endswith("/attendance") else None)
+    hold = {"route": None}
+    page.route(re.compile(r"/attendance\?"), lambda route: hold.update(route=route))          # the server is slow to send the earlier day
+    page.get_by_label("Day", exact=True).fill(earlier.isoformat())
+    # while it loads, today's register is gone from the screen and there is nothing to press
+    student.wait_for(state="detached")
+    assert page.get_by_role("button", name="Save attendance").count() == 0
+    page.wait_for_timeout(300)
+    hold["route"].continue_()
+    student.wait_for()
+    assert not posts
+    assert ok(call("GET", "/attendance", t, query={"class_id": seeded["klass"]["id"], "day": earlier}))["marked_by"] is None, "the earlier day is still untouched"
+
+
+def test_coordinator_is_saved_with_the_chosen_rights_and_cannot_use_the_portal(principal_page, page, school, seeded):
+    pp = principal_page
+    t = school["principal"]["token"]
+    go(pp, "/school/people")
+    tab(pp, "Coordinators")
+    pp.get_by_role("button", name="Add coordinator").click()
+    form = dialog(pp)
+    form.get_by_label("Full name").fill(f"Coord One {TAG}")
+    form.get_by_label("Login ID").fill(f"C{TAG}1")
+    password = form.get_by_label("Temporary password").input_value()
+    form.get_by_role("button", name=f"6-{TAG}", exact=True).click()                # looks after this class only
+    form.get_by_role("group", name="Transport", exact=True).get_by_role("button", name="No access").click()
+    form.get_by_role("button", name="Add coordinator").click()
+    toast(pp, f"Coord One {TAG} added")
+    saved = [u for u in ok(call("GET", "/users", t, query={"role": "coordinator"})) if u["login_id"] == f"C{TAG}1"][0]
+    assert saved["scope_class_ids"] == [seeded["klass"]["id"]]
+    assert saved["permissions"]["fees"] == "none" and saved["permissions"]["attendance"] == "edit" and saved["permissions"]["transport"] == "none"
+    sign_in(page, "E2EQA1", f"C{TAG}1", password)
+    page.get_by_role("alert").filter(has_text="The web portal is for Admin and Principal accounts").wait_for()
 
 
 def test_new_vice_principal_starts_with_the_usual_limited_rights(principal_page, school):

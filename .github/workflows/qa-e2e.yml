@@ -33,7 +33,7 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: "3.12"
-      - run: pip install pytest playwright
+      - run: pip install pytest==9.1.1 playwright==1.63.0
       - run: python -m playwright install --with-deps chromium
       - name: The secret is set
         env:
@@ -54,10 +54,13 @@ jobs:
         # a test that fails once is retried once, so a slow free server does not block a release
         run: |
           mkdir -p "$E2E_SHOT_DIR"
-          python -m pytest e2e -q || python -m pytest e2e -q --last-failed
+          python -m pytest e2e -q && exit 0
+          echo "::warning title=Some browser tests needed a second try::Look at the first attempt's failures in this log. A test that keeps needing a retry is a real problem."
+          python -m pytest e2e -q --last-failed
       - uses: actions/upload-artifact@v4
         if: failure()
         with:
           name: failure-screenshots
           path: ${{ runner.temp }}/shots
           if-no-files-found: ignore
+          retention-days: 3

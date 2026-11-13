@@ -2,7 +2,7 @@
 import json
 import re
 
-from conftest import PRINCIPAL_PW, SCHOOL_CODE, TAG, WEB, _open, call, ok
+from conftest import PRINCIPAL_PW, SCHOOL_CODE, STUDENT_PW, TAG, WEB, _open, call, ok
 from helpers import go, heading, sign_in, token_of
 
 
@@ -34,7 +34,7 @@ def test_principal_signs_in_sees_their_school_and_logs_out(page, school):
 
 
 def test_teachers_parents_and_students_are_sent_to_the_app(page, school, seeded):
-    sign_in(page, SCHOOL_CODE, f"S{TAG}3", "Stud#12345")
+    sign_in(page, SCHOOL_CODE, f"S{TAG}3", STUDENT_PW)
     page.get_by_role("alert").filter(has_text="The web portal is for Admin and Principal accounts. Please use the Prangan app.").wait_for()
     assert "#/login" in page.url and page.evaluate("sessionStorage.getItem('prangan.session')") is None
 
@@ -52,12 +52,9 @@ def test_each_role_only_reaches_its_own_pages(admin_page, principal_page, admin,
         assert call("GET", path, pt)[0] == 403, path
     assert call("PUT", "/admin/app-version", pt, {"min_build": 999})[0] == 403
     assert call("GET", "/school/me", admin["token"])[0] in (400, 403, 404), "the admin has no school of their own"
-    others = [u for u in ok(call("GET", "/admin/schools", admin["token"])) if u["code"] != SCHOOL_CODE]
-    if others:
-        sid = others[0]["id"]
-        some = ok(call("GET", f"/admin/schools/{sid}/users", admin["token"]))
-        if some:
-            assert call("PUT", f"/users/{some[0]['id']}", pt, {"name": "Hacked"})[0] == 404, "another school's person does not exist for this principal"
+    # one school can't see another's people: the admin's own account is "a person of no school" and stays invisible (read-only probe)
+    assert admin["user"]["id"] not in [u["id"] for role in ("teacher", "student", "parent") for u in ok(call("GET", "/users", pt, query={"role": role}))]
+    assert call("GET", f"/fees/students/{admin['user']['id']}", pt)[0] == 404
 
 
 def test_a_session_that_is_no_longer_valid_returns_to_sign_in_with_a_message(browser, school):

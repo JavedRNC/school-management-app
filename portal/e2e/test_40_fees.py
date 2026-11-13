@@ -3,7 +3,7 @@ import datetime as dt
 import random
 import re
 
-from conftest import SCHOOL_CODE, TAG, call, login, ok
+from conftest import PARENT_PW, SCHOOL_CODE, TAG, TODAY, call, login, ok
 from helpers import confirm, dialog, go, heading, tab, toast
 
 
@@ -68,6 +68,13 @@ def test_add_charge_collect_part_payment_print_receipt_and_cancel_it(principal_p
     receipt.get_by_role("heading", name=re.compile("^Receipt ")).wait_for()
     receipt.get_by_text("Rupees Three Hundred Only").wait_for()
     receipt.get_by_text(f"Aman Verma {TAG}").first.wait_for()
+    page.evaluate("window.print = () => {}")                                      # printing shows the receipt alone, not the page behind it
+    receipt.get_by_role("button", name="Print or save as PDF").click()
+    page.emulate_media(media="print")
+    assert page.locator("#print-root .receipt").is_visible() and not page.locator(".shell").is_visible()
+    page.evaluate("window.dispatchEvent(new Event('afterprint'))")
+    page.emulate_media(media="screen")
+    assert page.locator("#print-root").count() == 0
     detail = ok(call("GET", f"/fees/students/{sid}", t))
     assert detail["totals"]["outstanding"] == due - 300
     pay = [p for p in detail["payments"] if p["status"] == "confirmed"][0]
@@ -132,19 +139,21 @@ def test_one_time_charge_for_chosen_classes_shows_who_pays_first(principal_page,
     card.wait_for(state="detached")
 
 
-def test_upi_payment_from_a_parent_is_confirmed_or_rejected(principal_page, school, seeded):
+def test_upi_payment_from_a_parent_is_confirmed_corrected_or_rejected(principal_page, school, seeded):
     page = principal_page
     t = school["principal"]["token"]
+    cfg = ok(call("GET", "/fees/config", t))                                       # parents can pay by UPI only when the school has a UPI ID
+    ok(call("PUT", "/fees/config", t, {**{k: cfg[k] for k in ("monthly_amount", "class_amounts", "route_amounts", "due_day", "start_month", "auto_generate", "upi_name", "receipt_prefix", "receipt_note")}, "upi_id": "e2eschool@sbi"}))
     kid = seeded["students"][2]
     mobile = "96" + "".join(random.choices("0123456789", k=8))
-    ok(call("POST", "/users", t, {"name": f"Mrs Rao {TAG}", "login_id": mobile, "password": "Parent#123", "role": "parent", "children_ids": [kid["id"]]}))
+    ok(call("POST", "/users", t, {"name": f"Mrs Rao {TAG}", "login_id": mobile, "password": PARENT_PW, "role": "parent", "children_ids": [kid["id"]]}))
     ok(call("POST", "/fees/items", t, {"student_id": kid["id"], "title": f"Exam fee {TAG}", "amount": 500}))
-    parent = ok(login(SCHOOL_CODE, mobile, "Parent#123", web=False))
-    pt = ok(call("POST", "/auth/password", parent["token"], {"old_password": "Parent#123", "new_password": "Parent#456"}))["token"]
+    parent = ok(login(SCHOOL_CODE, mobile, PARENT_PW, web=False))
+    pt = ok(call("POST", "/auth/password", parent["token"], {"old_password": PARENT_PW, "new_password": PARENT_PW + "2"}))["token"]
     call("POST", "/auth/consent", pt)
-    utr1, utr2 = (("4" + "".join(random.choices("0123456789", k=11))) for _ in range(2))
-    for utr in (utr1, utr2):
-        ok(call("POST", "/fees/me/claim", pt, {"student_id": kid["id"], "amount": 200, "reference": utr, "paid_on": dt.date.today().isoformat()}))
+    utr1, utr2, utr3 = (("4" + "".join(random.choices("0123456789", k=11))) for _ in range(3))
+    for utr in (utr1, utr2, utr3):
+        ok(call("POST", "/fees/me/claim", pt, {"student_id": kid["id"], "amount": 100, "reference": utr, "paid_on": TODAY.isoformat()}))
     go(page, "/school/fees")
     tab(page, "UPI payments to check")
     first = page.locator(".tile", has_text=f"UTR {utr1}")
@@ -159,8 +168,21 @@ def test_upi_payment_from_a_parent_is_confirmed_or_rejected(principal_page, scho
     ask.get_by_role("button", name="Reject payment").click()
     toast(page, "Payment rejected")
     second.wait_for(state="detached")
-    pays = {p["reference"]: p["status"] for p in ok(call("GET", f"/fees/students/{kid['id']}", t))["payments"]}
-    assert pays[utr1] == "confirmed" and pays[utr2] == "rejected"
+    # the bank shows a different amount than the parent typed
+    third = page.locator(".tile", has_text=f"UTR {utr3}")
+    third.get_by_role("button", name=f"A different amount was received from Chirag Rao {TAG}").click()
+    fix = dialog(page)
+    fix.get_by_label("Amount received (₹)").fill("1.2.3")
+    assert fix.get_by_role("button", name="Confirm this amount").is_disabled()
+    fix.get_by_label("Amount received (₹)").fill("80")
+    fix.get_by_role("button", name="Confirm this amount").click()
+    toast(page, "Payment confirmed and receipt issued")
+    pays = {p["reference"]: p for p in ok(call("GET", f"/fees/students/{kid['id']}", t))["payments"]}
+    assert pays[utr1]["status"] == "confirmed" and pays[utr2]["status"] == "rejected" and pays[utr3]["status"] == "confirmed" and pays[utr3]["amount"] == 80
+    page.get_by_label("Show").select_option("rejected")
+    page.locator(".tile", has_text=f"UTR {utr2}").get_by_text("Not in our bank statement").wait_for()
+    page.get_by_label("Show").select_option("confirmed")
+    page.locator(".tile", has_text=f"UTR {utr3}").get_by_text("₹80").wait_for()
 
 
 def test_receipts_list_filters_by_date_and_mode(principal_page, school, seeded):
@@ -193,12 +215,21 @@ def test_overview_numbers_match_the_server_and_month_billing_is_safe_to_repeat(p
     heading(page, "Fees")
     s = ok(call("GET", "/fees/summary", t))
     page.locator(".stat", has_text="Outstanding").get_by_text(f"{s['students_with_dues']} students").wait_for()
-    bill = page.get_by_role("button", name=f"Bill {s['period_label']}")
-    if not s["billed_this_month"]:
-        bill.click()
-        box = dialog(page)
-        box.get_by_role("button", name=re.compile(r"^Bill \d+ students")).click()
-        toast(page, f"{s['period_label']} fees billed")
-    bill.wait_for(state="detached")
-    again = ok(call("POST", "/fees/generate", t, {"period": s["period"], "preview": True}))
-    assert again["new_items"] == 0, "billing the same month twice must not charge anyone twice"
+    # bill next month by hand; a second time changes nothing (an earlier run may already have billed it for older students)
+    nxt = (TODAY.replace(day=1) + dt.timedelta(days=32)).strftime("%Y-%m")
+    expected = ok(call("POST", "/fees/generate", t, {"period": nxt, "preview": True}))["new_items"]
+    assert expected >= 3, "this run's students are not billed for next month yet"
+    month = page.get_by_label("Month to bill")
+    month.fill(nxt)
+    page.get_by_role("button", name="Check and bill").click()
+    box = dialog(page)
+    box.get_by_text(f"{expected} charges totalling").wait_for()
+    box.get_by_role("button", name=re.compile(r"^Bill \d+ students")).click()
+    toast(page, "fees billed to")
+    assert ok(call("POST", "/fees/generate", t, {"period": nxt, "preview": True}))["new_items"] == 0
+    page.get_by_role("button", name="Check and bill").click()
+    box = dialog(page)
+    box.get_by_text("Everyone is already billed").wait_for()
+    assert box.get_by_role("button", name=re.compile(r"^Bill \d+ students")).is_disabled(), "billing the same month twice must not charge anyone twice"
+    far = (TODAY.replace(day=1) + dt.timedelta(days=95)).strftime("%Y-%m")
+    assert call("POST", "/fees/generate", t, {"period": far})[0] == 400, "nobody can be billed months ahead"

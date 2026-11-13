@@ -13,7 +13,10 @@ Rules the tests follow so they are safe on a shared QA environment:
 """
 import json
 import os
+import datetime as dt
 import random
+import re
+import secrets
 import string
 import subprocess
 import sys
@@ -36,7 +39,16 @@ WEB = (os.getenv("E2E_WEB_URL") or f"http://127.0.0.1:{WEB_PORT}").rstrip("/")
 ADMIN_PW = os.getenv("E2E_ADMIN_PASSWORD") or "Admin#2026x"
 SCHOOL_CODE = "E2EQA1"
 TAG = "".join(random.choices(string.ascii_uppercase, k=2)) + "".join(random.choices(string.digits, k=3))    # e.g. QX417
-PRINCIPAL_PW = f"Run#{TAG}pw9"
+# The schools work in Indian time; so do the server and the browsers these tests open.
+TODAY = (dt.datetime.now(dt.timezone.utc) + dt.timedelta(hours=5, minutes=30)).date()
+
+
+def _password():
+    return "Pw#" + secrets.token_urlsafe(9) + "7a"      # new for every run and never derived from anything that is printed
+
+
+PRINCIPAL_PW, TEACHER_PW, STUDENT_PW, PARENT_PW = _password(), _password(), _password(), _password()
+LOCK_MINUTES = 45
 
 local_only = pytest.mark.skipif(REMOTE, reason="would leave permanent data on a shared environment")
 
@@ -143,42 +155,72 @@ def school(admin):
                                                     "principal_name": "Asha Tester", "principal_login_id": "principal", "principal_password": "Start#12345"}))["id"]
     ok(call("PUT", f"/admin/schools/{sid}", t, {"name": "E2E Test School", "plan_id": best["id"], "use_plan_modules": True, "clear_custom_price": True, "is_free": True, "free_until": None,
                                                  "suspended": False, "max_students": None}))
-    info = {"id": sid, "code": SCHOOL_CODE, "plan": best, "password": PRINCIPAL_PW, "principal": fresh_principal(admin, sid)}
-    ok(call("PUT", "/school/settings", info["principal"]["token"], {"working_days": [0, 1, 2, 3, 4, 5, 6]}))      # so "today" is always a school day
-    ok(call("DELETE", "/school/support-access", info["principal"]["token"]))
-    yield info
-    _cleanup(admin, info)
+    _lock(admin, sid)
+    try:
+        info = {"id": sid, "code": SCHOOL_CODE, "plan": best, "password": PRINCIPAL_PW, "principal": fresh_principal(admin, sid)}
+        pt = info["principal"]["token"]
+        _sweep(pt)                                                                # whatever an earlier run left behind (a cancelled run cleans nothing)
+        ok(call("PUT", "/school/settings", pt, {"working_days": [0, 1, 2, 3, 4, 5, 6], "share_contact_with_admin": False}))      # so "today" is always a school day
+        ok(call("DELETE", "/school/support-access", pt))
+        yield info
+        _cleanup(admin, info)
+    finally:
+        call("PUT", f"/admin/schools/{sid}", t, {"admin_notes": ""})
+        call("PUT", f"/admin/schools/{sid}", t, {"suspended": False, "use_plan_modules": True, "is_free": True})
+
+
+def _lock(admin, sid):
+    """Only one run may use the test school at a time: a second run would reset the principal and end the first run's sessions."""
+    if not REMOTE:
+        return
+    t = admin["token"]
+    note = ok(call("GET", f"/admin/schools/{sid}", t)).get("admin_notes") or ""
+    m = re.match(r"e2e-run (\S+) (\d+)", note)
+    if m and m.group(1) != TAG and time.time() - int(m.group(2)) < LOCK_MINUTES * 60:
+        pytest.exit(f"Another browser-test run ({m.group(1)}) is using the test school. Wait for it to finish (or {LOCK_MINUTES} minutes) and run again.", returncode=3)
+    ok(call("PUT", f"/admin/schools/{sid}", t, {"admin_notes": f"e2e-run {TAG} {int(time.time())}"}))
+
+
+def _sweep(t):
+    """Archive everything in the test school except its principal, and undo school-wide settings a test may have left.
+    The whole school belongs to the tests, so nothing here is anyone's real data. Best effort: one failure never stops the rest."""
+    def rows(path, query=None):
+        status, data = call("GET", path, t, query=query)
+        return data if status == 200 and isinstance(data, list) else []
+    for path in ("/polls", "/banners", "/posts", "/exams"):
+        for row in rows(path):
+            if not row.get("platform"):
+                call("DELETE", f"{path}/{row['id']}", t)
+    for h in rows("/holidays", {"start": "2000-01-01", "end": "2099-12-31"}):
+        call("DELETE", f"/holidays/{h['id']}", t)
+    for b in rows("/fees/batches"):
+        call("DELETE", f"/fees/batches/{b['id']}", t)
+    status, tr = call("GET", "/transport/overview", t)
+    if status == 200:
+        riders = [r["student_id"] for r in rows("/transport/students")]
+        if riders:
+            call("PUT", "/transport/students", t, {"student_ids": riders, "route_id": None})
+        for r in tr.get("routes", []):
+            call("DELETE", f"/transport/routes/{r['id']}", t)
+        for v in tr.get("vehicles", []):
+            call("DELETE", f"/transport/vehicles/{v['id']}", t)
+    for role in ("student", "parent", "teacher", "vice_principal", "coordinator"):
+        for u in rows("/users", {"role": role}):
+            call("DELETE", f"/users/{u['id']}", t)
+    for c in rows("/classes"):
+        call("DELETE", f"/classes/{c['id']}", t)
+    for s in rows("/subjects"):
+        call("DELETE", f"/subjects/{s['id']}", t)
+    status, bell = call("GET", "/school/bell", t)
+    if status == 200:
+        for day in bell.get("overrides", {}):
+            call("DELETE", f"/school/bell/{day}", t)
+    call("DELETE", "/school/support-access", t)
 
 
 def _cleanup(admin, info):
-    """Archive whatever this run created in the test school (best effort: a failure here never fails the run)."""
     try:
-        t = fresh_principal(admin, info["id"])["token"]
-        for path, key in (("/polls", "title"), ("/banners", "title"), ("/posts", "title"), ("/holidays", "name"), ("/exams", "name")):
-            for row in call("GET", path, t, query={"start": "2000-01-01", "end": "2099-12-31"} if path == "/holidays" else None)[1] or []:
-                if TAG in str(row.get(key, "")):
-                    call("DELETE", f"{path}/{row['id']}", t)
-        for role in ("student", "parent", "teacher", "vice_principal", "coordinator"):
-            for u in call("GET", "/users", t, query={"role": role})[1] or []:
-                if TAG in u["login_id"] or TAG in u["name"]:
-                    call("DELETE", f"/users/{u['id']}", t)
-        tr = call("GET", "/transport/overview", t)[1] or {}
-        for r in tr.get("routes", []):
-            if TAG in r["name"]:
-                call("DELETE", f"/transport/routes/{r['id']}", t)
-        for v in tr.get("vehicles", []):
-            if TAG in v["number"]:
-                call("DELETE", f"/transport/vehicles/{v['id']}", t)
-        for b in call("GET", "/fees/batches", t)[1] or []:
-            if TAG in b["title"]:
-                call("DELETE", f"/fees/batches/{b['id']}", t)
-        for c in call("GET", "/classes", t)[1] or []:
-            if TAG in c["name"]:
-                call("DELETE", f"/classes/{c['id']}", t)
-        for s in call("GET", "/subjects", t)[1] or []:
-            if TAG in s["name"]:
-                call("DELETE", f"/subjects/{s['id']}", t)
-        call("DELETE", "/school/support-access", t)
+        _sweep(fresh_principal(admin, info["id"])["token"])
     except Exception as e:  # noqa: BLE001
         print(f"clean-up skipped: {e}")
 
@@ -187,11 +229,11 @@ def _cleanup(admin, info):
 def seeded(school):
     """A small class to work with: 2 teachers, 2 subjects, 1 class with 3 students — all named with this run's TAG."""
     t = school["principal"]["token"]
-    teachers = [ok(call("POST", "/users", t, {"name": f"Teacher {n} {TAG}", "login_id": f"T{TAG}{n}", "password": "Teach#12345", "role": "teacher", "phone": f"98000{random.randint(10000, 99999)}"}))
+    teachers = [ok(call("POST", "/users", t, {"name": f"Teacher {n} {TAG}", "login_id": f"T{TAG}{n}", "password": TEACHER_PW, "role": "teacher", "phone": f"98000{random.randint(10000, 99999)}"}))
                 for n in ("One", "Two")]
     subjects = [ok(call("POST", "/subjects", t, {"name": f"{name} {TAG}"})) for name in ("Maths", "Science")]
     klass = ok(call("POST", "/classes", t, {"name": f"6-{TAG}", "class_teacher_id": teachers[0]["id"]}))
-    students = [ok(call("POST", "/users", t, {"name": f"{name} {TAG}", "login_id": f"S{TAG}{i}", "password": "Stud#12345", "role": "student", "class_id": klass["id"], "roll_no": i}))
+    students = [ok(call("POST", "/users", t, {"name": f"{name} {TAG}", "login_id": f"S{TAG}{i}", "password": STUDENT_PW, "role": "student", "class_id": klass["id"], "roll_no": i}))
                 for i, name in enumerate(("Aman Verma", "Bina Das", "Chirag Rao"), 1)]
     ok(call("POST", "/assignments", t, {"teacher_id": teachers[0]["id"], "class_id": klass["id"], "subject_id": subjects[0]["id"]}))
     return {"teachers": teachers, "subjects": subjects, "klass": klass, "students": students}
@@ -208,7 +250,7 @@ def browser():
 
 def _open(browser, session=None, phone=False):
     opts = {"viewport": {"width": 390, "height": 844}, "device_scale_factor": 2, "has_touch": True, "is_mobile": True} if phone else {"viewport": {"width": 1366, "height": 850}}
-    ctx = browser.new_context(accept_downloads=True, **opts)
+    ctx = browser.new_context(accept_downloads=True, timezone_id="Asia/Kolkata", locale="en-IN", **opts)
     ctx.set_default_timeout(20000 if REMOTE else 10000)
     if session:
         # signed in before the first page loads, exactly as if this tab had just logged in
@@ -223,6 +265,8 @@ def _open(browser, session=None, phone=False):
 def _close(ctx, pg, request):
     if getattr(request.node, "failed_call", False):
         try:
+            for box in pg.locator(".cred, input[type=password]").all():           # never keep a picture of a password
+                box.evaluate("e => { e.style.visibility = 'hidden'; }")
             pg.screenshot(path=os.environ.get("E2E_SHOT_DIR", tempfile.gettempdir()) + f"/fail-{request.node.name[:60]}.png")
         except Exception:  # noqa: BLE001
             pass
@@ -283,7 +327,8 @@ def pytest_runtest_makereport(item, call):
             pg = next((item.funcargs[k] for k in ("page", "phone", "admin_page", "principal_page", "principal_phone") if k in item.funcargs), None)
             if pg is not None:
                 try:
-                    seen = f" | url={pg.url} | page says: {pg.inner_text('body')[:400]}"
+                    said = pg.inner_text("main")[:300] if pg.locator("main").count() else pg.inner_text("body")[:300]
+                    seen = f" | url={pg.url}" + ("" if "assword" in said else f" | page says: {said}")   # page text only when it cannot hold a password
                 except Exception:  # noqa: BLE001
                     pass
             text = (where + seen).replace("%", "%25").replace("\r", "").replace("\n", " / ")
