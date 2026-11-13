@@ -407,6 +407,12 @@ Today the timetable has a fixed 5 numbered periods and no times. Proposal:
 ### F34 · Web portal, school onboarding requests, push notifications ✅ `L` — requested 12 Nov (on DEV/TEST)
 - Portal for Admin and Principal, public "Register your school" page, admin review → school creation, app screens, Firebase push to Admin. See docs/portal.md.
 
+### F35 · Portal: everything Admin and Principal can do in the app ✅ `L` — requested 13 Nov
+> Javed: the portal must have the full functionality of the app for admin and principal, be highly interactive, be reviewed, and have full Playwright tests run in DEV and QA before production.
+- Principal: people, classes, timetable, attendance, exams, notices, calendar, leaves, staff attendance, fees, transport, polls, banners, settings, archive, activity.
+- Admin: add school, subscription and features, users, payments, plans, announcements, app updates.
+- Ctrl+K page jump, drawers, phone layout with a More sheet. Browser tests in portal/e2e, run on TEST by the "QA browser tests" workflow. See docs/portal.md.
+
 ## 🖥️ Infrastructure & effort plan
 
 **Today (free tier, fine for testing):** Render free API (sleeps when idle) · Neon free Postgres · no file storage.

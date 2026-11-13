@@ -18,6 +18,32 @@ const PATHS: Record<string, string> = {
   alert: 'M12 8v5m0 3.500h.01M10.3 3.9 2.6 17.500A2 2 0 0 0 4.3 20.500h15.400a2 2 0 0 0 1.7-3L13.7 3.900a2 2 0 0 0-3.4 0Z',
   sort: 'M8 5v14m0 0-3-3m3 3 3-3M16 19V5m0 0-3 3m3-3 3 3',
   back: 'M15 5l-7 7 7 7',
+  close: 'M6 6l12 12M18 6 6 18',
+  plus: 'M12 5v14M5 12h14',
+  edit: 'M4 20h4L19 9l-4-4L4 16v4Zm10-14 4 4',
+  trash: 'M5 7h14M10 7V4h4v3m-7 0 1 13h8l1-13M10 11v6m4-6v6',
+  calendar: 'M4 6h16v14H4V6Zm0 4h16M8 3v4m8-4v4',
+  clock: 'M12 21a9 9 0 1 0 0-18 9 9 0 0 0 0 18Zm0-14v5l3 2',
+  book: 'M5 4h11a3 3 0 0 1 3 3v13H8a3 3 0 0 1-3-3V4Zm0 13a3 3 0 0 1 3-3h11',
+  rupee: 'M7 5h10M7 9h10M7 5c7 0 7 8 0 8l7 7',
+  bus: 'M5 16V6a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2v10M5 16h14M5 16v2.500M19 16v2.500M5 11h14M8 13.500h.01M16 13.500h.01',
+  megaphone: 'M4 10v4h3l8 4V6l-8 4H4Zm14-1a4 4 0 0 1 0 6M8 14v5h3',
+  vote: 'M5 12.500 9 16.500l6-7M4 4h16v16H4V4Z',
+  image: 'M4 5h16v14H4V5Zm0 11 5-5 4 4 3-3 4 4M15 9.500h.01',
+  settings: 'M12 15a3 3 0 1 0 0-6 3 3 0 0 0 0 6Zm8-3-2 .700-.6 1.500.9 1.900-1.600 1.600-1.900-.900-1.500.600L12.600 20h-2.200l-.700-2-1.500-.600-1.900.900-1.600-1.600.9-1.900-.600-1.500L3 12.600v-2.200l2-.700.6-1.500-.900-1.900 1.600-1.600 1.900.9 1.500-.600L10.400 3h2.200l.7 2 1.500.6 1.900-.900 1.600 1.600-.900 1.900.6 1.500 2 .700V12Z',
+  shield: 'M12 3 5 6v6c0 4.500 3 7.500 7 9 4-1.500 7-4.500 7-9V6l-7-3Zm-3 9 2 2 4-4',
+  restore: 'M4 12a8 8 0 1 0 2.500-5.800M4 4v5h5',
+  more: 'M5 12h.01M12 12h.01M19 12h.01',
+  phone: 'M8 3h8a1 1 0 0 1 1 1v16a1 1 0 0 1-1 1H8a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1Zm3 15h2',
+  print: 'M7 9V4h10v5M7 17H4v-7h16v7h-3M7 14h10v6H7v-6Z',
+  copy: 'M9 9h10v11H9V9Zm-4 6V4h10',
+  tag: 'M4 4h7l9 9-7 7-9-9V4Zm4.500 4.500h.01',
+  grid: 'M4 4h7v7H4V4Zm9 0h7v7h-7V4ZM4 13h7v7H4v-7Zm9 0h7v7h-7v-7Z',
+  user: 'M12 12a4 4 0 1 0 0-8 4 4 0 0 0 0 8Zm-7 8a7 7 0 0 1 14 0',
+  leaf: 'M5 19c0-9 5-14 14-14 0 9-5 14-14 14Zm0 0 8-8',
+  pin: 'M12 21s-6-5.500-6-10.500a6 6 0 1 1 12 0C18 15.500 12 21 12 21Zm0-8.500a2 2 0 1 0 0-4 2 2 0 0 0 0 4Z',
+  layers: 'm12 4 8 4-8 4-8-4 8-4Zm-8 8 8 4 8-4M4 16l8 4 8-4',
+  refresh: 'M20 12a8 8 0 1 1-2.500-5.800M20 4v5h-5',
 };
 export function Icon({ name }: { name: keyof typeof PATHS | string }) {
   return (
@@ -83,11 +109,11 @@ export function Text({ label, hint, error, value, onChange, ...rest }: { label: 
   );
 }
 
-export function Select({ label, value, onChange, options, hint }: { label: string; value: string; onChange: (v: string) => void; options: (string | [string, string])[]; hint?: string }) {
+export function Select({ label, value, onChange, options, hint, error, disabled }: { label: string; value: string; onChange: (v: string) => void; options: (string | [string, string])[]; hint?: string; error?: string | null; disabled?: boolean }) {
   return (
-    <Field label={label} hint={hint}>
+    <Field label={label} hint={hint} error={error}>
       {(id, d) => (
-        <select id={id} className="input" aria-describedby={d} value={value} onChange={(e) => onChange(e.target.value)}>
+        <select id={id} className="input" aria-describedby={d} aria-invalid={error ? true : undefined} disabled={disabled} value={value} onChange={(e) => onChange(e.target.value)}>
           {options.map((o) => (typeof o === 'string' ? <option key={o} value={o}>{o || '—'}</option> : <option key={o[0]} value={o[0]}>{o[1]}</option>))}
         </select>
       )}

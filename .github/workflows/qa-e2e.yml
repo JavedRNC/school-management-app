@@ -1,0 +1,63 @@
+# Runs the portal's browser tests against the deployed TEST (QA) environment.
+# A green run here is the gate for releasing the portal to production.
+#
+# Needs one repository secret: QA_ADMIN_PASSWORD (the Admin password of the TEST server).
+# The tests work inside their own school (code E2EQA1) and remove what they create.
+name: QA browser tests
+
+on:
+  push:
+    branches: [test]
+    paths: ["backend/**", "portal/**", ".github/workflows/qa-e2e.yml"]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: qa-e2e          # one run at a time: they share the TEST environment
+  cancel-in-progress: false
+
+env:
+  E2E_WEB_URL: https://prangan-portal-test.onrender.com
+  E2E_API_URL: https://prangan-api-test.onrender.com
+
+jobs:
+  qa:
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0     # history is needed to tell whether a part of TEST had to be rebuilt
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: pip install pytest playwright
+      - run: python -m playwright install --with-deps chromium
+      - name: The secret is set
+        env:
+          E2E_ADMIN_PASSWORD: ${{ secrets.QA_ADMIN_PASSWORD }}
+        run: |
+          if [ -z "$E2E_ADMIN_PASSWORD" ]; then
+            echo "::error title=QA_ADMIN_PASSWORD is missing::Add the TEST server's Admin password as the repository secret QA_ADMIN_PASSWORD, then run this workflow again."
+            exit 1
+          fi
+      - name: Wait until TEST serves this commit
+        # Render rebuilds the API and the portal after the push; the tests must not run against the previous build
+        run: python portal/e2e/wait_for_deploy.py "$GITHUB_SHA"
+      - name: Browser tests on TEST
+        working-directory: portal
+        env:
+          E2E_ADMIN_PASSWORD: ${{ secrets.QA_ADMIN_PASSWORD }}
+          E2E_SHOT_DIR: ${{ runner.temp }}/shots
+        # a test that fails once is retried once, so a slow free server does not block a release
+        run: |
+          mkdir -p "$E2E_SHOT_DIR"
+          python -m pytest e2e -q || python -m pytest e2e -q --last-failed
+      - uses: actions/upload-artifact@v4
+        if: failure()
+        with:
+          name: failure-screenshots
+          path: ${{ runner.temp }}/shots
+          if-no-files-found: ignore

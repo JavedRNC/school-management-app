@@ -4,11 +4,15 @@ A second front end, beside the Android app, on the same API and database. Code: 
 
 ## Who uses it
 
-| Role | Sees |
+| Role | Does |
 |---|---|
-| Admin | Platform dashboard, schools (search, filter, sort, pages, export), school detail, onboarding requests, activity log |
-| Principal | Own school's dashboard, people (read-only), import & export with history |
+| Admin | Dashboard · schools (search, filter, sort, export, add) · one school: details, plan and features, price and dates, suspend, users, payments, website listing, import & export, activity · onboarding requests · plans & pricing · announcements for every school · app update settings · activity log |
+| Principal | Dashboard · people (add, edit, reset password, remove, add many by pasting from Excel, parent links, Vice Principal / Coordinator rights) · classes, subjects, subject teachers · timetable and period timings · attendance · exams and marks · notices and homework · calendar · leaves and staff leave allowance · staff attendance and school location · fees (setup, dues, collect, receipts, cancel, UPI payments to check, one-time charges, month billing) · transport · polls and consent forms · banners · import & export · settings (profile, working days, privacy and support access, website listing, plan, archive and restore) · activity |
 | Public | "Register your school" form and a status check (reference + mobile) |
+
+Everything Admin and Principal can do in the Android app can be done here. The pages for paid features (Fees, Transport, Leaves,
+Staff attendance, Polls) appear only when the school's plan includes them. When a subscription has lapsed the portal is view-only.
+Press **Ctrl+K** anywhere to jump to a page.
 
 Teachers, parents and students cannot sign in to the portal; the server refuses a portal session for those roles.
 Every permission is enforced by the API. The portal's route guards are only for navigation.
@@ -60,7 +64,15 @@ No existing table was changed. Import/export history is read from the existing `
 ## Tests
 
 - API: `cd backend && python -m pytest -q`
-- Browser: `cd portal && npm ci && python -m pytest e2e -q` (starts a throw-away API and a fresh portal build)
+- Browser (Playwright), local: `cd portal && npm ci && python -m pytest e2e -q` — starts a throw-away API with demo data and a fresh build.
+- Browser, against a deployed environment: set `E2E_WEB_URL`, `E2E_API_URL`, `E2E_ADMIN_PASSWORD`, then the same command.
+  The workflow **QA browser tests** (`.github/workflows/qa-e2e.yml`) does this on TEST for every push to `test`; it needs the
+  repository secret `QA_ADMIN_PASSWORD`. It first waits until TEST is running the pushed commit (`/` on the API and
+  `version.json` on the portal report the commit).
+- The tests work in their own school (code `E2EQA1`, created on first use), put a run tag in every name they create and archive
+  those items when the run ends. Steps that would leave a permanent school behind run only locally.
+
+Release order: `dev` → checks green → `test` → QA browser tests green → `main`.
 
 ## Known limits
 
@@ -73,4 +85,5 @@ No existing table was changed. Import/export history is read from the existing `
   `IMPORT_MAX_CELLS` / `IMPORT_PROBE_MB` are raised.
 - Admin's view of a school's detailed data depends on that school's support access.
 - Rate limits are kept in the API's memory: they reset on a restart and assume one API instance.
-- People, plans, prices and payments are managed in the app, not in the portal.
+- Staff check-in (GPS) is done from the phone app only; the portal shows it and lets the principal mark by hand.
+- Logging out forgets the session in the browser; the server session ends by itself after 12 hours or on a password change.
