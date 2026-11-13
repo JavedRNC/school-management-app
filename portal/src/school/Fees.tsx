@@ -92,7 +92,7 @@ function Overview({ sum, canWrite, onChanged, onReceipt, goSetup }: { sum: Retur
           <button key={p.id} type="button" className="item" onClick={() => onReceipt(p.id)}><div className="grow"><b>{p.student_name}</b><div className="small muted">{p.receipt_no} · {p.class_name} · {fmtDate(p.paid_on)} · {modeLabel(p.mode)}</div></div><b className="num">{fmtMoney(p.amount)}</b></button>
         ))}</div> : <Empty title="No receipts yet">Open Students & dues to collect a fee.</Empty>}
       </section>
-      {canWrite ? <BillMonth key={s.outstanding} busy={busy === 'gen'} onPick={preview} /> : null}
+      {canWrite ? <BillMonth billed={s.outstanding} busy={busy === 'gen'} onPick={preview} /> : null}
       {gen ? (
         <Modal title={`Bill ${gen.label} fees?`} onClose={() => setGen(null)} actions={<><Button onClick={() => setGen(null)}>Cancel</Button><Button kind="primary" busy={busy === 'gen2'} disabled={!gen.new_items} onClick={generate}>Bill {gen.students} students</Button></>}>
           <p className="muted">{gen.new_items ? `${gen.new_items} charges totalling ${fmtMoney(gen.new_amount)} will be added, due on ${fmtDate(gen.due_date)}. Students already billed for ${gen.label} are skipped.` : `Everyone is already billed for ${gen.label}.`}</p>
@@ -103,8 +103,8 @@ function Overview({ sum, canWrite, onChanged, onReceipt, goSetup }: { sum: Retur
 }
 
 /** Bill a month by hand: any month already started, or the next one. Months billed so far are listed. */
-function BillMonth({ busy, onPick }: { busy: boolean; onPick: (period: string) => void }) {
-  const cfg = useLoad(() => api<Config>('/fees/config'), []);
+function BillMonth({ busy, billed, onPick }: { busy: boolean; billed: number; onPick: (period: string) => void }) {
+  const cfg = useLoad(() => api<Config>('/fees/config'), [billed]);     // the list of billed months is read again after a billing
   const next = (() => { const d = new Date(); d.setDate(1); d.setMonth(d.getMonth() + 1); return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`; })();
   const [month, setMonth] = useState(today().slice(0, 7));
   const label = (p: string) => new Date(`${p}-01T00:00:00`).toLocaleDateString('en-IN', { month: 'short', year: 'numeric' });

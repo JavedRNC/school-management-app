@@ -227,8 +227,10 @@ def test_overview_numbers_match_the_server_and_month_billing_is_safe_to_repeat(p
     box.get_by_role("button", name=re.compile(r"^Bill \d+ students")).click()
     toast(page, "fees billed to")
     assert ok(call("POST", "/fees/generate", t, {"period": nxt, "preview": True}))["new_items"] == 0
+    assert month.input_value() == nxt, "the chosen month stays chosen after billing"
     page.get_by_role("button", name="Check and bill").click()
     box = dialog(page)
+    box.get_by_role("heading", name=re.compile("^Bill .* fees")).wait_for()
     box.get_by_text("Everyone is already billed").wait_for()
     assert box.get_by_role("button", name=re.compile(r"^Bill \d+ students")).is_disabled(), "billing the same month twice must not charge anyone twice"
     far = (TODAY.replace(day=1) + dt.timedelta(days=95)).strftime("%Y-%m")
