@@ -48,7 +48,7 @@ def _password():
 
 
 PRINCIPAL_PW, TEACHER_PW, STUDENT_PW, PARENT_PW = _password(), _password(), _password(), _password()
-LOCK_MINUTES = 45
+LOCK_MINUTES = 30
 
 local_only = pytest.mark.skipif(REMOTE, reason="would leave permanent data on a shared environment")
 
@@ -153,10 +153,10 @@ def school(admin):
     else:
         sid = ok(call("POST", "/admin/schools", t, {"code": SCHOOL_CODE, "name": "E2E Test School", "address": "1 Test Lane", "board": "CBSE", "plan_id": best["id"],
                                                     "principal_name": "Asha Tester", "principal_login_id": "principal", "principal_password": "Start#12345"}))["id"]
-    ok(call("PUT", f"/admin/schools/{sid}", t, {"name": "E2E Test School", "plan_id": best["id"], "use_plan_modules": True, "clear_custom_price": True, "is_free": True, "free_until": None,
-                                                 "suspended": False, "max_students": None}))
-    _lock(admin, sid)
+    _lock(admin, sid)                                                             # before anything is changed: another run may be using the school
     try:
+        ok(call("PUT", f"/admin/schools/{sid}", t, {"name": "E2E Test School", "plan_id": best["id"], "use_plan_modules": True, "clear_custom_price": True, "is_free": True, "free_until": None,
+                                                     "suspended": False, "max_students": None}))
         info = {"id": sid, "code": SCHOOL_CODE, "plan": best, "password": PRINCIPAL_PW, "principal": fresh_principal(admin, sid)}
         pt = info["principal"]["token"]
         _sweep(pt)                                                                # whatever an earlier run left behind (a cancelled run cleans nothing)
@@ -165,8 +165,11 @@ def school(admin):
         yield info
         _cleanup(admin, info)
     finally:
-        call("PUT", f"/admin/schools/{sid}", t, {"admin_notes": ""})
-        call("PUT", f"/admin/schools/{sid}", t, {"suspended": False, "use_plan_modules": True, "is_free": True})
+        for body in ({"suspended": False, "use_plan_modules": True, "is_free": True}, {"admin_notes": ""}):     # each on its own: one failing must not skip the other
+            try:
+                call("PUT", f"/admin/schools/{sid}", t, body)
+            except Exception as e:  # noqa: BLE001
+                print(f"could not restore the test school ({body}): {e}")
 
 
 def _lock(admin, sid):
@@ -265,7 +268,7 @@ def _open(browser, session=None, phone=False):
 def _close(ctx, pg, request):
     if getattr(request.node, "failed_call", False):
         try:
-            for box in pg.locator(".cred, input[type=password]").all():           # never keep a picture of a password
+            for box in pg.locator(".cred, input[type=password], input[autocomplete=off], td code").all():           # never keep a picture of a password
                 box.evaluate("e => { e.style.visibility = 'hidden'; }")
             pg.screenshot(path=os.environ.get("E2E_SHOT_DIR", tempfile.gettempdir()) + f"/fail-{request.node.name[:60]}.png")
         except Exception:  # noqa: BLE001
