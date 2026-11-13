@@ -47,11 +47,11 @@ function BannerForm({ base, b, classes, images, onClose, onSaved }: { base: stri
     e.preventDefault();
     const bad: Record<string, string> = {};
     if (!f.title.trim()) bad.title = 'Add a title';
-    if (f.image_url && !f.image_url.trim().startsWith('https://')) bad.image = 'The picture link must start with https://';
+    if (images && f.image_url && !f.image_url.trim().startsWith('https://')) bad.image = 'The picture link must start with https://';
     if (f.start_date && f.end_date && f.end_date < f.start_date) bad.end = 'The last day is before the first day';
     setErr(bad);
     if (Object.keys(bad).length) return;
-    const body = { ...f, title: f.title.trim(), text: f.text.trim(), image_url: f.image_url.trim(), start_date: f.start_date || null, end_date: f.end_date || null, sort: b?.sort ?? 0 };
+    const body = { ...f, title: f.title.trim(), text: f.text.trim(), image_url: images ? f.image_url.trim() : '', start_date: f.start_date || null, end_date: f.end_date || null, sort: b?.sort ?? 0 };
     if (await act('save', () => (b ? api(`${base}/${b.id}`, { method: 'PUT', body }) : api(base, { body })), b ? 'Banner saved' : 'Banner is live')) onSaved();
   }
   return (
@@ -61,6 +61,7 @@ function BannerForm({ base, b, classes, images, onClose, onSaved }: { base: stri
         <Text label="Title" value={f.title} onChange={(v) => set('title', v)} error={err.title} maxLength={120} />
         <TextArea label="Message (optional)" value={f.text} onChange={(v) => set('text', v)} maxLength={600} />
         <div className="cols"><Select label="Colour" value={f.color} onChange={(v) => set('color', v)} options={COLORS} />
+          {!images && b?.image_url ? <p className="small muted wide">This banner has a picture, but pictures are not part of your plan now. Saving removes the picture.</p> : null}
           {images ? <Text label="Picture link (optional)" value={f.image_url} onChange={(v) => set('image_url', v)} error={err.image} maxLength={500} placeholder="https://…" /> : null}
           <Text label="Show from (optional)" type="date" value={f.start_date} onChange={(v) => set('start_date', v)} /><Text label="Show until (optional)" type="date" value={f.end_date} onChange={(v) => set('end_date', v)} error={err.end} /></div>
         <Chips label="Who sees it (none selected = everyone)" options={ROLES} value={f.roles} onChange={(v) => set('roles', v)} />

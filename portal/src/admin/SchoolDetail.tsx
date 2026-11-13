@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
 import { api, type AuditRow, type SchoolRow } from '../api';
 import { DataTools } from '../DataTools';
-import { Avatar, Chips, Drawer, IconButton, RowActions, Switch, Tabs, TextArea, today, useAct, useConfirm } from '../kit';
+import { Avatar, Chips, Drawer, IconButton, num, RowActions, Switch, Tabs, TextArea, today, useAct, useConfirm } from '../kit';
 import { newPassword } from '../school/People';
 import { ROLE_LABEL, type Klass, type Person } from '../school/ctx';
 import { Badge, Button, Empty, ErrorBox, fmtDate, fmtDateTime, fmtInt, fmtMoney, Loading, PageHead, parseTime, Select, Text, useLoad, useToast, words } from '../ui';
@@ -52,12 +52,14 @@ function Info({ s, support, onSaved }: { s: Detail; support: boolean; onSaved: (
   const confirm = useConfirm();
   const [f, setF] = useState({ name: s.name, address: s.address, phone: s.phone, board: s.board, admin_notes: s.admin_notes ?? '' });
   const [e, setE] = useState<Extra | null>(null);
-  const [listing, setListing] = useState<{ show: boolean; city: string } | null>(null);
+  const [listing, setListing] = useState<{ city: string } | null>(null);
   useEffect(() => { if (x.data) setE(x.data); }, [x.data]);
-  useEffect(() => { setF({ name: s.name, address: s.address, phone: s.phone, board: s.board, admin_notes: s.admin_notes ?? '' }); }, [s]);
+  // only when another school is opened: a reload after suspending must not wipe what is being typed
+  useEffect(() => { setF({ name: s.name, address: s.address, phone: s.phone, board: s.board, admin_notes: s.admin_notes ?? '' }); }, [s.id]);   // eslint-disable-line react-hooks/exhaustive-deps
+  const pinBad = !!e && e.pin !== '' && !/^[1-9]\d{5}$/.test(e.pin);
   async function save(ev: React.FormEvent) {
     ev.preventDefault();
-    if (f.name.trim().length < 2) return;
+    if (f.name.trim().length < 2 || pinBad || !e) return;       // nothing is sent until every part is valid and loaded
     const a = await act('save', () => api(`/admin/schools/${s.id}`, { method: 'PUT', body: { ...f, name: f.name.trim() } }));
     const b = e ? await act('save', () => api<Extra>(`/admin/schools/${s.id}/details`, { method: 'PUT', body: e }), 'School details saved') : true;
     if (a && b) onSaved();
@@ -67,7 +69,7 @@ function Info({ s, support, onSaved }: { s: Detail; support: boolean; onSaved: (
     if (!(await confirm({ title: to ? `Suspend ${s.name}?` : `Lift the suspension of ${s.name}?`, body: to ? 'Nobody from this school can sign in until you lift the suspension. No data is deleted.' : 'Everyone can sign in again.', confirm: to ? 'Suspend school' : 'Lift suspension', danger: to }))) return;
     if (await act('susp', () => api(`/admin/schools/${s.id}`, { method: 'PUT', body: { suspended: to } }), to ? 'School suspended' : 'Suspension lifted')) onSaved();
   }
-  const saveListing = async () => { if (listing && await act('list', () => api(`/admin/schools/${s.id}/showcase`, { method: 'PUT', body: listing }), listing.show ? 'Listed on the website' : 'Removed from the website')) setListing(null); };
+  const saveListing = async (show: boolean) => { if (listing && await act('list', () => api(`/admin/schools/${s.id}/showcase`, { method: 'PUT', body: { show, city: listing.city.trim() } }), show ? 'Listed on the website' : 'Removed from the website')) setListing(null); };
   return (
     <div className="grid g21">
       <form className="card stack" onSubmit={save} noValidate>
@@ -79,12 +81,12 @@ function Info({ s, support, onSaved }: { s: Detail; support: boolean; onSaved: (
           {e ? <>
             <Text label="Registration no." value={e.reg_no} onChange={(v) => setE({ ...e, reg_no: v })} maxLength={60} /><Text label="Category" value={e.category} onChange={(v) => setE({ ...e, category: v })} maxLength={40} />
             <Text label="City / town" value={e.city} onChange={(v) => setE({ ...e, city: v })} maxLength={80} /><Text label="District" value={e.district} onChange={(v) => setE({ ...e, district: v })} maxLength={60} />
-            <Text label="State" value={e.state} onChange={(v) => setE({ ...e, state: v })} maxLength={60} /><Text label="PIN code" value={e.pin} onChange={(v) => setE({ ...e, pin: v.replace(/\D/g, '').slice(0, 6) })} inputMode="numeric" />
+            <Text label="State" value={e.state} onChange={(v) => setE({ ...e, state: v })} maxLength={60} /><Text label="PIN code" value={e.pin} onChange={(v) => setE({ ...e, pin: v.replace(/\D/g, '').slice(0, 6) })} inputMode="numeric" error={pinBad ? '6 digits, not starting with 0' : null} />
             <Text label="Email" value={e.email} onChange={(v) => setE({ ...e, email: v })} type="email" maxLength={160} /><Text label="Contact person" value={e.contact_name} onChange={(v) => setE({ ...e, contact_name: v })} maxLength={120} />
           </> : x.error ? <div className="wide"><ErrorBox message={x.error} onRetry={x.reload} /></div> : null}
           <div className="wide"><TextArea label="Private notes (only admins see these)" value={f.admin_notes} onChange={(v) => setF({ ...f, admin_notes: v })} maxLength={2000} /></div>
         </div>
-        <div><Button kind="primary" type="submit" busy={busy === 'save'}>Save details</Button></div>
+        <div><Button kind="primary" type="submit" busy={busy === 'save'} disabled={!e || pinBad}>Save details</Button></div>
       </form>
       <div className="stack">
         <section className="card stack"><h2>Privacy</h2>
@@ -92,9 +94,9 @@ function Info({ s, support, onSaved }: { s: Detail; support: boolean; onSaved: (
             : 'Support access is off. You see counts and masked contact details only. The principal can allow it for 24 hours from Settings → Privacy & support.'}</div>
         </section>
         <section className="card stack"><h2>Website listing</h2>
-          {listing ? <><Switch label="Show on the Prangan website" checked={listing.show} onChange={(v) => setListing({ ...listing, show: v })} /><Text label="City shown" value={listing.city} onChange={(v) => setListing({ ...listing, city: v })} maxLength={80} />
-            <div className="row"><Button kind="primary small" busy={busy === 'list'} onClick={saveListing}>Save listing</Button><Button kind="small" onClick={() => setListing(null)}>Cancel</Button></div></>
-            : <><p className="muted small">Only the name, board and city appear in the public list of schools.</p><div><Button kind="small" onClick={() => setListing({ show: true, city: e?.city ?? '' })}>Change listing</Button></div></>}
+          {listing ? <><Text label="City shown" value={listing.city} onChange={(v) => setListing({ city: v })} maxLength={60} />
+            <div className="row"><Button kind="primary small" busy={busy === 'list'} onClick={() => saveListing(true)}>Show on the website</Button><Button kind="small" busy={busy === 'list'} onClick={() => saveListing(false)}>Hide from the website</Button><Button kind="small" onClick={() => setListing(null)}>Cancel</Button></div></>
+            : <><p className="muted small">Only the name, board and city appear in the public list of schools. The school can also change this itself.</p><div><Button kind="small" onClick={() => setListing({ city: e?.city ?? '' })}>Change listing</Button></div></>}
         </section>
         <section className="card stack"><h2>{s.suspended ? 'This school is suspended' : 'Suspend school'}</h2>
           <p className="muted small">{s.suspended ? 'Nobody from this school can sign in.' : 'Stops every sign-in for this school without deleting anything.'}</p>
@@ -117,15 +119,14 @@ function PlanTab({ s, onSaved }: { s: Detail; onSaved: () => void }) {
   const set = <K extends keyof typeof f>(k: K, v: (typeof f)[K]) => setF((x) => ({ ...x, [k]: v }));
   const plan = plans.data?.find((p) => String(p.id) === f.planId);
   const shown = f.custom ? f.mods : plan?.modules ?? [];
-  const bad = !(Number(f.discount) >= 0 && Number(f.discount) <= 100) ? 'Discount must be 0 to 100' : f.customPrice && f.price === '' ? 'Enter the price per student' : null;
-  const num = (v: string) => (v === '' ? null : Number(v));
+  const bad = !(num(f.discount) !== null && Number(f.discount) <= 100) ? 'Discount must be 0 to 100' : f.customPrice && num(f.price) === null ? 'Enter the price per student as a number' : f.customPrice && f.min !== '' && num(f.min) === null ? 'The smallest monthly bill is not a number' : null;
   async function save(e: React.FormEvent) {
     e.preventDefault();
     if (bad) return;
     const body: Record<string, unknown> = { plan_id: f.planId ? Number(f.planId) : null, discount_pct: Number(f.discount) || 0, is_free: f.isFree, free_until: f.freeUntil || null, trial_until: f.trialUntil || null,
-      valid_until: f.validUntil || null, grace_days: Number(f.grace) || 0, max_students: num(f.maxStudents), billing_cycle: f.cycle };
+      valid_until: f.validUntil || null, grace_days: Number(f.grace) || 0, max_students: f.maxStudents === '' ? null : Number(f.maxStudents), billing_cycle: f.cycle };
     if (f.custom) body.custom_modules = f.mods.includes('core') ? f.mods : ['core', ...f.mods]; else body.use_plan_modules = true;
-    if (f.customPrice) { body.price_per_student = num(f.price) ?? 0; body.min_monthly = num(f.min) ?? 0; } else body.clear_custom_price = true;
+    if (f.customPrice) { body.price_per_student = num(f.price) ?? 0; body.min_monthly = f.min === '' ? 0 : num(f.min) ?? 0; } else body.clear_custom_price = true;
     if (await act('save', () => api(`/admin/schools/${s.id}`, { method: 'PUT', body }), 'Subscription saved')) onSaved();
   }
   const est = s.subscription.estimate;
@@ -167,7 +168,7 @@ function Users({ s, support }: { s: Detail; support: boolean }) {
   const [edit, setEdit] = useState<Person | 'new' | null>(null);
   const { act, busy } = useAct();
   const toggle = async (u: Person) => { if (await act(`a${u.id}`, () => api(`/admin/schools/${s.id}/users/${u.id}`, { method: 'PUT', body: { active: !u.active } }), `${u.name} ${u.active ? 'switched off' : 'switched on'}`)) users.reload(); };
-  const canAdd = support || (role === 'principal' && active === 'true' && users.data !== null && users.data.length === 0);
+  const canAdd = support;
   return (
     <>
       <div className={`alert ${support ? 'ok' : ''}`} style={{ marginBottom: 14 }}>{support ? 'Support access is on: you can add and change any account in this school.' : "Without support access you can only reset or change the principal's account. Phone-number login IDs are hidden."} Opening this list is recorded in the school's activity log.</div>
@@ -189,23 +190,25 @@ function Users({ s, support }: { s: Detail; support: boolean }) {
           </section>
         </>
       )}
-      {edit ? <UserForm sid={s.id} role={role} user={edit === 'new' ? null : edit} onClose={() => setEdit(null)} onSaved={() => { users.reload(); }} /> : null}
+      {edit ? <UserForm sid={s.id} role={role} full={s.privacy.full_access || support} user={edit === 'new' ? null : edit} onClose={() => setEdit(null)} onSaved={() => { users.reload(); }} /> : null}
     </>
   );
 }
 
-function UserForm({ sid, role, user, onClose, onSaved }: { sid: number; role: string; user: Person | null; onClose: () => void; onSaved: () => void }) {
+function UserForm({ sid, role, user, full, onClose, onSaved }: { sid: number; role: string; user: Person | null; full: boolean; onClose: () => void; onSaved: () => void }) {
   const classes = useLoad(() => (role === 'student' ? api<Klass[]>(`/admin/schools/${sid}/classes`) : Promise.resolve([] as Klass[])), [role, sid]);
   const { act, busy } = useAct();
   const toast = useToast();
   const [name, setName] = useState(user?.name ?? ''); const [login, setLogin] = useState(user?.login_id ?? (role === 'principal' ? 'principal' : '')); const [phone, setPhone] = useState(user?.phone ?? '');
   const [classId, setClassId] = useState(user?.class_id ? String(user.class_id) : ''); const [pw, setPw] = useState(user ? '' : newPassword()); const [sent, setSent] = useState<string | null>(null);
-  const masked = !!user && /[•*x]{3,}/i.test(user.login_id);
+  // without full access the server sends hidden phone numbers (and phone-number login IDs): those boxes are locked and never sent back
+  const hidden = !!user && !full;
+  const masked = hidden && user.login_id.replace(/\D/g, '').length + (user.login_id.match(/[•*xX]/g)?.length ?? 0) >= 8 && /[•*xX]{3,}/.test(user.login_id);
   const bad = name.trim().length < 2 ? 'Enter the name' : !login.trim() ? 'Enter the login ID' : !user && pw.length < 8 ? 'The password needs at least 8 characters' : user && pw && pw.length < 8 ? 'The password needs at least 8 characters' : role === 'student' && !classId ? 'Pick a class' : null;
   async function save(e: React.FormEvent) {
     e.preventDefault();
     if (bad) return;
-    const body: Record<string, unknown> = { name: name.trim(), ...(phone.trim() !== (user?.phone ?? '') ? { phone: phone.trim() } : {}), ...(masked ? {} : { login_id: login.trim() }), ...(role === 'student' ? { class_id: Number(classId) } : {}), ...(pw ? { password: pw } : {}) };
+    const body: Record<string, unknown> = { name: name.trim(), ...(!hidden && phone.trim() !== (user?.phone ?? '') ? { phone: phone.trim() } : {}), ...(masked ? {} : { login_id: login.trim() }), ...(role === 'student' ? { class_id: Number(classId) } : {}), ...(pw ? { password: pw } : {}) };
     const ok = user ? await act('save', () => api(`/admin/schools/${sid}/users/${user.id}`, { method: 'PUT', body }), `${name.trim()} saved`) : await act('save', () => api(`/admin/schools/${sid}/users`, { body: { ...body, role } }), `${name.trim()} added`);
     if (!ok) return;
     onSaved();
@@ -222,7 +225,7 @@ function UserForm({ sid, role, user, onClose, onSaved }: { sid: number; role: st
       <form id="auser-form" className="stack" onSubmit={save} noValidate>
         <Text label="Full name" value={name} onChange={setName} maxLength={120} />
         <Text label="Login ID" value={login} onChange={setLogin} maxLength={60} disabled={masked} hint={masked ? 'Hidden because the school has not shared contact details.' : undefined} />
-        <Text label="Phone" value={phone} onChange={setPhone} maxLength={15} inputMode="tel" />
+        <Text label="Phone" value={phone} onChange={setPhone} maxLength={15} inputMode="tel" disabled={hidden} hint={hidden ? 'Hidden because the school has not shared contact details.' : undefined} />
         {role === 'student' ? <Select label="Class" value={classId} onChange={setClassId} options={[['', 'Pick a class'], ...(classes.data ?? []).map((c): [string, string] => [String(c.id), c.name])]} /> : null}
         <Text label={user ? 'New temporary password (leave empty to keep the current one)' : 'Temporary password'} value={pw} onChange={setPw} maxLength={72} autoComplete="off" />
         {user ? <div><Button kind="small" icon="refresh" onClick={() => setPw(newPassword())}>Make a new password</Button></div> : null}
@@ -255,7 +258,7 @@ function PaymentForm({ s, onClose, onSaved }: { s: Detail; onClose: () => void; 
   const { act, busy } = useAct();
   const [amount, setAmount] = useState(s.subscription.estimate.amount ? String(s.subscription.estimate.amount) : ''); const [paidOn, setPaidOn] = useState(today()); const [from, setFrom] = useState(''); const [to, setTo] = useState('');
   const [method, setMethod] = useState('upi'); const [reference, setReference] = useState(''); const [note, setNote] = useState(''); const [extend, setExtend] = useState(true);
-  const bad = !(Number(amount) > 0) ? 'Enter the amount' : !paidOn ? 'Pick the date' : from && to && to < from ? 'The period ends before it starts' : null;
+  const bad = !((num(amount) ?? 0) > 0) ? 'Enter the amount as a number' : !paidOn ? 'Pick the date' : from && to && to < from ? 'The period ends before it starts' : null;
   async function save(e: React.FormEvent) {
     e.preventDefault();
     if (bad) return;

@@ -80,7 +80,8 @@ function Marks({ exams, examId, setExamId, canWrite, onSaved }: { exams: Exam[];
   useEffect(() => { if (!classId && classes.data?.[0]) setClassId(String(classes.data[0].id)); }, [classId, classes.data]);
   useEffect(() => { if (!subjectId && subjects.data?.[0]) setSubjectId(String(subjects.data[0].id)); }, [subjectId, subjects.data]);
   const ready = examId && classId && subjectId;
-  const rows = useLoad(() => (ready ? api<MarkRow[]>('/marks', { query: { exam_id: examId, class_id: classId, subject_id: subjectId } }) : Promise.resolve(null)), [examId, classId, subjectId]);
+  const rows = useLoad(() => (ready ? api<MarkRow[]>('/marks', { query: { exam_id: examId, class_id: classId, subject_id: subjectId } }) : Promise.resolve(null)), [examId, classId, subjectId], true);
+  const confirm = useConfirm();
   const [scores, setScores] = useState<Record<number, string>>({});
   const [dirty, setDirty] = useState(false);
   const { act, busy } = useAct();
@@ -89,19 +90,23 @@ function Marks({ exams, examId, setExamId, canWrite, onSaved }: { exams: Exam[];
   const max = exam?.max_marks ?? 100;
   const bad = (v: string) => v !== '' && (!/^\d+(\.\d{1,2})?$/.test(v) || Number(v) > max);
   const invalid = useMemo(() => Object.values(scores).filter(bad).length, [scores, max]);   // eslint-disable-line react-hooks/exhaustive-deps
+  // a mark that is already saved can be corrected but not removed (the server keeps it), so an emptied box is flagged
+  const emptied = (rows.data ?? []).filter((r) => r.score !== null && (scores[r.student_id] ?? '') === '').length;
+  const leave = async (go: () => void) => { if (!dirty || await confirm({ title: 'Leave without saving?', body: 'The marks you typed on this page are not saved yet.', confirm: 'Leave', danger: true })) go(); };
   const entered = Object.values(scores).filter((v) => v !== '').length;
   const avg = useMemo(() => { const n = Object.values(scores).filter((v) => v !== '' && !bad(v)).map(Number); return n.length ? n.reduce((a, b) => a + b, 0) / n.length : null; }, [scores, max]);   // eslint-disable-line react-hooks/exhaustive-deps
   async function save() {
     const records = Object.entries(scores).filter(([, v]) => v !== '').map(([id, v]) => ({ student_id: Number(id), score: Number(v) }));
-    if (!records.length) return;
+    if (!records.length || rows.loading || invalid || emptied) return;
     if (await act('save', () => api('/marks', { body: { exam_id: Number(examId), class_id: Number(classId), subject_id: Number(subjectId), records } }), `Marks saved for ${records.length} students`)) { rows.reload(); onSaved(); }
   }
   const pick = (l: { id: number; name: string }[]) => l.map((x): [string, string] => [String(x.id), x.name]);
   if (!exams.length) return <div className="card"><Empty title="Add an exam first">Marks are entered against an exam.</Empty></div>;
   return (
     <>
-      <div className="toolbar"><Select label="Exam" value={examId} onChange={setExamId} options={pick(exams)} /><Select label="Class" value={classId} onChange={setClassId} options={pick(classes.data ?? [])} /><Select label="Subject" value={subjectId} onChange={setSubjectId} options={pick(subjects.data ?? [])} /></div>
-      {rows.error ? <ErrorBox message={rows.error} onRetry={rows.reload} /> : !rows.data ? <Loading rows={6} /> : !rows.data.length ? <div className="card"><Empty title="No students in this class" /></div> : (
+      <div className="toolbar"><Select label="Exam" value={examId} onChange={(v) => leave(() => setExamId(v))} options={pick(exams)} /><Select label="Class" value={classId} onChange={(v) => leave(() => setClassId(v))} options={pick(classes.data ?? [])} /><Select label="Subject" value={subjectId} onChange={(v) => leave(() => setSubjectId(v))} options={pick(subjects.data ?? [])} /></div>
+      {classes.error || subjects.error ? <ErrorBox message={(classes.error ?? subjects.error)!} onRetry={() => { classes.reload(); subjects.reload(); }} /> : null}
+      {rows.error ? <ErrorBox message={rows.error} onRetry={rows.reload} /> : classes.error || subjects.error ? null : !rows.data ? <Loading rows={6} /> : !rows.data.length ? <div className="card"><Empty title="No students in this class" /></div> : (
         <section className="card flush">
           <div className="tablewrap"><table className="t"><thead><tr><th style={{ width: 80 }}>Roll no.</th><th>Student</th><th className="right">Marks out of {max}</th></tr></thead>
             <tbody>{rows.data.map((r) => (
@@ -111,8 +116,8 @@ function Marks({ exams, examId, setExamId, canWrite, onSaved }: { exams: Exam[];
                   onKeyDown={(e) => { if (e.key === 'Enter') { const all = Array.from(document.querySelectorAll<HTMLInputElement>('input.score')); all[all.indexOf(e.currentTarget) + 1]?.focus(); } }} /></td></tr>
             ))}</tbody></table></div>
           <div className="savebar">
-            <span className="small muted">{entered} of {rows.data.length} entered{avg !== null ? ` · class average ${avg.toFixed(1)}` : ''}{invalid ? <b style={{ color: 'var(--bad)' }}> · {invalid} not valid (0 to {max})</b> : null}</span>
-            {canWrite ? <Button kind="primary" busy={busy === 'save'} disabled={!dirty || !!invalid || !entered} onClick={save}>Save marks</Button> : null}
+            <span className="small muted">{entered} of {rows.data.length} entered{avg !== null ? ` · class average ${avg.toFixed(1)}` : ''}{invalid ? <b style={{ color: 'var(--bad)' }}> · {invalid} not valid (0 to {max})</b> : null}{emptied ? <b style={{ color: 'var(--bad)' }} role="alert"> · {emptied} saved {emptied === 1 ? 'mark was' : 'marks were'} emptied: type the right mark, or 0</b> : null}</span>
+            {canWrite ? <Button kind="primary" busy={busy === 'save'} disabled={!dirty || !!invalid || !!emptied || !entered || rows.loading} onClick={save}>Save marks</Button> : null}
           </div>
         </section>
       )}

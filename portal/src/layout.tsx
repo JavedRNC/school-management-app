@@ -3,7 +3,7 @@ import { NavLink, useLocation, useNavigate } from 'react-router-dom';
 import { api, type OnboardingSummary } from './api';
 import { useAuth } from './auth';
 import { useSchool } from './school/ctx';
-import { Icon } from './ui';
+import { Icon, layerOpen, useLayer } from './ui';
 
 type Item = { to: string; label: string; icon: string; end?: boolean; count?: number; group: string; module?: string; words?: string };
 
@@ -58,7 +58,12 @@ export function Shell({ children, bare }: { children: ReactNode; bare?: boolean 
   useEffect(() => { setMore(false); setPalette(false); }, [loc.pathname]);
   useEffect(() => {
     if (bare) return;
-    const onKey = (e: KeyboardEvent) => { if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'k') { e.preventDefault(); setPalette((v) => !v); } };
+    const onKey = (e: KeyboardEvent) => {
+      if (!(e.ctrlKey || e.metaKey) || e.key.toLowerCase() !== 'k') return;
+      e.preventDefault();
+      // never over an open form: jumping away would throw away what was typed
+      setPalette((v) => (v ? false : !layerOpen()));
+    };
     document.addEventListener('keydown', onKey);
     return () => document.removeEventListener('keydown', onKey);
   }, [bare]);
@@ -116,12 +121,18 @@ export function Shell({ children, bare }: { children: ReactNode; bare?: boolean 
           <button type="button" onClick={() => setMore((v) => !v)} aria-expanded={more} aria-label="More pages"><Icon name="more" /><span>More</span></button>
         </nav>
       ) : null}
-      {more ? (
-        <div className="sheet-back" onClick={(e) => { if (e.target === e.currentTarget) setMore(false); }}>
-          <div className="sheet" role="dialog" aria-label="All pages"><nav className="nav" aria-label="All pages">{grouped(items)}</nav></div>
-        </div>
-      ) : null}
+      {more ? <MoreSheet onClose={() => setMore(false)}>{grouped(items)}</MoreSheet> : null}
       {palette ? <Palette items={items} onClose={() => setPalette(false)} /> : null}
+    </div>
+  );
+}
+
+function MoreSheet({ children, onClose }: { children: ReactNode; onClose: () => void }) {
+  const ref = useRef<HTMLDivElement>(null);
+  useLayer(ref, onClose);
+  return (
+    <div className="sheet-back" onClick={(e) => { if (e.target === e.currentTarget) onClose(); }}>
+      <div className="sheet" role="dialog" aria-modal="true" aria-label="All pages" ref={ref} tabIndex={-1}><nav className="nav" aria-label="All pages">{children}</nav></div>
     </div>
   );
 }
@@ -132,21 +143,21 @@ function Palette({ items, onClose }: { items: Item[]; onClose: () => void }) {
   const [q, setQ] = useState('');
   const [at, setAt] = useState(0);
   const input = useRef<HTMLInputElement>(null);
-  useEffect(() => { input.current?.focus(); }, []);
+  const box = useRef<HTMLDivElement>(null);
+  useLayer(box, onClose, true);
   const found = useMemo(() => {
     const s = q.trim().toLowerCase();
     return items.filter((i) => !s || `${i.label} ${i.group} ${i.words ?? ''}`.toLowerCase().includes(s));
   }, [items, q]);
   const go = (i?: Item) => { if (i) { onClose(); nav(i.to); } };
   const onKey = (e: React.KeyboardEvent) => {
-    if (e.key === 'Escape') onClose();
-    else if (e.key === 'ArrowDown') { e.preventDefault(); setAt((a) => Math.min(found.length - 1, a + 1)); }
+    if (e.key === 'ArrowDown') { e.preventDefault(); setAt((a) => Math.min(found.length - 1, a + 1)); }
     else if (e.key === 'ArrowUp') { e.preventDefault(); setAt((a) => Math.max(0, a - 1)); }
     else if (e.key === 'Enter') { e.preventDefault(); go(found[at]); }
   };
   return (
     <div className="modal-back" onMouseDown={(e) => { if (e.target === e.currentTarget) onClose(); }}>
-      <div className="modal palette" role="dialog" aria-modal="true" aria-label="Go to a page" onKeyDown={onKey}>
+      <div className="modal palette" role="dialog" aria-modal="true" aria-label="Go to a page" onKeyDown={onKey} ref={box}>
         <input ref={input} value={q} onChange={(e) => { setQ(e.target.value); setAt(0); }} placeholder="Where do you want to go?" aria-label="Search pages"
           role="combobox" aria-expanded="true" aria-controls="palette-list" aria-activedescendant={found[at] ? `pal-${at}` : undefined} />
         <ul id="palette-list" role="listbox">
@@ -155,8 +166,8 @@ function Palette({ items, onClose }: { items: Item[]; onClose: () => void }) {
               <Icon name={i.icon} /><span>{i.label}</span>{i.group ? <small>{i.group}</small> : null}
             </li>
           ))}
-          {!found.length ? <li role="option" aria-selected="false" className="muted">No page matches "{q}"</li> : null}
         </ul>
+        {!found.length ? <p className="muted" role="status" style={{ padding: '0 18px 16px' }}>No page matches "{q}"</p> : null}
       </div>
     </div>
   );

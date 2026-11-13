@@ -281,7 +281,7 @@ legend { font: 800 1rem var(--font-head); padding: 0 6px; }
   .tabs { margin-left: -14px; margin-right: -14px; padding: 0 8px; } .savebar { bottom: 64px; }
 }
 @media print { .no-print, .drawer > header .iconbtn, .drawer > footer, .savebar { display: none !important; } .drawer-back { position: static; background: none; } .drawer { width: 100%; box-shadow: none; height: auto; }
-  body.printing .shell { display: none; } }
+}
 .pagein { animation: pagein .18s ease-out; } @keyframes pagein { from { opacity: 0; transform: translateY(4px); } }
 .t th.right { text-align: right; } .toolbar > .row, .toolbar > .btn { margin-bottom: 1px; }
 .todo { display: grid; gap: 8px; margin-bottom: 14px; } .todo a { text-decoration: none; align-items: center; } .todo a:hover { filter: brightness(.97); }
@@ -290,3 +290,5 @@ legend { font: 800 1rem var(--font-head); padding: 0 6px; }
 .quick a:hover { border-color: var(--ink); transform: translateY(-1px); } .quick svg { width: 20px; height: 20px; color: var(--gold-deep); flex: none; }
 a.stat { transition: transform .12s, border-color .12s; } a.stat:hover { transform: translateY(-1px); }
 .todo { grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); }
+#print-root { display: none; }
+@media print { body.printing > :not(#print-root) { display: none !important; } body.printing #print-root { display: block; padding: 0; } body.printing .receipt { border: 0; } }

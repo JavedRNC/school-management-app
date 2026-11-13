@@ -8,6 +8,11 @@ type RoleTab = 'student' | 'teacher' | 'parent' | 'vice_principal' | 'coordinato
 const PLURAL: Record<RoleTab, string> = { student: 'Students', teacher: 'Teachers', parent: 'Parents', vice_principal: 'Vice principals', coordinator: 'Coordinators' };
 export const AREAS: [string, string][] = [['insights', 'Dashboard & reports'], ['people', 'People'], ['classes', 'Classes & timetable'], ['attendance', 'Attendance'], ['exams', 'Exams & marks'],
   ['notices', 'Notices & homework'], ['calendar', 'Calendar'], ['leaves', 'Leaves'], ['staff_attendance', 'Staff attendance'], ['transport', 'Transport'], ['fees', 'Fees'], ['settings', 'Settings']];
+// the same starting rights the server and the app give a new Vice Principal or Coordinator
+const DEFAULT_RIGHTS: Record<string, Record<string, string>> = {
+  vice_principal: { insights: 'view', people: 'edit', classes: 'edit', attendance: 'edit', exams: 'edit', notices: 'edit', calendar: 'edit', settings: 'view', leaves: 'edit', staff_attendance: 'view', transport: 'edit', fees: 'view' },
+  coordinator: { insights: 'view', people: 'view', classes: 'view', attendance: 'edit', exams: 'edit', notices: 'edit', calendar: 'view', settings: 'none', leaves: 'view', staff_attendance: 'none', transport: 'view', fees: 'none' },
+};
 const BLOOD = ['', 'A+', 'A-', 'B+', 'B-', 'O+', 'O-', 'AB+', 'AB-'];
 
 export function newPassword(len = 10) {
@@ -92,7 +97,7 @@ function PersonForm({ role, person, classes, students, onClose, onSaved }: { rol
     name: person?.name ?? '', login_id: person?.login_id ?? '', password: person ? '' : newPassword(), phone: person?.phone ?? '', email: person?.email ?? '', address: person?.address ?? '',
     dob: person?.dob ?? '', blood_group: person?.blood_group ?? '', class_id: person?.class_id ? String(person.class_id) : '', roll_no: person?.roll_no ? String(person.roll_no) : '',
     children_ids: person?.children_ids ?? [], scope_class_ids: person?.scope_class_ids ?? [],
-    permissions: person?.permissions ?? Object.fromEntries(AREAS.map(([k]) => [k, role === 'vice_principal' ? 'edit' : 'view'])) as Record<string, string>,
+    permissions: { ...(DEFAULT_RIGHTS[role] ?? {}), ...(person?.permissions ?? {}) } as Record<string, string>, relation: 'Parent',
   }));
   const [err, setErr] = useState<Record<string, string>>({});
   const [kidQ, setKidQ] = useState('');
@@ -118,7 +123,7 @@ function PersonForm({ role, person, classes, students, onClose, onSaved }: { rol
     const body: Record<string, unknown> = {
       name: f.name, login_id: f.login_id, phone: f.phone, email: f.email, address: f.address, dob: f.dob || null, blood_group: f.blood_group,
       ...(role === 'student' ? { class_id: Number(f.class_id), roll_no: f.roll_no ? Number(f.roll_no) : null } : {}),
-      ...(role === 'parent' ? { children_ids: f.children_ids } : {}),
+      ...(role === 'parent' ? { children_ids: f.children_ids, ...(person ? {} : { relation: f.relation }) } : {}),
       ...(staffRole ? { permissions: f.permissions } : {}),
       ...(role === 'coordinator' ? { scope_class_ids: f.scope_class_ids } : {}),
     };
@@ -153,11 +158,13 @@ function PersonForm({ role, person, classes, students, onClose, onSaved }: { rol
           <div className="stack">
             <Text label="Children" value={kidQ} onChange={setKidQ} placeholder="Type a student's name or admission no." hint="A parent sees attendance, marks and fees only for linked children." type="search" />
             {kids.length ? <Chips label="Tap to link or unlink" options={kids.map((k) => ({ id: k.id, label: `${k.name} · ${k.login_id}` }))} value={f.children_ids} onChange={(v) => set('children_ids', v)} /> : null}
+            {!person ? <Select label="Relation to the child" value={f.relation} onChange={(v) => set('relation', v)} options={['Parent', 'Father', 'Mother', 'Guardian']} /> : null}
           </div>
         ) : null}
         {role === 'coordinator' ? <Chips label="Classes they look after (none selected = all classes)" options={classes.map((c) => ({ id: c.id, label: c.name }))} value={f.scope_class_ids} onChange={(v) => set('scope_class_ids', v)} /> : null}
         {staffRole ? (
           <fieldset><legend>What they can do</legend>
+            <div><Button kind="small" icon="restore" onClick={() => set('permissions', { ...DEFAULT_RIGHTS[role] })}>Reset to the usual rights</Button></div>
             <div className="permgrid">
               {AREAS.map(([k, label]) => (
                 <PermRow key={k} label={label} value={f.permissions[k] ?? 'none'} onChange={(v) => set('permissions', { ...f.permissions, [k]: v })} />
@@ -222,6 +229,7 @@ function AddMany({ role, classes, onClose, onSaved }: { role: RoleTab; classes: 
   const toast = useToast();
   const [rows, setRows] = useState(() => blankRows(5));
   const [errs, setErrs] = useState<Record<number, Record<string, string>>>({});
+  const [general, setGeneral] = useState<string[]>([]);
   const [checked, setChecked] = useState<BulkResult | null>(null);
   const [creds, setCreds] = useState<Cred[] | null>(null);
   const filled = rows.filter((r) => Object.values(r).some((v) => (v ?? '').trim()));
@@ -251,8 +259,14 @@ function AddMany({ role, classes, onClose, onSaved }: { role: RoleTab; classes: 
     const res = await act(dry ? 'check' : 'save', () => api<BulkResult>('/users/bulk', { body: { role, rows: payload, dry_run: dry } }));
     if (!res) return;
     const e: Record<number, Record<string, string>> = {};
-    for (const x of res.errors) { const at = map[(x.row ?? 1) - 1] ?? 0; (e[at] ??= {})[x.field || '_row'] = x.message; }
-    setErrs(e);
+    const whole: string[] = [];
+    const cols = new Set(fields.map((f) => f.key));
+    for (const x of res.errors) {
+      const at = x.row ? map[x.row - 1] : undefined;
+      if (at === undefined) whole.push(x.message);                               // about the whole list (for example the plan's student limit)
+      else (e[at] ??= {})[x.field && cols.has(x.field) ? x.field : '_row'] = x.message;
+    }
+    setErrs(e); setGeneral(whole);
     if (!res.ok) { setChecked(null); toast(`${res.errors.length} ${res.errors.length === 1 ? 'problem' : 'problems'} to fix — nothing was saved`, true); return; }
     if (dry) { setChecked(res); return; }
     setCreds(res.credentials ?? []);
@@ -284,6 +298,7 @@ function AddMany({ role, classes, onClose, onSaved }: { role: RoleTab; classes: 
           : <Button kind="primary" busy={busy === 'check'} disabled={!filled.length} onClick={() => send(true)}>Check rows</Button>}
       </>}>
       {role === 'student' && classes.length ? <p className="small muted">Classes: {classes.map((c) => c.name).join(', ')}. A parent login is made for each new parent mobile and linked to the child.</p> : null}
+      {general.map((m) => <div key={m} className="alert bad" role="alert">{m}</div>)}
       <div className="tablewrap"><table className="bulk">
         <thead><tr><th>#</th>{fields.map((f) => <th key={f.key}>{f.label}{f.required ? ' *' : ''}</th>)}<th /></tr></thead>
         <tbody>{rows.map((r, i) => (

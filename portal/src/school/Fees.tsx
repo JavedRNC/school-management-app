@@ -1,13 +1,13 @@
 import { useEffect, useMemo, useState } from 'react';
 import { api } from '../api';
 import { LineChart } from '../charts';
-import { Chips, CountUp, Drawer, IconButton, Switch, Tabs, TextArea, today, useAct, useConfirm } from '../kit';
+import { Chips, CountUp, Drawer, IconButton, num, printNode, Switch, Tabs, TextArea, today, useAct, useConfirm } from '../kit';
 import { Badge, Button, Empty, ErrorBox, fmtDate, fmtInt, fmtMoney, Loading, Modal, PageHead, Select, Text, useDebounced, useLoad } from '../ui';
 import { ReadOnlyNote, useSchool, type Klass } from './ctx';
 
 type Pay = { id: number; receipt_no: string | null; student_id: number; student_name: string; admission_no: string; class_name: string; amount: number; mode: string; reference: string;
   paid_on: string; status: string; note: string; cancel_reason: string; received_by_name: string; submitted_by_name: string; created_at: string; outstanding?: number };
-type Summary = { period: string; period_label: string; collected_today: number; receipts_today: number; collected_month: number; by_mode: Record<string, number>; expected_month: number; collection_pct: number;
+type Summary = { period: string; period_label: string; collected_today: number; receipts_today: number; collected_month: number; by_mode: Record<string, number>; expected_month: number; collection_pct: number | null;
   outstanding: number; overdue: number; defaulters: number; students_with_dues: number; pending_claims: number; trend: { date: string; amount: number }[];
   by_class: { class_id: number; class_name: string; students: number; outstanding: number; overdue: number; defaulters: number; collected_month: number }[]; recent: Pay[]; configured: boolean; billed_this_month: boolean };
 type StudentRow = { id: number; name: string; admission_no: string; class_name: string; roll_no: number | null; status: string; charged: number; paid: number; outstanding: number; overdue: number; parent_name: string; parent_phone: string };
@@ -38,7 +38,7 @@ export function Fees() {
   const changed = () => { sum.reload(); setTick((t) => t + 1); };
   return (
     <>
-      <PageHead title="Fees" sub={sum.data ? `${sum.data.period_label} · ${sum.data.collection_pct}% of this month's fees collected` : 'Collect fees, give receipts and follow up on dues'} />
+      <PageHead title="Fees" sub={sum.data && sum.data.collection_pct !== null ? `${sum.data.period_label} · ${sum.data.collection_pct}% of this month's fees collected` : 'Collect fees, give receipts and follow up on dues'} />
       <ReadOnlyNote />
       <Tabs label="Section" value={tab} onChange={setTab} tabs={[{ id: 'overview', label: 'Overview' }, { id: 'students', label: 'Students & dues' }, { id: 'receipts', label: 'Receipts' },
         { id: 'claims', label: 'UPI payments to check', count: sum.data?.pending_claims }, { id: 'charges', label: 'One-time charges' }, { id: 'setup', label: 'Fee setup' }]} />
@@ -61,11 +61,11 @@ function Overview({ sum, canWrite, onChanged, onReceipt, goSetup }: { sum: Retur
   if (sum.error) return <ErrorBox message={sum.error} onRetry={sum.reload} />;
   if (!s) return <Loading rows={6} />;
   if (!s.configured) return <div className="card"><Empty title="Set up your fees first">Enter the monthly fee and when it is due. Then Prangan bills every student each month.<div style={{ marginTop: 14 }}><Button kind="primary" onClick={goSetup}>Open fee setup</Button></div></Empty></div>;
-  const preview = async () => { const r = await act('gen', () => api<NonNullable<typeof gen>>('/fees/generate', { body: { period: s.period, preview: true } })); if (r) setGen(r); };
+  const preview = async (period = s.period) => { const r = await act('gen', () => api<NonNullable<typeof gen>>('/fees/generate', { body: { period, preview: true } })); if (r) setGen(r); };
   const generate = async () => { if (gen && await act('gen2', () => api('/fees/generate', { body: { period: gen.period } }), `${gen.label} fees billed to ${gen.students} students`)) { setGen(null); onChanged(); } };
   return (
     <div className="stack">
-      {!s.billed_this_month && canWrite ? <div className="alert warn"><span className="grow">{s.period_label} fees are not billed yet.</span><Button kind="small" busy={busy === 'gen'} onClick={preview}>Bill {s.period_label}</Button></div> : null}
+      {!s.billed_this_month && canWrite ? <div className="alert warn"><span className="grow">{s.period_label} fees are not billed yet.</span><Button kind="small" busy={busy === 'gen'} onClick={() => preview()}>Bill {s.period_label}</Button></div> : null}
       <div className="grid g4 keep2">
         <div className="card stat accent"><span className="label">Collected in {s.period_label}</span><span className="value"><CountUp value={s.collected_month} format={fmtMoney} /></span><span className="hint">of {fmtMoney(s.expected_month)} billed</span></div>
         <div className="card stat"><span className="label">Collected today</span><span className="value"><CountUp value={s.collected_today} format={fmtMoney} /></span><span className="hint">{s.receipts_today} receipts</span></div>
@@ -92,12 +92,29 @@ function Overview({ sum, canWrite, onChanged, onReceipt, goSetup }: { sum: Retur
           <button key={p.id} type="button" className="item" onClick={() => onReceipt(p.id)}><div className="grow"><b>{p.student_name}</b><div className="small muted">{p.receipt_no} · {p.class_name} · {fmtDate(p.paid_on)} · {modeLabel(p.mode)}</div></div><b className="num">{fmtMoney(p.amount)}</b></button>
         ))}</div> : <Empty title="No receipts yet">Open Students & dues to collect a fee.</Empty>}
       </section>
+      {canWrite ? <BillMonth busy={busy === 'gen'} onPick={preview} /> : null}
       {gen ? (
         <Modal title={`Bill ${gen.label} fees?`} onClose={() => setGen(null)} actions={<><Button onClick={() => setGen(null)}>Cancel</Button><Button kind="primary" busy={busy === 'gen2'} disabled={!gen.new_items} onClick={generate}>Bill {gen.students} students</Button></>}>
           <p className="muted">{gen.new_items ? `${gen.new_items} charges totalling ${fmtMoney(gen.new_amount)} will be added, due on ${fmtDate(gen.due_date)}. Students already billed for ${gen.label} are skipped.` : `Everyone is already billed for ${gen.label}.`}</p>
         </Modal>
       ) : null}
     </div>
+  );
+}
+
+/** Bill a month by hand: any month already started, or the next one. Months billed so far are listed. */
+function BillMonth({ busy, onPick }: { busy: boolean; onPick: (period: string) => void }) {
+  const cfg = useLoad(() => api<Config>('/fees/config'), []);
+  const next = (() => { const d = new Date(); d.setDate(1); d.setMonth(d.getMonth() + 1); return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`; })();
+  const [month, setMonth] = useState(today().slice(0, 7));
+  const label = (p: string) => new Date(`${p}-01T00:00:00`).toLocaleDateString('en-IN', { month: 'short', year: 'numeric' });
+  return (
+    <section className="card stack"><h2>Bill a month by hand</h2>
+      <p className="muted small">For a month that was missed, or to bill next month early. Students already billed for that month are skipped.</p>
+      <div className="row" style={{ alignItems: 'end' }}><div style={{ width: 190 }}><Text label="Month to bill" type="month" value={month} onChange={(v) => v && setMonth(v)} max={next} /></div>
+        <Button busy={busy} disabled={month > next} onClick={() => onPick(month)}>Check and bill</Button></div>
+      {cfg.data?.generated_months.length ? <p className="small muted">Billed so far: {cfg.data.generated_months.map(label).join(', ')}</p> : null}
+    </section>
   );
 }
 
@@ -132,7 +149,7 @@ function Students({ tick, onOpen }: { tick: number; onOpen: (id: number) => void
 }
 
 function StudentFees({ id, canWrite, onClose, onChanged, onReceipt }: { id: number; canWrite: boolean; onClose: () => void; onChanged: () => void; onReceipt: (id: number) => void }) {
-  const d = useLoad(() => api<Detail>(`/fees/students/${id}`), [id]);
+  const d = useLoad(() => api<Detail>(`/fees/students/${id}`), [id], true);
   const { act, busy } = useAct();
   const [mode, setMode] = useState<'view' | 'collect' | 'charge'>('view');
   const [editItem, setEditItem] = useState<Item | null>(null);
@@ -145,7 +162,7 @@ function StudentFees({ id, canWrite, onClose, onChanged, onReceipt }: { id: numb
   const startCollect = () => { setPick(open.map((i) => i.id)); setAmount(String(open.reduce((a, i) => a + i.balance, 0))); setPm('cash'); setRef(''); setNote(''); setPaidOn(today()); setMode('collect'); };
   const togglePick = (ids: number[]) => { setPick(ids); setAmount(String(open.filter((i) => ids.includes(i.id)).reduce((a, i) => a + i.balance, 0))); };
   const needRef = pm === 'cheque' || pm === 'bank' || pm === 'upi' || pm === 'online';
-  const payErr = !(Number(amount) > 0) ? 'Enter the amount received' : Number(amount) > pickedDue + 0.009 ? `More than the dues selected (${fmtMoney(pickedDue)})` : needRef && !ref.trim() ? 'Enter the reference number' : null;
+  const payErr = !((num(amount) ?? 0) > 0) ? 'Enter the amount received as a number' : Number(amount) > pickedDue + 0.009 ? `More than the dues selected (${fmtMoney(pickedDue)})` : needRef && !ref.trim() ? 'Enter the reference number' : null;
   async function collect(e: React.FormEvent) {
     e.preventDefault();
     if (payErr) return;
@@ -176,7 +193,7 @@ function StudentFees({ id, canWrite, onClose, onChanged, onReceipt }: { id: numb
         <form className="stack" onSubmit={addCharge}>
           <Text label="What is it for?" value={cTitle} onChange={setCTitle} maxLength={160} placeholder="Late fee, lost ID card, uniform" />
           <div className="cols"><Text label="Amount (₹)" value={cAmt} onChange={(v) => setCAmt(v.replace(/[^\d.]/g, ''))} inputMode="decimal" /><Text label="Due on" type="date" value={cDue} onChange={setCDue} /></div>
-          <div className="row"><Button kind="primary" type="submit" busy={busy === 'charge'} disabled={cTitle.trim().length < 2 || !(Number(cAmt) > 0)}>Add charge</Button><Button onClick={() => setMode('view')}>Back</Button></div>
+          <div className="row"><Button kind="primary" type="submit" busy={busy === 'charge'} disabled={cTitle.trim().length < 2 || !((num(cAmt) ?? 0) > 0)}>Add charge</Button><Button onClick={() => setMode('view')}>Back</Button></div>
         </form>
       ) : (
         <>
@@ -203,12 +220,12 @@ function StudentFees({ id, canWrite, onClose, onChanged, onReceipt }: { id: numb
 function ItemEdit({ item, onClose, onSaved }: { item: Item; onClose: () => void; onSaved: () => void }) {
   const { act, busy } = useAct();
   const [amt, setAmt] = useState(String(item.amount)); const [reason, setReason] = useState('');
-  const bad = amt === '' || Number(amt) < item.paid;
+  const bad = num(amt) === null || Number(amt) < item.paid;
   const save = async () => { if (await act('save', () => api(`/fees/items/${item.id}`, { method: 'PUT', body: { amount: Number(amt), reason } }), 'Charge updated')) onSaved(); };
   return (
     <Modal title={`Change ${item.title}`} onClose={onClose} actions={<><Button onClick={onClose}>Cancel</Button><Button kind="primary" busy={busy === 'save'} disabled={bad} onClick={save}>Save</Button></>}>
       <div className="stack" style={{ marginTop: 10 }}>
-        <Text label="New amount (₹)" value={amt} onChange={(v) => setAmt(v.replace(/[^\d.]/g, ''))} inputMode="decimal" error={bad && amt !== '' ? `${fmtMoney(item.paid)} is already paid against this charge` : null} hint="Use 0 to waive a charge that has not been paid." />
+        <Text label="New amount (₹)" value={amt} onChange={(v) => setAmt(v.replace(/[^\d.]/g, ''))} inputMode="decimal" error={amt === '' ? null : num(amt) === null ? 'Enter a number' : bad ? `${fmtMoney(item.paid)} is already paid against this charge` : null} hint="Use 0 to waive a charge that has not been paid." />
         <Text label="Reason" value={reason} onChange={setReason} maxLength={200} placeholder="Sibling concession" />
       </div>
     </Modal>
@@ -245,7 +262,7 @@ function ReceiptView({ id, canWrite, onClose, onChanged }: { id: number; canWrit
   const doCancel = async () => { if (await act('cancel', () => api(`/fees/payments/${id}/cancel`, { body: { reason: reason.trim() } }), 'Receipt cancelled. The dues are open again.')) { setCancel(false); r.reload(); onChanged(); } };
   return (
     <Drawer wide title={x ? `Receipt ${x.receipt_no}` : 'Receipt'} onClose={onClose}
-      footer={x ? <>{canWrite && x.status === 'confirmed' ? <Button kind="danger" onClick={() => setCancel(true)}>Cancel receipt</Button> : null}<Button kind="primary" icon="print" onClick={() => window.print()}>Print</Button></> : undefined}>
+      footer={x ? <>{canWrite && x.status === 'confirmed' ? <Button kind="danger" onClick={() => setCancel(true)}>Cancel receipt</Button> : null}<Button kind="primary" icon="print" onClick={() => printNode(document.getElementById('receipt'))}>Print or save as PDF</Button></> : undefined}>
       {r.error ? <ErrorBox message={r.error} onRetry={r.reload} /> : !x ? <Loading rows={6} /> : (
         <div className="receipt" id="receipt">
           <div className="spread"><div><h3>{x.school.name}</h3><div className="small">{x.school.address}{x.school.phone ? ` · ${x.school.phone}` : ''}</div></div>{x.status !== 'confirmed' ? <span className="void">CANCELLED</span> : null}</div>
@@ -274,23 +291,35 @@ function ReceiptView({ id, canWrite, onClose, onChanged }: { id: number; canWrit
 }
 
 function Claims({ canWrite, onChanged }: { canWrite: boolean; onChanged: () => void }) {
-  const list = useLoad(() => api<Pay[]>('/fees/claims', { query: { status: 'pending' } }), []);
+  const [show, setShow] = useState('pending');
+  const list = useLoad(() => api<Pay[]>('/fees/claims', { query: { status: show } }), [show], true);
   const { act, busy } = useAct();
   const [reject, setReject] = useState<Pay | null>(null); const [reason, setReason] = useState('');
-  const ok = async (p: Pay) => { if (await act(`ok${p.id}`, () => api<{ receipt_no?: string }>(`/fees/claims/${p.id}/confirm`, { body: {} }), 'Payment confirmed and receipt issued')) { list.reload(); onChanged(); } };
+  const [fix, setFix] = useState<Pay | null>(null); const [fixAmt, setFixAmt] = useState('');
+  const ok = async (p: Pay, amount?: number) => { if (await act(`ok${p.id}`, () => api<{ receipt_no?: string }>(`/fees/claims/${p.id}/confirm`, { body: amount ? { amount } : {} }), 'Payment confirmed and receipt issued')) { setFix(null); list.reload(); onChanged(); } };
+  const pick = <div className="toolbar"><Select label="Show" value={show} onChange={setShow} options={[['pending', 'Waiting to be checked'], ['confirmed', 'Confirmed'], ['rejected', 'Rejected']]} /></div>;
   const no = async () => { if (reject && await act('no', () => api(`/fees/claims/${reject.id}/reject`, { body: { reason: reason.trim() } }), 'Payment rejected. The parent is told why.')) { setReject(null); setReason(''); list.reload(); onChanged(); } };
   if (list.error) return <ErrorBox message={list.error} onRetry={list.reload} />;
-  if (!list.data) return <Loading />;
-  if (!list.data.length) return <div className="card"><Empty title="Nothing to check">When a parent pays by UPI and enters the UTR number in the app, it appears here for you to match with your bank statement.</Empty></div>;
+  if (!list.data) return <>{pick}<Loading /></>;
+  if (!list.data.length) return <>{pick}<div className="card"><Empty title={show === 'pending' ? 'Nothing to check' : `No ${show} UPI payments`}>{show === 'pending' ? 'When a parent pays by UPI and enters the UTR number in the app, it appears here for you to match with your bank statement.' : null}</Empty></div></>;
   return (
     <>
+      {pick}
       <div className="grid g2">{list.data.map((p) => (
         <div key={p.id} className="tile"><div className="spread"><b>{p.student_name}</b><b className="num">{fmtMoney(p.amount)}</b></div>
           <p className="small muted">{p.class_name} · {p.admission_no} · sent by {p.submitted_by_name || 'parent'} on {fmtDate(p.paid_on)}</p>
           <div className="cred" style={{ fontSize: '.95rem' }}>UTR {p.reference}</div>
-          {canWrite ? <div className="row"><Button kind="primary small" busy={busy === `ok${p.id}`} onClick={() => ok(p)}>Money received — confirm</Button><Button kind="small" onClick={() => setReject(p)}>Not received</Button></div> : null}
+          {p.status !== 'pending' ? <div><Badge status={TONE[p.status]}>{p.status}</Badge>{p.receipt_no ? <span className="small muted"> · receipt {p.receipt_no}</span> : null}{p.cancel_reason ? <span className="small muted"> · {p.cancel_reason}</span> : null}</div> : null}
+          {canWrite && p.status === 'pending' ? <div className="row"><Button kind="primary small" busy={busy === `ok${p.id}`} onClick={() => ok(p)}>Money received — confirm</Button>
+            <Button kind="small" onClick={() => { setFix(p); setFixAmt(String(p.amount)); }} aria-label={`A different amount was received from ${p.student_name}`}>Different amount</Button><Button kind="small" onClick={() => setReject(p)}>Not received</Button></div> : null}
         </div>
       ))}</div>
+      {fix ? (
+        <Modal title={`Amount received from ${fix.student_name}`} onClose={() => setFix(null)} actions={<><Button onClick={() => setFix(null)}>Back</Button><Button kind="primary" busy={busy === `ok${fix.id}`} disabled={!((num(fixAmt) ?? 0) > 0)} onClick={() => ok(fix, Number(fixAmt))}>Confirm this amount</Button></>}>
+          <div className="stack" style={{ marginTop: 10 }}><p className="muted">The parent entered {fmtMoney(fix.amount)}. Type what your bank statement shows for UTR {fix.reference}.</p>
+            <Text label="Amount received (₹)" value={fixAmt} onChange={(v) => setFixAmt(v.replace(/[^\d.]/g, ''))} inputMode="decimal" /></div>
+        </Modal>
+      ) : null}
       {reject ? (
         <Modal title={`Reject payment from ${reject.student_name}?`} onClose={() => setReject(null)} actions={<><Button onClick={() => setReject(null)}>Back</Button><Button kind="danger" busy={busy === 'no'} disabled={reason.trim().length < 3} onClick={no}>Reject payment</Button></>}>
           <div style={{ marginTop: 10 }}><Text label="Reason shown to the parent" value={reason} onChange={setReason} maxLength={300} placeholder="This UTR is not in our bank statement" /></div>
@@ -334,7 +363,7 @@ function BatchForm({ onClose, onSaved }: { onClose: () => void; onSaved: () => v
   const [preview, setPreview] = useState<{ count: number; total: number; by_class: { class_name: string; students: number }[] } | null>(null);
   const body = () => ({ title: title.trim(), amount: Number(amount), due_date: due || null, note, target, class_ids: target === 'classes' ? classIds : [] });
   useEffect(() => setPreview(null), [title, amount, due, target, classIds]);
-  const valid = title.trim().length >= 2 && Number(amount) > 0 && (target === 'school' || classIds.length > 0);
+  const valid = title.trim().length >= 2 && (num(amount) ?? 0) > 0 && (target === 'school' || classIds.length > 0);
   const check = async () => { const p = await act('check', () => api<NonNullable<typeof preview>>('/fees/batches', { body: { ...body(), preview: true } })); if (p) setPreview(p); };
   const save = async () => { if (await act('save', () => api('/fees/batches', { body: body() }), `Charged ${preview?.count ?? ''} students`)) onSaved(); };
   return (
@@ -364,10 +393,14 @@ function Setup({ canWrite, onSaved }: { canWrite: boolean; onSaved: () => void }
   if (!f) return <Loading rows={6} />;
   const set = <K extends keyof Config>(k: K, v: Config[K]) => setF({ ...f, [k]: v });
   const nums = (m: Record<string, string>) => Object.fromEntries(Object.entries(m).filter(([, v]) => v !== '').map(([k, v]) => [k, Number(v)]));
-  const upiBad = f.upi_id && !/^[\w.\-]{2,}@[a-zA-Z]{2,}$/.test(f.upi_id.trim());
+  const upiBad = f.upi_id && !/^[A-Za-z0-9.\-_]{2,256}@[A-Za-z][A-Za-z0-9]{1,64}$/.test(f.upi_id.trim());     // the same rule as the server
+  const fee = num(String(f.monthly_amount ?? '')); const dueDay = Number(f.due_day);
+  const amounts = [...Object.values(cls), ...Object.values(rts)];
+  const setupBad = fee === null ? 'Enter the monthly fee as a number (0 if every class has its own fee)' : !(dueDay >= 1 && dueDay <= 28) ? 'The due day must be 1 to 28' : amounts.some((v) => v !== '' && num(v) === null) ? 'One of the class or transport fees is not a number' : null;
   async function save(e: React.FormEvent) {
     e.preventDefault();
-    const r = await act('save', () => api<Config>('/fees/config', { method: 'PUT', body: { monthly_amount: Number(f!.monthly_amount) || 0, class_amounts: nums(cls), route_amounts: nums(rts), due_day: Number(f!.due_day) || 10,
+    if (setupBad || upiBad) return;
+    const r = await act('save', () => api<Config>('/fees/config', { method: 'PUT', body: { monthly_amount: fee, class_amounts: nums(cls), route_amounts: nums(rts), due_day: dueDay,
       start_month: f!.start_month || null, auto_generate: f!.auto_generate, upi_id: f!.upi_id.trim(), upi_name: f!.upi_name.trim(), receipt_prefix: f!.receipt_prefix.trim(), receipt_note: f!.receipt_note } }), 'Fee setup saved');
     if (r) { cfg.setData(r); onSaved(); }
   }
@@ -398,7 +431,7 @@ function Setup({ canWrite, onSaved }: { canWrite: boolean; onSaved: () => void }
           <Text label="Receipt number starts with" value={f.receipt_prefix} onChange={(v) => set('receipt_prefix', v)} maxLength={20} placeholder="GVPS" /></div>
         <TextArea label="Line printed at the bottom of receipts" value={f.receipt_note} onChange={(v) => set('receipt_note', v)} maxLength={500} />
       </fieldset>
-      {canWrite ? <div><Button kind="primary" type="submit" busy={busy === 'save'} disabled={!!upiBad}>Save fee setup</Button></div> : null}
+      {canWrite ? <div className="stack">{setupBad ? <div className="alert bad" role="alert">{setupBad}</div> : null}<div><Button kind="primary" type="submit" busy={busy === 'save'} disabled={!!upiBad || !!setupBad}>Save fee setup</Button></div></div> : null}
     </form>
   );
 }

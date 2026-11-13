@@ -31,14 +31,18 @@ export function Timetable() {
 
 function Grid({ classes, bell, days, canWrite }: { classes: Klass[]; bell: Bell; days: number[]; canWrite: boolean }) {
   const [classId, setClassId] = useState(classes[0] ? String(classes[0].id) : '');
-  const tt = useLoad(() => (classId ? api<Entry[]>('/timetable', { query: { class_id: classId } }) : Promise.resolve([] as Entry[])), [classId]);
+  const tt = useLoad(() => (classId ? api<Entry[]>('/timetable', { query: { class_id: classId } }) : Promise.resolve([] as Entry[])), [classId], true);
   const subjects = useLoad(() => api<Subject[]>('/subjects'), []);
   const teachers = useLoad(() => api<Person[]>('/users', { query: { role: 'teacher' } }), []);
   const asg = useLoad(() => api<Assignment[]>('/assignments'), []);
   const [cell, setCell] = useState<{ day: number; period: number; entry?: Entry } | null>(null);
-  const base = bell.default.length ? bell.default : FALLBACK;
-  const slotsOf = (d: number) => bell.overrides[String(d)] ?? base;
+  const usual = bell.default.length ? bell.default : FALLBACK;
+  const slotsOf = (d: number) => bell.overrides[String(d)] ?? usual;
   const periodsOf = (d: number) => slotsOf(d).filter((s) => s.kind === 'period').length;
+  // rows follow the usual day; if some day has more periods than usual, the extra periods get rows of their own
+  const most = Math.max(...days.map(periodsOf), 0);
+  const have = usual.filter((s) => s.kind === 'period').length;
+  const base: Slot[] = [...usual, ...Array.from({ length: Math.max(0, most - have) }, (_, i) => ({ kind: 'period' as const, label: `Period ${have + i + 1}`, start: '', end: '', period: have + i + 1 }))];
   const at = useMemo(() => new Map((tt.data ?? []).map((e) => [`${e.day}-${e.period}`, e])), [tt.data]);
   const sorted = [...days].sort((a, b) => a - b);
 
@@ -60,7 +64,7 @@ function Grid({ classes, bell, days, canWrite }: { classes: Klass[]; bell: Bell;
                   const e = at.get(`${d}-${p}`);
                   if (p > periodsOf(d)) return <td key={d}><div className="cell off" title={`${DAYS[d]} has only ${periodsOf(d)} periods`} /></td>;
                   return (
-                    <td key={d}><button type="button" className={`cell ${e ? 'on' : ''}`} disabled={!canWrite && !e} onClick={() => canWrite && setCell({ day: d, period: p, entry: e })}
+                    <td key={d}><button type="button" className={`cell ${e ? 'on' : ''}`} disabled={!canWrite && !e} onClick={() => canWrite && !tt.loading && setCell({ day: d, period: p, entry: e })}
                       aria-label={`${DAYS[d]} period ${p}: ${e ? `${e.subject_name}, ${e.teacher_name}` : 'free'}`}>
                       {e ? <><b>{e.subject_name}</b><small>{e.teacher_name}</small></> : <span className="add" aria-hidden="true">+</span>}
                     </button></td>

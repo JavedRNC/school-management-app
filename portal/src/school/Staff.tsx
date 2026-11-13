@@ -27,9 +27,10 @@ export function Staff() {
 
 function DayView({ canWrite }: { canWrite: boolean }) {
   const [day, setDay] = useState(today());
-  const d = useLoad(() => api<Day>('/staff-attendance/day', { query: { day } }), [day]);
+  const d = useLoad(() => api<Day>('/staff-attendance/day', { query: { day } }), [day], true);
   const { act, busy } = useAct();
   const mark = async (r: DayRow, present: boolean) => {
+    if (!d.data || d.data.date !== day) return;
     if (await act(`m${r.user_id}`, () => api('/staff-attendance/manual', { body: { user_id: r.user_id, date: day, present, note: 'Marked from the portal' } }), `${r.name} marked ${present ? 'present' : 'absent'}`)) d.reload();
   };
   const x = d.data;

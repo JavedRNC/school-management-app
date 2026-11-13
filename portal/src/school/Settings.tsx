@@ -95,7 +95,7 @@ function Listing({ canWrite }: { canWrite: boolean }) {
       <h2>Show your school on the Prangan website</h2>
       <p className="muted">Only the school's name, board and city are shown, in the list of schools that use Prangan. No student or staff details are ever shown.</p>
       <Switch label="List my school" checked={show} onChange={setShow} disabled={!canWrite} />
-      <Text label="City or town shown" value={city} onChange={setCity} maxLength={80} disabled={!canWrite} />
+      <Text label="City or town shown" value={city} onChange={setCity} maxLength={60} disabled={!canWrite} />
       {canWrite ? <div><Button kind="primary" type="submit" busy={busy === 'save'}>Save listing</Button></div> : null}
     </form>
   );

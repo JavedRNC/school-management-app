@@ -173,3 +173,55 @@ def test_text_typed_by_people_is_never_run_as_code(principal_page, school, seede
         assert page.evaluate("window.__pwned") is None and page.locator("main img").count() == 0
     finally:
         call("DELETE", f"/subjects/{made['id']}", t)
+
+
+def test_escape_closes_only_the_top_layer(principal_page, school, seeded):
+    page = principal_page
+    t = school["principal"]["token"]
+    ok(call("POST", "/fees/items", t, {"student_id": seeded["students"][2]["id"], "title": f"Badge {TAG}", "amount": 40}))
+    go(page, "/school/fees")
+    tab(page, "Students & dues")
+    page.get_by_label("Search").fill(f"Chirag Rao {TAG}")
+    page.get_by_role("link", name=f"Chirag Rao {TAG}").click()
+    panel = page.get_by_role("dialog", name=f"Chirag Rao {TAG}")
+    panel.get_by_role("button", name=f"Change amount of Badge {TAG}").click()
+    box = page.get_by_role("dialog", name=f"Change Badge {TAG}")
+    box.get_by_label("Reason").fill("typing here must not move the cursor away")
+    assert box.get_by_label("Reason").evaluate("e => e === document.activeElement"), "focus stays in the box being typed in"
+    page.keyboard.press("Escape")
+    box.wait_for(state="detached")
+    panel.get_by_text(f"Badge {TAG}").wait_for()                                   # the panel underneath is still open
+    assert page.evaluate("document.body.style.overflow") == "hidden", "the page behind stays still while a panel is open"
+    page.keyboard.press("Escape")
+    panel.wait_for(state="detached")
+    assert page.evaluate("document.body.style.overflow") == ""
+
+
+def test_unsaved_attendance_is_not_lost_or_saved_under_another_day_by_accident(principal_page, school, seeded):
+    page = principal_page
+    go(page, "/school/attendance")
+    page.get_by_label("Class").select_option(label=f"6-{TAG}")
+    student = page.get_by_role("button", name=re.compile(rf"^Chirag Rao {TAG}: "))
+    student.click()
+    page.get_by_text("You have changes that are not saved.").wait_for()
+    page.get_by_role("button", name="Previous day").click()
+    ask = dialog(page)
+    ask.get_by_role("heading", name="Leave without saving?").wait_for()
+    ask.get_by_role("button", name="Cancel").click()
+    page.get_by_text("You have changes that are not saved.").wait_for()           # still on the same day with the change kept
+    page.get_by_role("button", name="Previous day").click()
+    dialog(page).get_by_role("button", name="Leave", exact=True).click()
+    page.get_by_role("button", name="Today").wait_for()                            # now on the earlier day, loaded fresh
+
+
+def test_new_vice_principal_starts_with_the_usual_limited_rights(principal_page, school):
+    page = principal_page
+    go(page, "/school/people")
+    tab(page, "Vice principals")
+    page.get_by_role("button", name="Add vice principal").click()
+    form = dialog(page)
+    pressed = lambda area, level: form.get_by_role("group", name=area, exact=True).get_by_role("button", name=level, exact=True).get_attribute("aria-pressed")  # noqa: E731
+    assert pressed("Fees", "View") == "true" and pressed("Settings", "View") == "true" and pressed("People", "Edit") == "true"
+    form.get_by_role("group", name="Fees", exact=True).get_by_role("button", name="Edit", exact=True).click()
+    form.get_by_role("button", name="Reset to the usual rights").click()
+    assert pressed("Fees", "View") == "true"

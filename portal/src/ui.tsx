@@ -59,7 +59,8 @@ export const fmtMoney = (n: number | null | undefined) => (n === null || n === u
 /** The API sends UTC timestamps without a zone; show them in the viewer's local time. */
 export function parseTime(s: string | null | undefined): Date | null {
   if (!s) return null;
-  const d = new Date(/[zZ]|[+-]\d\d:?\d\d$/.test(s) || !s.includes('T') ? s : `${s}Z`);
+  // a bare date (2026-11-14) is a calendar day, not a moment: read it in local time so it never shows as the day before
+  const d = new Date(!s.includes('T') ? `${s}T00:00:00` : /[zZ]|[+-]\d\d:?\d\d$/.test(s) ? s : `${s}Z`);
   return Number.isNaN(d.getTime()) ? null : d;
 }
 export const fmtDate = (s: string | null | undefined) => parseTime(s)?.toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' }) ?? '—';
@@ -169,20 +170,27 @@ export function Pager({ page, size, total, onPage }: { page: number; size: numbe
 }
 
 // ---------------------------------------------------------------- data loading
-export function useLoad<T>(fn: () => Promise<T>, deps: unknown[]) {
+/**
+ * Loads data and reloads when `deps` change. With `fresh`, the old data is dropped the moment `deps` change, so a screen
+ * that edits what it loaded (a register, a marks sheet) can never show or save one key's rows under another key.
+ */
+export function useLoad<T>(fn: () => Promise<T>, deps: unknown[], fresh = false) {
   const [data, setData] = useState<T | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const seq = useRef(0);
+  const first = useRef(true);
   const run = useCallback(() => {
     const n = ++seq.current;
     setLoading(true);
     setError(null);
+    if (fresh && first.current) setData(null);       // deps changed (not a plain reload): forget the previous key's data
+    first.current = false;
     fn().then((d) => { if (n === seq.current) { setData(d); setLoading(false); } })
       .catch((e: Error) => { if (n === seq.current) { setError(e.message); setLoading(false); } });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, deps);
-  useEffect(run, [run]);
+  useEffect(() => { first.current = true; run(); }, [run]);
   return { data, error, loading, reload: run, setData };
 }
 
@@ -217,27 +225,49 @@ export function ToastProvider({ children }: { children: ReactNode }) {
   );
 }
 
-// ---------------------------------------------------------------- modal (focus kept inside, Escape closes)
-export function Modal({ title, onClose, children, actions }: { title: string; onClose: () => void; children: ReactNode; actions?: ReactNode }) {
-  const ref = useRef<HTMLDivElement>(null);
-  const id = useId();
+// ---------------------------------------------------------------- layers: pop-ups and side panels
+// Several can be open at once (a confirmation over a side panel). Only the top one answers Escape and Tab; the page behind
+// stays still until the last one closes; focus goes back to whatever opened each layer.
+const layers: symbol[] = [];
+export function useLayer(ref: React.RefObject<HTMLElement | null>, onClose: () => void, firstField = false) {
+  const close = useRef(onClose);
+  close.current = onClose;
   useEffect(() => {
+    const me = Symbol('layer');
+    layers.push(me);
     const prev = document.activeElement as HTMLElement | null;
     const box = ref.current;
-    const focusables = () => Array.from(box?.querySelectorAll<HTMLElement>('button,[href],input,select,textarea,[tabindex]:not([tabindex="-1"])') ?? []).filter((e) => !e.hasAttribute('disabled'));
-    (focusables()[0] ?? box)?.focus();
+    const focusables = () => Array.from(box?.querySelectorAll<HTMLElement>('button,[href],input,select,textarea,[tabindex]:not([tabindex="-1"])') ?? []).filter((e) => !e.hasAttribute('disabled') && e.offsetParent !== null);
+    ((firstField ? box?.querySelector<HTMLElement>('input:not([disabled]),select:not([disabled]),textarea:not([disabled])') : null) ?? focusables()[0] ?? box)?.focus();
     const onKey = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') onClose();
+      if (layers[layers.length - 1] !== me) return;
+      if (e.key === 'Escape') { e.preventDefault(); close.current(); return; }
       if (e.key !== 'Tab') return;
       const f = focusables();
       if (!f.length) return;
       const first = f[0], last = f[f.length - 1];
-      if (e.shiftKey && document.activeElement === first) { e.preventDefault(); last.focus(); }
+      if (!box?.contains(document.activeElement)) { e.preventDefault(); first.focus(); }
+      else if (e.shiftKey && document.activeElement === first) { e.preventDefault(); last.focus(); }
       else if (!e.shiftKey && document.activeElement === last) { e.preventDefault(); first.focus(); }
     };
     document.addEventListener('keydown', onKey);
-    return () => { document.removeEventListener('keydown', onKey); prev?.focus(); };
-  }, [onClose]);
+    document.body.style.overflow = 'hidden';
+    return () => {
+      document.removeEventListener('keydown', onKey);
+      layers.splice(layers.indexOf(me), 1);
+      if (!layers.length) document.body.style.overflow = '';
+      prev?.focus();
+    };
+    // opened once: later re-renders of the caller must not move focus
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+}
+export const layerOpen = () => layers.length > 0;
+
+export function Modal({ title, onClose, children, actions }: { title: string; onClose: () => void; children: ReactNode; actions?: ReactNode }) {
+  const ref = useRef<HTMLDivElement>(null);
+  const id = useId();
+  useLayer(ref, onClose);
   return (
     <div className="modal-back" onMouseDown={(e) => { if (e.target === e.currentTarget) onClose(); }}>
       <div className="modal" role="dialog" aria-modal="true" aria-labelledby={id} ref={ref} tabIndex={-1}>

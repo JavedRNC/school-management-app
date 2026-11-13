@@ -15,7 +15,7 @@ export function AppUpdates() {
   if (!v.data) return <><PageHead title="App updates" /><Loading rows={5} /></>;
   const x = v.data;
   const newest = f.auto ? Math.max(Number(f.latest) || 0, x.github_build ?? 0) : Number(f.latest) || 0;
-  const bad = f.url && !f.url.trim().startsWith('https://') ? 'The download link must start with https://' : Number(f.min) > newest ? `The oldest build allowed can't be above the newest build (${newest})` : null;
+  const bad = Number(f.latest) > 1000000 || Number(f.min) > 1000000 ? 'A build number can be at most 1,000,000' : f.url && !f.url.trim().startsWith('https://') ? 'The download link must start with https://' : Number(f.min) > newest ? `The oldest build allowed can't be above the newest build (${newest})` : null;
   const digits = (s: string) => s.replace(/\D/g, '').slice(0, 7);
   async function save(e: React.FormEvent) {
     e.preventDefault();

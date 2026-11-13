@@ -1,14 +1,14 @@
 // Interactive building blocks shared by the management screens: tabs, switches, side drawers, confirmations,
 // chips, avatars, animated numbers and the "run an action with feedback" helper.
 import { createContext, useCallback, useContext, useEffect, useId, useMemo, useRef, useState, type ReactNode } from 'react';
-import { Button, Icon, Modal, useToast } from './ui';
+import { Button, Icon, Modal, useLayer, useToast } from './ui';
 
 // ---------------------------------------------------------------- run an action: busy state + toast on success/failure
 export function useAct() {
   const toast = useToast();
   const [busy, setBusy] = useState<string | null>(null);
   const alive = useRef(true);
-  useEffect(() => () => { alive.current = false; }, []);
+  useEffect(() => { alive.current = true; return () => { alive.current = false; }; }, []);
   const act = useCallback(async <T,>(key: string, fn: () => Promise<T>, ok?: string | ((r: T) => string)): Promise<T | undefined> => {
     setBusy(key);
     try {
@@ -48,13 +48,17 @@ export function ConfirmProvider({ children }: { children: ReactNode }) {
 
 // ---------------------------------------------------------------- tabs (arrow keys move between tabs)
 export function Tabs<T extends string>({ value, onChange, tabs, label }: { value: T; onChange: (v: T) => void; tabs: { id: T; label: string; count?: number }[]; label: string }) {
+  const box = useRef<HTMLDivElement>(null);
   const onKey = (e: React.KeyboardEvent) => {
     const i = tabs.findIndex((t) => t.id === value);
-    if (e.key === 'ArrowRight') onChange(tabs[(i + 1) % tabs.length].id);
-    if (e.key === 'ArrowLeft') onChange(tabs[(i - 1 + tabs.length) % tabs.length].id);
+    const to = e.key === 'ArrowRight' ? (i + 1) % tabs.length : e.key === 'ArrowLeft' ? (i - 1 + tabs.length) % tabs.length : e.key === 'Home' ? 0 : e.key === 'End' ? tabs.length - 1 : -1;
+    if (to < 0) return;
+    e.preventDefault();
+    onChange(tabs[to].id);
+    box.current?.querySelectorAll<HTMLElement>('[role=tab]')[to]?.focus();     // focus follows the selection
   };
   return (
-    <div className="tabs" role="tablist" aria-label={label} onKeyDown={onKey}>
+    <div className="tabs" role="tablist" aria-label={label} onKeyDown={onKey} ref={box}>
       {tabs.map((t) => (
         <button key={t.id} type="button" role="tab" aria-selected={t.id === value} tabIndex={t.id === value ? 0 : -1} onClick={() => onChange(t.id)}>
           {t.label}{t.count ? <span className="count">{t.count}</span> : null}
@@ -79,23 +83,7 @@ export function Switch({ checked, onChange, label, hint, disabled }: { checked: 
 export function Drawer({ title, sub, onClose, children, footer, wide }: { title: string; sub?: string; onClose: () => void; children: ReactNode; footer?: ReactNode; wide?: boolean }) {
   const ref = useRef<HTMLDivElement>(null);
   const id = useId();
-  useEffect(() => {
-    const prev = document.activeElement as HTMLElement | null;
-    const box = ref.current;
-    const focusables = () => Array.from(box?.querySelectorAll<HTMLElement>('button,[href],input,select,textarea,[tabindex]:not([tabindex="-1"])') ?? []).filter((e) => !e.hasAttribute('disabled'));
-    (box?.querySelector<HTMLElement>('input,select,textarea') ?? focusables()[0] ?? box)?.focus();
-    const onKey = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') { e.stopPropagation(); onClose(); }
-      if (e.key !== 'Tab') return;
-      const f = focusables();
-      if (!f.length) return;
-      if (e.shiftKey && document.activeElement === f[0]) { e.preventDefault(); f[f.length - 1].focus(); }
-      else if (!e.shiftKey && document.activeElement === f[f.length - 1]) { e.preventDefault(); f[0].focus(); }
-    };
-    document.addEventListener('keydown', onKey);
-    document.body.style.overflow = 'hidden';
-    return () => { document.removeEventListener('keydown', onKey); document.body.style.overflow = ''; prev?.focus(); };
-  }, [onClose]);
+  useLayer(ref, onClose, true);
   return (
     <div className="drawer-back" onMouseDown={(e) => { if (e.target === e.currentTarget) onClose(); }}>
       <aside className={`drawer ${wide ? 'wide' : ''}`} role="dialog" aria-modal="true" aria-labelledby={id} ref={ref} tabIndex={-1}>
@@ -171,6 +159,25 @@ export function useFilter<T>(rows: T[] | null | undefined, q: string, text: (r: 
     const s = q.trim().toLowerCase();
     return (rows ?? []).filter((r) => !s || text(r).toLowerCase().includes(s));
   }, [rows, q, text]);
+}
+
+/** A typed amount or count as a number, or null when it is empty or not a proper number ("1.2.3", "."). */
+export function num(v: string): number | null {
+  return /^\d+(\.\d+)?$/.test(v.trim()) ? Number(v) : null;
+}
+
+/** Print one part of the page (a receipt) on its own: a copy is placed beside the app, and the app is hidden while printing. */
+export function printNode(el: HTMLElement | null) {
+  if (!el) return;
+  const holder = document.createElement('div');
+  holder.id = 'print-root';
+  holder.appendChild(el.cloneNode(true));
+  document.body.appendChild(holder);
+  document.body.classList.add('printing');
+  const done = () => { document.body.classList.remove('printing'); holder.remove(); window.removeEventListener('afterprint', done); };
+  window.addEventListener('afterprint', done);
+  window.print();
+  setTimeout(done, 60000);       // browsers that never fire afterprint
 }
 
 export const today = () => {

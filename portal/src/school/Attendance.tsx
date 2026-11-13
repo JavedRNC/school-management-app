@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { api } from '../api';
-import { dayLabel, today, useAct } from '../kit';
+import { dayLabel, today, useAct, useConfirm } from '../kit';
 import { Badge, Button, Empty, ErrorBox, Loading, PageHead, Select, Text, useLoad } from '../ui';
 import { ReadOnlyNote, useSchool, type Klass } from './ctx';
 
@@ -13,7 +13,8 @@ export function Attendance() {
   const [classId, setClassId] = useState('');
   const [day, setDay] = useState(today());
   useEffect(() => { if (!classId && classes.data?.[0]) setClassId(String(classes.data[0].id)); }, [classes.data, classId]);
-  const sheet = useLoad(() => (classId && day ? api<Sheet>('/attendance', { query: { class_id: classId, day } }) : Promise.resolve(null)), [classId, day]);
+  const sheet = useLoad(() => (classId && day ? api<Sheet>('/attendance', { query: { class_id: classId, day } }) : Promise.resolve(null)), [classId, day], true);
+  const confirm = useConfirm();
   const [marks, setMarks] = useState<Record<number, boolean>>({});
   const [dirty, setDirty] = useState(false);
   const [override, setOverride] = useState(false);
@@ -26,9 +27,14 @@ export function Attendance() {
   const present = useMemo(() => Object.values(marks).filter(Boolean).length, [marks]);
   const total = s?.rows.length ?? 0;
   const setAll = (v: boolean) => { setMarks(Object.fromEntries((s?.rows ?? []).map((r) => [r.student_id, r.on_leave ? false : v]))); setDirty(true); };
-  const shift = (n: number) => { const d = new Date(`${day}T00:00:00`); d.setDate(d.getDate() + n); setDay(`${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`); };
+  // moving to another class or day with unsaved marks asks first
+  const leave = async (go: () => void) => { if (!dirty || await confirm({ title: 'Leave without saving?', body: 'The attendance you changed on this page is not saved yet.', confirm: 'Leave', danger: true })) go(); };
+  const pickClass = (v: string) => leave(() => setClassId(v));
+  const pickDay = (v: string) => leave(() => setDay(v));
+  const shift = (n: number) => { const d = new Date(`${day}T00:00:00`); d.setDate(d.getDate() + n); pickDay(`${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`); };
   async function save() {
-    const records = (s?.rows ?? []).map((r) => ({ student_id: r.student_id, present: !!marks[r.student_id] }));
+    if (!s || sheet.loading || s.date !== day) return;                      // never save one day's register under another
+    const records = s.rows.map((r) => ({ student_id: r.student_id, present: !!marks[r.student_id] }));
     if (await act('save', () => api('/attendance', { body: { class_id: Number(classId), date: day, records, override } }), `Attendance saved: ${present} of ${total} present`)) sheet.reload();
   }
 
@@ -37,12 +43,12 @@ export function Attendance() {
       <PageHead title="Attendance" sub="Open any class and day. Tap a student to switch between present and absent." />
       <ReadOnlyNote />
       <div className="toolbar">
-        <Select label="Class" value={classId} onChange={setClassId} options={(classes.data ?? []).map((c): [string, string] => [String(c.id), c.name])} />
-        <Text label="Day" type="date" value={day} onChange={(v) => v && setDay(v)} max={today()} />
+        <Select label="Class" value={classId} onChange={pickClass} options={(classes.data ?? []).map((c): [string, string] => [String(c.id), c.name])} />
+        <Text label="Day" type="date" value={day} onChange={(v) => v && pickDay(v)} max={today()} />
         <div className="row"><Button kind="small" onClick={() => shift(-1)} aria-label="Previous day">← Previous</Button><Button kind="small" onClick={() => shift(1)} disabled={day >= today()} aria-label="Next day">Next →</Button>
-          {day !== today() ? <Button kind="small" onClick={() => setDay(today())}>Today</Button> : null}</div>
+          {day !== today() ? <Button kind="small" onClick={() => pickDay(today())}>Today</Button> : null}</div>
       </div>
-      {classes.data && !classes.data.length ? <div className="card"><Empty title="Add a class first">Attendance is marked class by class.</Empty></div>
+      {classes.error ? <ErrorBox message={classes.error} onRetry={classes.reload} /> : classes.data && !classes.data.length ? <div className="card"><Empty title="Add a class first">Attendance is marked class by class.</Empty></div>
         : sheet.error ? <ErrorBox message={sheet.error} onRetry={sheet.reload} />
         : !s ? <Loading rows={6} /> : (
           <section className="card flush">

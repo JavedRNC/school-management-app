@@ -56,10 +56,18 @@ function ResultsView({ id, canWrite, onClose, onChanged }: { id: number; canWrit
     if (!(await confirm({ title: 'Remove this?', body: 'It disappears from the app. The answers are kept and come back if you restore it from Settings → Archive.', confirm: 'Remove', danger: true }))) return;
     if (await act('rm', () => api(`/polls/${id}`, { method: 'DELETE' }), 'Removed')) { onChanged(); onClose(); }
   }
+  function download() {
+    if (!x) return;
+    const cell = (v: string) => { let s = v ?? ''; if (/^[=+\-@\t\r]/.test(s)) s = `'${s}`; return /[",\n]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s; };
+    const lines = [['Name', 'Student', 'Class', 'Answer', 'Comment'], ...x.answered.map((a) => [a.name, a.student_name ?? '', a.class_name ?? '', a.answer, a.comment]), ...x.pending.map((a) => [a.name, a.student_name ?? '', a.class_name ?? '', 'Not answered yet', ''])];
+    const url = URL.createObjectURL(new Blob(['\ufeff', lines.map((l) => l.map(cell).join(',')).join('\r\n')], { type: 'text/csv' }));
+    const a = document.createElement('a'); a.href = url; a.download = 'answers.csv'; document.body.appendChild(a); a.click(); a.remove();
+    setTimeout(() => URL.revokeObjectURL(url), 5000);
+  }
   const who = (n: { name: string; student_name: string | null; class_name: string | null }) => `${n.name}${n.student_name ? ` · for ${n.student_name}` : ''}${n.class_name ? ` (${n.class_name})` : ''}`;
   return (
     <Drawer wide title={x?.title ?? 'Answers'} sub={x ? `${x.responded} of ${x.eligible} answered` : undefined} onClose={onClose}
-      footer={x && canWrite ? <><Button kind="danger" busy={busy === 'rm'} onClick={remove}>Remove</Button>{x.open ? <Button busy={busy === 'close'} onClick={close}>Close now</Button> : null}</> : undefined}>
+      footer={x ? <>{canWrite ? <><Button kind="danger" busy={busy === 'rm'} onClick={remove}>Remove</Button>{x.open ? <Button busy={busy === 'close'} onClick={close}>Close now</Button> : null}</> : null}<Button icon="download" onClick={download}>Download answers</Button></> : undefined}>
       {r.error ? <ErrorBox message={r.error} onRetry={r.reload} /> : !x ? <Loading rows={5} /> : (
         <>
           {x.description ? <p style={{ whiteSpace: 'pre-wrap' }}>{x.description}</p> : null}

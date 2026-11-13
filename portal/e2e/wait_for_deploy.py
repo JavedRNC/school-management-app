@@ -6,6 +6,7 @@ The API reports its commit at "/", the portal at "/version.json". A part whose f
 running and the wanted commit is not rebuilt by Render, so that also counts as ready.
 """
 import json
+import re
 import os
 import subprocess
 import sys
@@ -23,7 +24,8 @@ def running(url):
     try:
         req = urllib.request.Request(url + ("&" if "?" in url else "?") + f"t={int(time.time())}", headers={"Cache-Control": "no-cache"})
         with urllib.request.urlopen(req, timeout=30) as r:
-            return str(json.loads(r.read()).get("commit") or "")
+            commit = str(json.loads(r.read()).get("commit") or "")
+            return commit if re.fullmatch(r"[0-9a-f]{7,40}", commit) else ""      # only a commit id is ever passed to git
     except Exception:  # noqa: BLE001  (asleep, mid-deploy, or an older build without the stamp)
         return ""
 

@@ -16,7 +16,7 @@ type Dash = {
   academics: { exam: { id: number; name: string } | null; exams?: { id: number; name: string }[]; avg_by_class: { class_name: string; percent: number }[]; avg_by_subject: { subject: string; percent: number }[]; pass_rate: number | null; school_avg: number | null } | null;
   at_risk: { student_id: number; name: string; class_name: string; reasons: string[] }[];
 };
-type Fees = { period_label: string; collected_month: number; expected_month: number; collection_pct: number; outstanding: number; overdue: number; defaulters: number; pending_claims: number; configured: boolean };
+type Fees = { period_label: string; collected_month: number; expected_month: number; collection_pct: number | null; outstanding: number; overdue: number; defaulters: number; pending_claims: number; configured: boolean };
 
 const tone = (v: number) => (v < 60 ? 'low' : v < 80 ? 'mid' : 'high');
 const day = (d: string) => new Date(`${d}T00:00:00`).toLocaleDateString('en-IN', { day: 'numeric', month: 'short' });
@@ -79,7 +79,7 @@ export function SchoolDashboard() {
           {fees.loading ? <Loading rows={3} /> : fees.data?.configured ? (
             <div className="stack">
               <div className="spread"><span className="muted">Collected this month</span><b className="num">{fmtMoney(fees.data.collected_month)} of {fmtMoney(fees.data.expected_month)}</b></div>
-              <div className={`meter ${tone(fees.data.collection_pct)}`} role="img" aria-label={`${fees.data.collection_pct}% collected`}><i style={{ width: `${Math.min(100, fees.data.collection_pct)}%` }} /></div>
+              <div className={`meter ${tone(fees.data.collection_pct ?? 0)}`} role="img" aria-label={`${fees.data.collection_pct ?? 0}% collected`}><i style={{ width: `${Math.min(100, fees.data.collection_pct ?? 0)}%` }} /></div>
               <dl className="dl"><div><dt>Outstanding</dt><dd className="num">{fmtMoney(fees.data.outstanding)}</dd></div><div><dt>Overdue</dt><dd className="num">{fmtMoney(fees.data.overdue)}</dd></div>
                 <div><dt>Students with overdue fees</dt><dd className="num">{fmtInt(fees.data.defaulters)}</dd></div><div><dt>UPI payments to confirm</dt><dd className="num">{fmtInt(fees.data.pending_claims)}</dd></div></dl>
             </div>
