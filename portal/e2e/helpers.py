@@ -21,8 +21,15 @@ def heading(page, name):
 
 
 def toast(page, text):
-    """Wait for a confirmation or error message, then for it to be the latest thing said."""
-    page.locator(".toast", has_text=text).first.wait_for()
+    """Wait for a NEW confirmation or error message with this text.
+
+    Messages stay on screen for a few seconds, and two steps in a row often say the same thing ("… saved"). Each message is
+    therefore counted once: after it has been seen it is marked, so the next call waits for the next message rather than
+    passing on the old one before the server has answered.
+    """
+    fresh = page.locator(".toast:not([data-seen])", has_text=text).first
+    fresh.wait_for()
+    page.evaluate("document.querySelectorAll('.toast').forEach((e) => e.setAttribute('data-seen', '1'))")
 
 
 def dialog(page):

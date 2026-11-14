@@ -304,7 +304,7 @@ def test_support_access_is_given_and_taken_back_and_shows_in_activity(principal_
     share = page.get_by_role("switch", name="Let Prangan support see phone numbers")
     before = share.get_attribute("aria-checked")
     share.click()
-    page.locator(".toast", has_text="Prangan support").first.wait_for()
+    toast(page, "Prangan support")
     assert share.get_attribute("aria-checked") != before
     if before == "false":
         share.click()                                                             # leave contact details hidden
