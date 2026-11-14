@@ -33,7 +33,7 @@ export function Attendance() {
   const pickDay = (v: string) => leave(() => setDay(v));
   const shift = (n: number) => { const d = new Date(`${day}T00:00:00`); d.setDate(d.getDate() + n); pickDay(`${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`); };
   async function save() {
-    if (!s || sheet.loading || s.date !== day) return;                      // never save one day's register under another
+    if (!s || s.date !== day) return;                      // never save one day's register under another
     const records = s.rows.map((r) => ({ student_id: r.student_id, present: !!marks[r.student_id] }));
     if (await act('save', () => api('/attendance', { body: { class_id: Number(classId), date: day, records, override } }), `Attendance saved: ${present} of ${total} present`)) sheet.reload();
   }

@@ -49,6 +49,7 @@ def _password():
 
 PRINCIPAL_PW, TEACHER_PW, STUDENT_PW, PARENT_PW = _password(), _password(), _password(), _password()
 LOCK_MINUTES = 30
+SLOW_MS = int(os.getenv("E2E_SLOW_MS", "0"))      # local rehearsal of a slow server, e.g. E2E_SLOW_MS=400
 
 local_only = pytest.mark.skipif(REMOTE, reason="would leave permanent data on a shared environment")
 
@@ -258,6 +259,12 @@ def _open(browser, session=None, phone=False):
     if session:
         # signed in before the first page loads, exactly as if this tab had just logged in
         ctx.add_init_script("if (!sessionStorage.getItem('prangan.session')) sessionStorage.setItem('prangan.session', %s);" % json.dumps(json.dumps(session)))
+    if SLOW_MS:
+        # rehearse a slow server locally: every API answer is held back, as on a small shared host
+        def slow(route):
+            time.sleep(SLOW_MS / 1000)
+            route.continue_()
+        ctx.route(re.compile("^" + re.escape(API)), slow)
     pg = ctx.new_page()
     pg.problems = []
     pg.on("pageerror", lambda e: pg.problems.append(str(e)))

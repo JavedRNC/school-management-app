@@ -52,7 +52,8 @@ function Grid({ classes, bell, days, canWrite }: { classes: Klass[]; bell: Bell;
       <div className="toolbar"><Select label="Class" value={classId} onChange={setClassId} options={classes.map((c): [string, string] => [String(c.id), c.name])} />
         {!bell.configured ? <div className="alert grow">Period timings are not set yet, so 8 periods are shown. Set them in the Period timings tab.</div> : null}</div>
       {tt.error ? <ErrorBox message={tt.error} onRetry={tt.reload} /> : null}
-      <section className="card"><div className="tablewrap">
+      {/* until this class's periods have arrived there is no grid: an empty one would look like a free week and invite clicks */}
+      {!tt.data ? (tt.error ? null : <Loading rows={6} />) : <section className="card"><div className="tablewrap">
         <table className="tt" aria-label="Weekly timetable">
           <thead><tr><th style={{ width: 92 }}>Period</th>{sorted.map((d) => <th key={d}>{DAYS[d]}</th>)}</tr></thead>
           <tbody>{base.map((s, i) => (s.kind === 'break'
@@ -64,7 +65,7 @@ function Grid({ classes, bell, days, canWrite }: { classes: Klass[]; bell: Bell;
                   const e = at.get(`${d}-${p}`);
                   if (p > periodsOf(d)) return <td key={d}><div className="cell off" title={`${DAYS[d]} has only ${periodsOf(d)} periods`} /></td>;
                   return (
-                    <td key={d}><button type="button" className={`cell ${e ? 'on' : ''}`} disabled={!canWrite && !e} onClick={() => canWrite && !tt.loading && setCell({ day: d, period: p, entry: e })}
+                    <td key={d}><button type="button" className={`cell ${e ? 'on' : ''}`} disabled={!canWrite && !e} onClick={() => canWrite && setCell({ day: d, period: p, entry: e })}
                       aria-label={`${DAYS[d]} period ${p}: ${e ? `${e.subject_name}, ${e.teacher_name}` : 'free'}`}>
                       {e ? <><b>{e.subject_name}</b><small>{e.teacher_name}</small></> : <span className="add" aria-hidden="true">+</span>}
                     </button></td>
@@ -73,7 +74,7 @@ function Grid({ classes, bell, days, canWrite }: { classes: Klass[]; bell: Bell;
               </tr>
             )))}</tbody>
         </table>
-      </div></section>
+      </div></section>}
       {cell ? <CellForm classId={Number(classId)} cell={cell} subjects={subjects.data ?? []} teachers={teachers.data ?? []} asg={asg.data ?? []} onClose={() => setCell(null)} onSaved={() => { setCell(null); tt.reload(); }} /> : null}
     </>
   );
