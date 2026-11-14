@@ -2,6 +2,8 @@
 import datetime as dt
 import re
 
+from playwright.sync_api import expect
+
 from conftest import TAG, TODAY, call, ok
 from helpers import confirm, dialog, go, heading, tab, toast
 
@@ -120,7 +122,7 @@ def test_timetable_set_a_period_and_refuse_a_teacher_in_two_places(principal_pag
     box = dialog(page)
     assert box.get_by_role("button", name="Save").is_disabled()
     box.get_by_label("Subject").select_option(label=f"Maths {TAG}")
-    assert box.get_by_label("Teacher").input_value() == str(seeded["teachers"][0]["id"]), "the subject's teacher is filled in"
+    expect(box.get_by_label("Teacher")).to_have_value(str(seeded["teachers"][0]["id"]))    # the subject's teacher is filled in (once the list has loaded)
     box.get_by_label("Teacher").select_option(label=f"Teacher Two {TAG}")          # busy in 8-TAG at this time
     box.get_by_role("button", name="Save").click()
     toast(page, "Teacher already has a class in this period")
