@@ -1,0 +1,22 @@
+/* Privacy policy and account-deletion pages: one readable column, English first, then Hindi. */
+.legal .doc { max-width: 760px; padding: 36px 0 20px; }
+.legal .doc + .doc { border-top: 1px solid var(--rule); margin-top: 28px; }
+.legal .doc h1 { font-size: clamp(1.7rem, 4.5vw, 2.3rem); line-height: 1.2; }
+.legal .doc h2 { font-size: 1.2rem; margin: 30px 0 8px; }
+.legal .doc p, .legal .doc li { max-width: 68ch; }
+.legal .doc ul { padding-left: 20px; display: grid; gap: 8px; }
+.legal .when { color: var(--muted); margin-top: 6px; }
+.legal table { width: 100%; border-collapse: collapse; margin: 12px 0; font-size: .96rem; }
+.legal th, .legal td { text-align: left; vertical-align: top; padding: 10px 12px; border: 1px solid var(--rule); }
+.legal th { background: var(--paper); font-weight: 600; }
+.legal td:first-child { width: 42%; font-weight: 500; }
+.legal-lang { display: flex; gap: 16px; font-weight: 600; }
+.legal .doc[id] { scroll-margin-top: 80px; }
+@media (max-width: 600px) {
+  .legal table, .legal tbody, .legal tr, .legal td { display: block; width: 100%; }
+  .legal thead { display: none; }
+  .legal tr { border: 1px solid var(--rule); border-radius: 10px; margin-bottom: 10px; padding: 4px 0; }
+  .legal td { border: 0; padding: 6px 12px; } .legal td:first-child { width: 100%; }
+}
+.legal-lang a { color: #fff; text-decoration: underline; text-underline-offset: 3px; }
+.legal .doc p { margin: 10px 0; }

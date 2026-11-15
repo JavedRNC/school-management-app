@@ -238,7 +238,7 @@ details p { padding: 0 22px 20px; color: var(--muted); }
 .foot { background: var(--ink-deep); color: #B9C6EC; padding: 30px 0 calc(30px + env(safe-area-inset-bottom)); }
 .foot-row { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 14px; }
 .brand-foot { font-size: 1rem; }
-.foot-links { display: flex; gap: 18px; }
+.foot-links { display: flex; flex-wrap: wrap; gap: 8px 18px; }
 .foot-links a { color: #D9E2FA; }
 
 /* language switch: crossfade the text, nothing else moves */

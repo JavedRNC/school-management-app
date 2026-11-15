@@ -124,3 +124,9 @@ Multi-school with school code login (no email/OTP; principal issues temp passwor
 - e2e: portal/e2e/test_10..90 (python Playwright). Own school E2EQA1, names carry a run TAG, cleaned at end; local_only marks steps that leave permanent data. Remote run via E2E_WEB_URL/E2E_API_URL/E2E_ADMIN_PASSWORD. Workflow qa-e2e.yml runs on push to test (secret QA_ADMIN_PASSWORD) after wait_for_deploy.py.
 - Gotchas: attendance rows have present=null when unmarked; holiday kind "event" is never "closed" (server); admin user list is active-only unless active=false; school users masked for admin without support access (never send masked phone/login back).
 
+## Play Store prep (15 Nov)
+- Publisher Javed (personal account), free app, support email = his Gmail, Farrukhabad UP, no phone on listing.
+- PROD APK workflow also builds Prangan-<build>.aab (artifact Prangan-play-bundle-N). website/privacy.html + delete-account.html (EN+HI, legal.css).
+- docs/play-store.md = listing EN/HI, form answers, closed-test steps (12 testers x 14 days; he has 14 emails).
+- Open: reviewer demo login on PROD, screenshots + feature graphic, "erase person" tool for deletion requests, switch update link to Play after launch.
+
