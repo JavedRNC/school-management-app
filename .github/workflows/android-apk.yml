@@ -128,6 +128,19 @@ jobs:
           ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
         run: ./gradlew assembleRelease --no-daemon
 
+      # Google Play takes an "app bundle" (.aab), not an APK. Built for the live app only, from the same code and with the
+      # same key (Play calls it the upload key). It is kept as a workflow artifact and uploaded to Play Console by hand.
+      - name: Build the Play Store bundle (live app only)
+        if: env.APP_ENV == 'prod'
+        working-directory: mobile/android
+        env:
+          ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+        run: |
+          ./gradlew bundleRelease --no-daemon
+          mkdir -p ../../play
+          cp app/build/outputs/bundle/release/app-release.aab "../../play/Prangan-${GITHUB_RUN_NUMBER}.aab"
+          ls -lh ../../play
+
       - name: Show who signed the APK
         run: |
           keytool -printcert -jarfile android/app/build/outputs/apk/release/app-release.apk | tee /tmp/cert.txt | grep -E "Owner|SHA256" || true
@@ -156,6 +169,13 @@ jobs:
           name: Prangan-${{ env.APP_ENV }}-apk-${{ github.run_number }}
           path: dist/*.apk
           retention-days: 14
+
+      - uses: actions/upload-artifact@v4
+        if: env.APP_ENV == 'prod'
+        with:
+          name: Prangan-play-bundle-${{ github.run_number }}
+          path: play/*.aab
+          retention-days: 30
 
       - name: Publish PROD to the "latest-apk" release
         if: env.APP_ENV == 'prod'
