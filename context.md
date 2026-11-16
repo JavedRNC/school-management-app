@@ -130,3 +130,7 @@ Multi-school with school code login (no email/OTP; principal issues temp passwor
 - docs/play-store.md = listing EN/HI, form answers, closed-test steps (12 testers x 14 days; he has 14 emails).
 - Open: reviewer demo login on PROD, screenshots + feature graphic, "erase person" tool for deletion requests, switch update link to Play after launch.
 
+
+## Play Console progress (16 Nov)
+Done in console: Ads No, Govt No, Health none, Ad ID No, Financial none, store listing text (draft, en-US), category Education + contact, privacy URL, Data safety (draft; 11 types; account method "Username and password"; delete URLs set; submits only after Target audience).
+Open: Sign in details (prefilled, Javed types password), Content rating (IARC terms = his yes), Target audience, Trader status (his declaration), graphics upload, Closed test release (Add from library, vc 27), Send for review (his yes).
