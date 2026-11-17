@@ -12,7 +12,7 @@ from sqlalchemy import MetaData, inspect, select
 from .db import Base, SessionLocal, engine
 from .models import Meta
 
-SCHEMA_VERSION = 9  # v3 Phase 2, v4 fees, v5 bell, v6 snapshots, v7 app version, v8 showcase, v9 portal+onboarding+push (all additive)
+SCHEMA_VERSION = 10  # v3 Phase 2, v4 fees, v5 bell, v6 snapshots, v7 app version, v8 showcase, v9 portal+onboarding+push, v10 payroll (all additive)
 log = logging.getLogger("migrate")
 
 
@@ -26,6 +26,19 @@ def _current_version() -> int:
     with SessionLocal() as db:
         row = db.scalar(select(Meta).where(Meta.key == "schema_version"))
         return int(row.value) if row else 1
+
+
+def _add_module_to_top_plan(db, module: str) -> None:
+    """A module added after a database was created is not in its stored plans. Give it to the plan that already has
+    every other module (the top plan), and to no other: cheaper plans and schools with hand-picked modules stay as set."""
+    from .models import Plan
+    from .perms import MODULES
+
+    others = set(MODULES) - {module}
+    for p in db.scalars(select(Plan)):
+        mods = list(p.modules or [])
+        if module not in mods and others <= set(mods):
+            p.modules = mods + [module]
 
 
 def migrate() -> None:
@@ -47,6 +60,8 @@ def migrate() -> None:
     Base.metadata.create_all(engine)
     if v < SCHEMA_VERSION:
         with SessionLocal() as db:
+            if 0 < v < 10:
+                _add_module_to_top_plan(db, "payroll")
             row = db.get(Meta, "schema_version")
             if row:
                 row.value = str(SCHEMA_VERSION)

@@ -144,7 +144,7 @@ Collects data: Yes. Encrypted in transit: Yes. Users can request deletion: Yes (
 | Phone number | Yes | Optional | App functionality |
 | Other personal info (date of birth, class, roll number) | Yes | Optional | App functionality |
 | Health info (blood group) | Yes | Optional | App functionality |
-| Financial info → Other financial info (school fee records, UPI reference number) | Yes | Optional | App functionality |
+| Financial info → Other financial info (school fee records, UPI reference number, staff salary records) | Yes | Optional | App functionality |
 | Location → Approximate and Precise (staff check-in only; only the distance from school is stored) | Yes | Optional | App functionality |
 | Device or other IDs (push notification token) | Yes | Optional | App functionality |
 | Messages, photos, files, contacts, calendar, web history, app activity for analytics, diagnostics | No | | |

@@ -9,7 +9,7 @@ import { FadeIn, Icon, IconName, PressScale, SectionTitle } from './ui';
 
 type Op = { key: string; label: string; icon: IconName; path: string; show: boolean };
 
-/** Shortcuts (fees, leaves, staff attendance, transport, polls, banners) — shown only when allowed. */
+/** Shortcuts (fees, leaves, staff attendance, payroll, transport, polls, banners) — shown only when allowed. */
 export function useOps(): Op[] {
   const { user } = useAuth();
   const staff = user?.role === 'teacher' || user?.role === 'vice_principal' || user?.role === 'coordinator';
@@ -18,6 +18,7 @@ export function useOps(): Op[] {
   const transport = useModule('transport');
   const comms = useModule('communication');
   const fees = useModule('fees');
+  const payroll = useModule('payroll');
   const canFees = useCan('fees', 'view');
   const canLeaves = useCan('leaves', 'view');
   const canStaffAtt = useCan('staff_attendance', 'view');
@@ -28,6 +29,8 @@ export function useOps(): Op[] {
     { key: 'fees', label: 'Fees', icon: 'cash-multiple', path: parentish ? '/more/fees/my' : '/more/fees', show: fees && (canFees || parentish) },
     { key: 'leaves', label: 'Leaves', icon: 'calendar-account-outline', path: '/more/leaves', show: leaves && (canLeaves || staff || user?.role === 'parent') },
     { key: 'staff', label: 'Staff attendance', icon: 'map-marker-check-outline', path: '/more/staff-attendance', show: staffAtt && (staff || canStaffAtt) },
+    { key: 'payroll', label: user?.role === 'principal' ? 'Payroll' : 'My payslips', icon: 'account-cash-outline',
+      path: user?.role === 'principal' ? '/more/payroll' : '/more/payroll/my', show: payroll && (staff || user?.role === 'principal') },
     { key: 'transport', label: 'Transport', icon: 'bus-school', path: '/more/transport', show: transport && (canTransport || parentish) },
     { key: 'polls', label: 'Forms & polls', icon: 'clipboard-check-multiple-outline', path: '/more/polls', show: comms },
     { key: 'banners', label: 'Banners', icon: 'image-text', path: '/more/banners', show: canNotices },

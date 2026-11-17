@@ -607,3 +607,80 @@ class PushToken(Base):
     token: Mapped[str] = mapped_column(String(400), unique=True)
     platform: Mapped[str] = mapped_column(String(20), default="android")
     updated_at: Mapped[datetime] = mapped_column(DateTime, default=utcnow)
+
+
+# ================================================================ Payroll (F36)
+class PayrollConfig(Base):
+    """Per-school payroll settings."""
+    __tablename__ = "payroll_config"
+    school_id: Mapped[int] = mapped_column(ForeignKey("schools.id"), primary_key=True)
+    lop_enabled: Mapped[bool] = mapped_column(Boolean, default=False)        # cut pay for unpaid absent days (needs staff attendance)
+    lop_basis: Mapped[str] = mapped_column(String(10), default="calendar")   # calendar = month's days | working = school days
+    slip_prefix: Mapped[str] = mapped_column(String(12), default="SAL")
+
+
+class SalaryStructure(Base):
+    """What one staff member is paid each month. Components: [{"name": str, "amount": float}]."""
+    __tablename__ = "salary_structures"
+    __table_args__ = (UniqueConstraint("user_id"),)
+    id: Mapped[int] = mapped_column(primary_key=True)
+    school_id: Mapped[int] = mapped_column(ForeignKey("schools.id"), index=True)
+    user_id: Mapped[int] = mapped_column(ForeignKey("users.id"), index=True)
+    basic: Mapped[float] = mapped_column(Float, default=0)
+    allowances: Mapped[list] = mapped_column(JSON, default=list)
+    deductions: Mapped[list] = mapped_column(JSON, default=list)
+    note: Mapped[str] = mapped_column(String(200), default="")
+    updated_by: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    updated_at: Mapped[datetime] = mapped_column(DateTime, default=utcnow)
+
+
+class PayrollRun(Base):
+    """One month's payroll for a school. draft = being prepared; final = locked, payslips visible to staff."""
+    __tablename__ = "payroll_runs"
+    __table_args__ = (UniqueConstraint("school_id", "month"),)
+    id: Mapped[int] = mapped_column(primary_key=True)
+    school_id: Mapped[int] = mapped_column(ForeignKey("schools.id"), index=True)
+    month: Mapped[str] = mapped_column(String(7))                # YYYY-MM
+    status: Mapped[str] = mapped_column(String(8), default="draft", index=True)
+    days_in_month: Mapped[int] = mapped_column(Integer, default=30)
+    working_days: Mapped[int] = mapped_column(Integer, default=0)
+    counted_until: Mapped[date | None] = mapped_column(Date, nullable=True)   # attendance was read up to this day
+    lop_enabled: Mapped[bool] = mapped_column(Boolean, default=False)
+    lop_basis: Mapped[str] = mapped_column(String(10), default="calendar")
+    created_by: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=utcnow)
+    finalized_by: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    finalized_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
+
+
+class Payslip(Base):
+    """One person's pay for one run. Names and amounts are copied in, so later edits to the person or their
+    salary never change a past payslip."""
+    __tablename__ = "payslips"
+    __table_args__ = (UniqueConstraint("run_id", "user_id"),)
+    id: Mapped[int] = mapped_column(primary_key=True)
+    school_id: Mapped[int] = mapped_column(ForeignKey("schools.id"), index=True)
+    run_id: Mapped[int] = mapped_column(ForeignKey("payroll_runs.id"), index=True)
+    user_id: Mapped[int] = mapped_column(ForeignKey("users.id"), index=True)
+    slip_no: Mapped[str | None] = mapped_column(String(40), nullable=True)
+    name: Mapped[str] = mapped_column(String(120))
+    role: Mapped[str] = mapped_column(String(20))
+    login_id: Mapped[str] = mapped_column(String(60), default="")
+    basic: Mapped[float] = mapped_column(Float, default=0)
+    allowances: Mapped[list] = mapped_column(JSON, default=list)
+    deductions: Mapped[list] = mapped_column(JSON, default=list)
+    extra_earnings: Mapped[list] = mapped_column(JSON, default=list)      # this month only (bonus, arrears)
+    extra_deductions: Mapped[list] = mapped_column(JSON, default=list)    # this month only (advance recovered, fine)
+    absent_days: Mapped[float] = mapped_column(Float, default=0)          # from staff attendance (information)
+    lop_days: Mapped[float] = mapped_column(Float, default=0)             # days actually cut
+    lop_manual: Mapped[bool] = mapped_column(Boolean, default=False)
+    lop_amount: Mapped[float] = mapped_column(Float, default=0)
+    gross: Mapped[float] = mapped_column(Float, default=0)
+    total_deductions: Mapped[float] = mapped_column(Float, default=0)
+    net: Mapped[float] = mapped_column(Float, default=0)
+    note: Mapped[str] = mapped_column(String(300), default="")
+    status: Mapped[str] = mapped_column(String(8), default="unpaid", index=True)   # unpaid | paid
+    paid_on: Mapped[date | None] = mapped_column(Date, nullable=True)
+    mode: Mapped[str] = mapped_column(String(12), default="")             # cash | bank | upi | cheque
+    reference: Mapped[str] = mapped_column(String(80), default="")
+    paid_by: Mapped[int | None] = mapped_column(Integer, nullable=True)

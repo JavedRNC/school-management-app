@@ -54,6 +54,7 @@ MODULES = {
     "payments": "Online payments",
     "transport": "Transport",
     "staff_attendance": "Staff attendance (GPS)",
+    "payroll": "Staff payroll & payslips",
     "id_cards": "ID cards",
     "admissions": "Admissions & enquiries",
     "gallery": "Photo gallery",

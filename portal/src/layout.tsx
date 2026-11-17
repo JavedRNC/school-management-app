@@ -29,6 +29,7 @@ const SCHOOL: Item[] = [
   { to: '/school/leaves', label: 'Leaves', icon: 'leaf', group: 'Every day', module: 'leaves', words: 'approve leave quota' },
   { to: '/school/staff', label: 'Staff attendance', icon: 'clock', group: 'Every day', module: 'staff_attendance', words: 'check in gps' },
   { to: '/school/fees', label: 'Fees', icon: 'rupee', group: 'Money & transport', module: 'fees', words: 'collect receipts payments dues' },
+  { to: '/school/payroll', label: 'Payroll', icon: 'wallet', group: 'Money & transport', module: 'payroll', words: 'salary salaries payslip pay staff wages' },
   { to: '/school/transport', label: 'Transport', icon: 'bus', group: 'Money & transport', module: 'transport', words: 'routes vehicles bus stops' },
   { to: '/school/polls', label: 'Polls & consent forms', icon: 'vote', group: 'Parents', module: 'communication', words: 'survey permission' },
   { to: '/school/banners', label: 'Banners', icon: 'image', group: 'Parents', words: 'announcement popup' },

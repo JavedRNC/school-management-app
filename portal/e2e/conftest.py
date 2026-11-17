@@ -199,6 +199,17 @@ def _sweep(t):
         call("DELETE", f"/holidays/{h['id']}", t)
     for b in rows("/fees/batches"):
         call("DELETE", f"/fees/batches/{b['id']}", t)
+    status, pay = call("GET", "/payroll/runs", t)                 # one payroll a month: a month left by an earlier run would block the next
+    for run in (pay.get("runs", []) if status == 200 else []):
+        if run["status"] == "final":
+            status, detail = call("GET", f"/payroll/runs/{run['id']}", t)
+            for slip in (detail.get("payslips", []) if status == 200 else []):
+                if slip["status"] == "paid":
+                    call("POST", f"/payroll/payslips/{slip['id']}/undo-payment", t, {"reason": "browser test clean-up"})
+            call("POST", f"/payroll/runs/{run['id']}/reopen", t, {})
+        call("DELETE", f"/payroll/runs/{run['id']}", t)
+    if status == 200:
+        call("PUT", "/payroll/config", t, {"lop_enabled": False, "lop_basis": "calendar", "slip_prefix": "SAL"})
     status, tr = call("GET", "/transport/overview", t)
     if status == 200:
         riders = [r["student_id"] for r in rows("/transport/students")]

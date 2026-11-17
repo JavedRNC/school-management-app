@@ -31,6 +31,7 @@ const Exams = lazy(() => import('./school/Exams').then((m) => ({ default: m.Exam
 const Fees = lazy(() => import('./school/Fees').then((m) => ({ default: m.Fees })));
 const Leaves = lazy(() => import('./school/Leaves').then((m) => ({ default: m.Leaves })));
 const Notices = lazy(() => import('./school/Notices').then((m) => ({ default: m.Notices })));
+const Payroll = lazy(() => import('./school/Payroll').then((m) => ({ default: m.Payroll })));
 const People = lazy(() => import('./school/People').then((m) => ({ default: m.People })));
 const Polls = lazy(() => import('./school/Polls').then((m) => ({ default: m.Polls })));
 const Activity = lazy(() => import('./school/Settings').then((m) => ({ default: m.Activity })));
@@ -109,6 +110,7 @@ export function App() {
                   <Route path="/school/leaves" element={<Feature module="leaves" title="Leaves"><Leaves /></Feature>} />
                   <Route path="/school/staff" element={<Feature module="staff_attendance" title="Staff attendance"><Staff /></Feature>} />
                   <Route path="/school/fees" element={<Feature module="fees" title="Fees"><Fees /></Feature>} />
+                  <Route path="/school/payroll" element={<Feature module="payroll" title="Payroll"><Payroll /></Feature>} />
                   <Route path="/school/transport" element={<Feature module="transport" title="Transport"><Transport /></Feature>} />
                   <Route path="/school/polls" element={<Feature module="communication" title="Polls & consent forms"><Polls /></Feature>} />
                   <Route path="/school/banners" element={<SchoolBanners />} />

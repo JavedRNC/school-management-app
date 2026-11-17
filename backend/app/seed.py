@@ -444,3 +444,40 @@ def seed_showcase_demo() -> bool:
                 done = True
         db.commit()
         return done
+
+
+def seed_payroll_demo() -> bool:
+    """Salaries for the first demo school, last month paid and this month waiting (idempotent)."""
+    from .models import PayrollConfig, PayrollRun, SalaryStructure, utcnow
+    from .routers.payroll import _build, _slips
+    from .util import today
+
+    with SessionLocal() as db:
+        s = db.scalar(select(School).where(School.code == "DEMO01"))
+        if not s or db.scalar(select(SalaryStructure.id).where(SalaryStructure.school_id == s.id).limit(1)):
+            return False
+        if not db.get(PayrollConfig, s.id):
+            db.add(PayrollConfig(school_id=s.id, lop_enabled=False, lop_basis="calendar", slip_prefix="GVPS-SAL"))
+        pay = {Role.principal: 62000, Role.vice_principal: 48000, Role.coordinator: 40000, Role.teacher: 30000}
+        staff = list(db.scalars(select(User).where(User.school_id == s.id, User.role.in_(list(pay)), User.active.is_(True)).order_by(User.id)))
+        if not staff:
+            return False
+        for i, u in enumerate(staff):
+            basic = pay[u.role] + (i % 4) * 1500 if u.role == Role.teacher else pay[u.role]
+            db.add(SalaryStructure(school_id=s.id, user_id=u.id, basic=float(basic),
+                                   allowances=[{"name": "House rent", "amount": round(basic * 0.2)}, {"name": "Travel", "amount": 1600.0}],
+                                   deductions=[{"name": "Provident fund", "amount": round(basic * 0.12)}, {"name": "Professional tax", "amount": 200.0}]))
+        db.flush()
+        t = today()
+        prev = (t.replace(day=1) - timedelta(days=1))
+        run = PayrollRun(school_id=s.id, month=f"{prev.year:04d}-{prev.month:02d}", status="draft", created_by=staff[0].id)
+        db.add(run)
+        db.flush()
+        _build(db, run, s)
+        slips = _slips(db, run.id)
+        for n, p in enumerate(slips, 1):
+            p.slip_no = f"GVPS-SAL/{run.month.replace('-', '')}/{n:03d}"
+            p.status, p.paid_on, p.mode, p.reference, p.paid_by = "paid", t.replace(day=1), "bank", f"NEFT{run.month.replace('-', '')}{n:03d}", staff[0].id
+        run.status, run.finalized_by, run.finalized_at = "final", staff[0].id, utcnow()
+        db.commit()
+        return True

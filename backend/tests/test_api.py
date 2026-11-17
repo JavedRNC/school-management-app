@@ -393,7 +393,7 @@ def test_legacy_schema_is_reset(tmp_path):
             "print('school_id' in cols, c.execute('select value from meta').fetchone()[0])") % str(db)
     out = subprocess.run([sys.executable, "-c", code], capture_output=True, text=True,
                          env={**os.environ, "DATABASE_URL": f"sqlite:///{db}", "ALLOW_SCHEMA_RESET": "1"}, cwd=os.path.dirname(os.path.dirname(__file__)))
-    assert out.stdout.strip() == "True 9", out.stderr
+    assert out.stdout.strip() == "True 10", out.stderr
 
 
 def test_a_database_is_never_wiped_by_default(tmp_path):

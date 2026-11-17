@@ -8,7 +8,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 
 from .migrate import migrate
-from .routers import (academics, admin, appversion, auth, bell, comms, dashboard, data, fees, leaves, onboarding, portal, public,
+from .routers import (academics, admin, appversion, auth, bell, comms, dashboard, data, fees, leaves, onboarding, payroll, portal, public,
                       school, settings, staff_attendance, transport)
 
 
@@ -34,7 +34,7 @@ async def lifespan(_app: FastAPI):
         # demo data must never stop the server from starting
         from . import seed
 
-        for fn in (seed.seed_demo_if_empty, seed.seed_phase2_demo, seed.seed_fees_demo, seed.seed_bell_demo, seed.seed_showcase_demo):
+        for fn in (seed.seed_demo_if_empty, seed.seed_phase2_demo, seed.seed_fees_demo, seed.seed_bell_demo, seed.seed_showcase_demo, seed.seed_payroll_demo):
             try:
                 fn()
             except Exception:  # noqa: BLE001
@@ -129,7 +129,7 @@ async def security_headers(request, call_next):
 
 
 for r in (auth.router, school.router, academics.router, dashboard.router, settings.router, admin.router,
-          leaves.router, comms.router, comms.poll_router, staff_attendance.router, transport.router, fees.router, bell.router, data.router, appversion.router, public.router, onboarding.router, portal.router):
+          leaves.router, comms.router, comms.poll_router, staff_attendance.router, transport.router, fees.router, bell.router, data.router, appversion.router, public.router, onboarding.router, portal.router, payroll.router):
     app.include_router(r)
 
 

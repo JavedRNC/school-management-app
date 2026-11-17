@@ -483,6 +483,11 @@ class Importer:
             self.warnings.append(f"This file was exported from school {b.meta['school_code']}, not {self.school.code}.")
         vault = self._vault()
         if self.mode == "replace":
+            runs = self.db.scalar(select(func.count()).select_from(M.PayrollRun).where(M.PayrollRun.school_id == self.sid)) or 0
+            pay = self.db.scalar(select(func.count()).select_from(M.SalaryStructure).where(M.SalaryStructure.school_id == self.sid)) or 0
+            if runs or pay:
+                self.warnings.insert(0, f"Payroll is not part of this file. Replace deletes it for good: {pay} salaries and {runs} "
+                                        "months of payslips. Print or save the payslips you need first.")
             self.wipe()
         self.refresh()
         pr = next((u for u in self.users.values() if u.role == Role.principal and u.active), None)
@@ -558,6 +563,8 @@ class Importer:
         pay_ids = select(M.FeePayment.id).where(M.FeePayment.school_id == sid)
         poll_ids = select(M.Poll.id).where(M.Poll.school_id == sid)
         db.execute(delete(M.FeeAllocation).where(M.FeeAllocation.payment_id.in_(pay_ids)))
+        for model in (M.Payslip, M.PayrollRun, M.SalaryStructure):       # payroll is not in the Excel file: Replace clears it
+            db.execute(delete(model).where(model.school_id == sid))
         for model in (M.FeePayment, M.FeeItem, M.FeeBatch, M.ReceiptCounter, M.StudentTransport, M.Stop):
             db.execute(delete(model).where(model.school_id == sid))
         db.execute(delete(M.Route).where(M.Route.school_id == sid))

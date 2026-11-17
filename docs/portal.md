@@ -7,11 +7,11 @@ A second front end, beside the Android app, on the same API and database. Code: 
 | Role | Does |
 |---|---|
 | Admin | Dashboard · schools (search, filter, sort, export, add) · one school: details, plan and features, price and dates, suspend, users, payments, website listing, import & export, activity · onboarding requests · plans & pricing · announcements for every school · app update settings · activity log |
-| Principal | Dashboard · people (add, edit, reset password, remove, add many by pasting from Excel, parent links, Vice Principal / Coordinator rights) · classes, subjects, subject teachers · timetable and period timings · attendance · exams and marks · notices and homework · calendar · leaves and staff leave allowance · staff attendance and school location · fees (setup, dues, collect, receipts, cancel, UPI payments to check, one-time charges, month billing) · transport · polls and consent forms · banners · import & export · settings (profile, working days, privacy and support access, website listing, plan, archive and restore) · activity |
+| Principal | Dashboard · people (add, edit, reset password, remove, add many by pasting from Excel, parent links, Vice Principal / Coordinator rights) · classes, subjects, subject teachers · timetable and period timings · attendance · exams and marks · notices and homework · calendar · leaves and staff leave allowance · staff attendance and school location · fees (setup, dues, collect, receipts, cancel, UPI payments to check, one-time charges, month billing) · payroll (salaries, monthly payroll, payslips, marking salaries paid) · transport · polls and consent forms · banners · import & export · settings (profile, working days, privacy and support access, website listing, plan, archive and restore) · activity |
 | Public | "Register your school" form and a status check (reference + mobile) |
 
 Everything Admin and Principal can do in the Android app can be done here. The pages for paid features (Fees, Transport, Leaves,
-Staff attendance, Polls) appear only when the school's plan includes them. When a subscription has lapsed the portal is view-only.
+Staff attendance, Payroll, Polls) appear only when the school's plan includes them. When a subscription has lapsed the portal is view-only.
 Press **Ctrl+K** anywhere to jump to a page.
 
 Teachers, parents and students cannot sign in to the portal; the server refuses a portal session for those roles.
