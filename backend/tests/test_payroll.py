@@ -515,6 +515,40 @@ def send(c, hh, content, mode, confirm=False, path="/data/import"):
     return r.json()
 
 
+def ensure_draft(c, h):
+    """A month still being prepared, with this-month-only lines and hand-set unpaid days (made once, reused by later tests)."""
+    month = months_back(5)
+    run = next((r for r in c.get("/payroll/runs", headers=h).json()["runs"] if r["month"] == month), None)
+    if run and run["status"] == "draft":
+        return month
+    if run:
+        assert c.post(f"/payroll/runs/{run['id']}/reopen", headers=h).status_code == 200
+        return month
+    draft = c.post("/payroll/runs", json={"month": month}, headers=h).json()
+    first = draft["payslips"][0]
+    assert c.put(f"/payroll/payslips/{first['id']}", json={"lop_days": 1.5, "extra_earnings": [{"name": "Exam duty", "amount": 750.5}],
+                                                          "extra_deductions": [{"name": "Advance", "amount": 1000}], "note": "check"},
+                 headers=h).status_code == 200
+    return month
+
+
+def school_id():
+    from app.db import SessionLocal
+    from app.models import School
+    with SessionLocal() as db:
+        return db.query(School).filter(School.code == "DEMO01").one().id
+
+
+def support_access(on: bool):
+    from datetime import datetime
+
+    from app.db import SessionLocal
+    from app.models import School
+    with SessionLocal() as db:
+        db.query(School).filter(School.code == "DEMO01").one().support_access_until = datetime(2100, 1, 1) if on else None
+        db.commit()
+
+
 def snapshot_of_payroll(c, h):
     """Everything payroll holds, by employee code and month, so two schools' states can be compared."""
     staff_rows = c.get("/payroll/staff", headers=h).json()["rows"]
@@ -532,10 +566,6 @@ def snapshot_of_payroll(c, h):
 
 
 def test_backup_has_payroll_but_template_and_admin_copy_do_not(c, h):
-    from datetime import datetime
-
-    from app.db import SessionLocal
-    from app.models import School
     wb = book(download(c, "/data/backup", h))
     for name in PAY_SHEETS:
         assert name in wb.sheetnames, name
@@ -553,39 +583,39 @@ def test_backup_has_payroll_but_template_and_admin_copy_do_not(c, h):
     assert not set(PAY_SHEETS) & set(book(download(c, "/data/template", h)).sheetnames)
     # nor does the platform admin's copy, even with support access
     a = admin(c)
-    with SessionLocal() as db:
-        s = db.query(School).filter(School.code == "DEMO01").one()
-        s.support_access_until, sid = datetime(2100, 1, 1), s.id
-        db.commit()
+    support_access(True)
     try:
-        wa = book(download(c, f"/admin/schools/{sid}/data/backup", a))
+        wa = book(download(c, f"/admin/schools/{school_id()}/data/backup", a))
         assert not set(PAY_SHEETS) & set(wa.sheetnames)
         assert int({r["key"]: r["value"] for r in rows(wa, "_meta")}["payroll_rows"]) == 0
     finally:
-        with SessionLocal() as db:
-            db.query(School).filter(School.code == "DEMO01").one().support_access_until = None
-            db.commit()
+        support_access(False)
 
 
 def test_replace_with_the_backup_brings_payroll_back_exactly(c, h):
     from datetime import datetime
 
     from app.db import SessionLocal
-    from app.models import Meta, PayrollRun, School
-    # a richer state: a month still being prepared, with this-month-only lines and hand-set unpaid days
-    month = months_back(5)
-    draft = c.post("/payroll/runs", json={"month": month}, headers=h).json()
-    first = draft["payslips"][0]
-    assert c.put(f"/payroll/payslips/{first['id']}", json={"lop_days": 1.5, "extra_earnings": [{"name": "Exam duty", "amount": 750.5}],
-                                                          "extra_deductions": [{"name": "Advance", "amount": 1000}], "note": "check"},
-                 headers=h).status_code == 200
+    from app.models import Meta, PayrollRun, User
+    ensure_draft(c, h)
+    # a month that was locked and reopened keeps its payslip numbers
+    reopened = months_back(6)
+    run = c.post("/payroll/runs", json={"month": reopened}, headers=h).json()["run"]
+    numbered = {p["login_id"]: p["slip_no"] for p in c.post(f"/payroll/runs/{run['id']}/finalize", headers=h).json()["payslips"]}
+    assert c.post(f"/payroll/runs/{run['id']}/reopen", headers=h).status_code == 200
+    # someone who left long ago and so is not in that month
+    with SessionLocal() as db:
+        t4 = db.query(User).filter(User.school_id == school_id(), User.login_id == "T004").one()
+        t4.active, t4.archived_at = False, datetime(2020, 5, 10, 6, 30)
+        db.commit()
+    c.post(f"/payroll/runs/{run['id']}/recalculate", headers=h)
     c.put("/payroll/config", json={"lop_enabled": False, "lop_basis": "working", "slip_prefix": "RT-SAL"}, headers=h)
     before = snapshot_of_payroll(c, h)
     def tops():
         """The highest payslip number given in each month (counter or numbers on the payslips): the next one comes after it."""
         with SessionLocal() as db:
             out = {}
-            for r in db.query(PayrollRun).filter(PayrollRun.school_id == 1):
+            for r in db.query(PayrollRun).filter(PayrollRun.school_id == school_id()):
                 m = db.get(Meta, f"payroll_seq:{r.id}")
                 nums = [int(p["slip_no"].rsplit("/", 1)[-1]) for p in before["months"][r.month]["slips"].values() if p["slip_no"]]
                 out[r.month] = max([int(m.value) if m else 0] + nums)
@@ -597,13 +627,20 @@ def test_replace_with_the_backup_brings_payroll_back_exactly(c, h):
     assert preview["ok"] and preview["verified"], preview["errors"]
     assert not any("has no payroll" in w for w in preview["warnings"]), preview["warnings"]
     counts = {x["sheet"]: x for x in preview["sheets"]}
-    assert counts["Salaries"]["add"] == len(before["salaries"]) and counts["Payroll months"]["add"] == len(before["months"])
+    assert counts["Salaries"]["add"] == len(rows(book(content), "Salaries")) and counts["Payroll months"]["add"] == len(before["months"])
 
     done = send(c, h, content, "replace", confirm=True)
     assert done["saved"], done
     after = snapshot_of_payroll(c, h)
     assert after == before
     assert tops() == seq_before                     # payslip numbers that were given never come back
+    assert {k: v["slip_no"] for k, v in after["months"][reopened]["slips"].items()} == {k: v for k, v in numbered.items() if k != "T004"}
+    # the person who left in 2020 is restored with that day, so working the month out again still leaves them out
+    run2 = next(r for r in c.get("/payroll/runs", headers=h).json()["runs"] if r["month"] == reopened)
+    again = c.post(f"/payroll/runs/{run2['id']}/recalculate", headers=h).json()
+    assert "T004" not in {p["login_id"] for p in again["payslips"]}
+    relocked = c.post(f"/payroll/runs/{run2['id']}/finalize", headers=h).json()["payslips"]
+    assert {p["login_id"]: p["slip_no"] for p in relocked} == {k: v for k, v in numbered.items() if k != "T004"}
     # staff see their restored payslips
     mine = c.get("/payroll/me", headers=login(c, "T001", pw="demo123")).json()["payslips"] if c.post(
         "/auth/login", json={"school_code": "DEMO01", "login_id": "T001", "password": "demo123"}).status_code == 200 else None
@@ -612,25 +649,26 @@ def test_replace_with_the_backup_brings_payroll_back_exactly(c, h):
     # the undo backup saved before Replace holds salaries: only the principal may download it
     assert c.get("/data/snapshot/file", headers=h).status_code == 200
     a = admin(c)
-    with SessionLocal() as db:
-        s = db.query(School).filter(School.code == "DEMO01").one()
-        s.support_access_until, sid = datetime(2100, 1, 1), s.id
-        db.commit()
+    support_access(True)
     try:
-        r = c.get(f"/admin/schools/{sid}/data/snapshot/file", headers=a)
-        assert r.status_code == 403 and "salaries" in r.json()["detail"]
+        r = c.get(f"/admin/schools/{school_id()}/data/snapshot/file", headers=a)
+        assert r.status_code == 403 and "salaries" in r.json()["detail"] and "send" not in r.json()["detail"]
     finally:
+        support_access(False)
         with SessionLocal() as db:
-            db.query(School).filter(School.code == "DEMO01").one().support_access_until = None
+            t4 = db.query(User).filter(User.school_id == school_id(), User.login_id == "T004").one()
+            t4.active, t4.archived_at = True, None
             db.commit()
 
 
 def test_merge_adds_missing_months_and_never_doubles(c, h):
+    ensure_draft(c, h)
     content = download(c, "/data/backup", h)
     before = snapshot_of_payroll(c, h)
     r = send(c, h, content, "merge", confirm=True)
     counts = {x["sheet"]: x for x in r["sheets"]}
     assert counts["Payroll months"]["add"] == 0 and counts["Payslips"]["add"] == 0 and counts["Salaries"]["add"] == 0
+    assert sum("kept as it is in the app" in w for w in r["warnings"]) == len(before["months"])     # each kept month is named
     assert snapshot_of_payroll(c, h) == before
     # a month deleted in the app comes back from the backup, salaries changed since are put back as they were
     draft = next(m for m, x in before["months"].items() if x["status"] == "draft")
@@ -661,6 +699,7 @@ def test_payroll_rows_are_checked_like_the_payroll_screens(c, h, monkeypatch):
     """Even a file that passes the backup check is refused when its payroll doesn't add up (a file from an older or faulty server)."""
     from app import dataimport
     monkeypatch.setattr(dataimport.Book, "verified_for", lambda self, code: True)
+    ensure_draft(c, h)
     base = download(c, "/data/backup", h)
 
     def broken(edit):
@@ -718,6 +757,22 @@ def test_payroll_rows_are_checked_like_the_payroll_screens(c, h, monkeypatch):
         cell(wb, "Payslips", i, "Payslip no.", mine[0]["Payslip no."])
     assert "used twice in the month" in broken(same_number)
     assert "don't fit this month" in broken(lambda wb: cell(wb, "Payroll months", 2, "Days in month", 40))
+    assert "should end in a number" in broken(lambda wb: cell(wb, "Payslips", 2, "Payslip no.", "SAL/202601/²"))
+    assert "doesn't follow from the unpaid days" in broken(lambda wb: cell(wb, "Payslips", 2, "Unpaid days", 3))
+    assert "whole or half days" in broken(lambda wb: cell(wb, "Payslips", 2, "Unpaid days", 1.3))
+
+    def paid_tomorrow(wb):
+        i = first_row(wb, "Payslips", "Status", lambda v: v == "paid")
+        cell(wb, "Payslips", i, "Paid on", str(today() + timedelta(days=1)))
+    assert "a paid salary needs" in broken(paid_tomorrow)
+    nxt = today().replace(day=28) + timedelta(days=5)
+    assert "hasn't started" in broken(lambda wb: cell(wb, "Payroll months", 2, "Month (YYYY-MM)", f"{nxt.year:04d}-{nxt.month:02d}"))
+
+    def same_month_twice(wb):
+        ws = wb["Payroll months"]
+        head = [x.value for x in ws[1]]
+        ws.cell(row=3, column=head.index("Month (YYYY-MM)") + 1).value = ws.cell(row=2, column=head.index("Month (YYYY-MM)") + 1).value
+    assert "appears twice" in broken(same_month_twice)
     assert "use YYYY-MM" in broken(lambda wb: cell(wb, "Payroll months", 2, "Month (YYYY-MM)", "2026-13"))
     assert "use Days in the month or School days" in broken(lambda wb: cell(wb, "Payroll settings", 3, "Value", "weekly"))
 
@@ -731,3 +786,25 @@ def test_replace_with_a_file_without_payroll_warns(c, h):
     with SessionLocal() as db:                                               # a preview deletes nothing
         sid = db.scalar(select(School.id).where(School.code == "DEMO01"))
         assert db.scalar(select(func.count()).select_from(PayrollRun).where(PayrollRun.school_id == sid)) > 0
+
+
+def test_the_platform_admin_can_neither_restore_nor_delete_payroll(c, h):
+    content = download(c, "/data/backup", h)             # the principal's own backup, as if they sent it to support
+    before = snapshot_of_payroll(c, h)
+    a = admin(c)
+    sid = school_id()
+    support_access(True)
+    try:
+        t1 = staff(c, h)["T001"]
+        c.put(f"/payroll/staff/{t1['user_id']}", json={"basic": 1}, headers=h)
+        r = send(c, a, content, "merge", confirm=True, path=f"/admin/schools/{sid}/data/import")
+        assert r["saved"] and any("only the principal can restore staff salaries" in w for w in r["warnings"])
+        assert not any(x["sheet"] in PAY_SHEETS for x in r["sheets"])
+        assert staff(c, h)["T001"]["salary"]["basic"] == 1                                    # not touched by the admin's import
+        r = send(c, a, content, "replace", path=f"/admin/schools/{sid}/data/import")           # preview is refused too
+        assert not r["ok"] and any("Only the principal can use Replace" in e["message"] for e in r["errors"])
+        assert c.get("/payroll/runs", headers=h).json()["runs"]                                # nothing deleted
+    finally:
+        support_access(False)
+        c.put(f"/payroll/staff/{staff(c, h)['T001']['user_id']}", json={k: before["salaries"]["T001"][k] for k in ("basic", "allowances", "deductions", "note")},
+              headers=h)

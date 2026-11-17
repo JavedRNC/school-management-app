@@ -100,7 +100,8 @@ SPEC: dict[str, list[tuple[str, str]]] = {
     "Receipt numbers": [("year", "Academic year"), ("last_no", "Last receipt no.")],
     # payroll (F36): full backups made by the principal only
     "Payroll settings": [("setting", "Setting"), ("value", "Value")],
-    "Salaries": [("person", "Employee code"), ("name", "Name"), ("basic", "Basic pay ₹"), ("note", "Note"), ("updated_at", "Updated at")],
+    "Salaries": [("person", "Employee code"), ("name", "Name"), ("basic", "Basic pay ₹"), ("note", "Note"), ("updated_at", "Updated at"),
+                 ("left_on", "Left on (removed staff)")],
     "Salary lines": [("person", "Employee code"), ("type", "Type"), ("name", "Name"), ("amount", "Amount ₹")],
     "Payroll months": [("ref", "Ref"), ("month", "Month (YYYY-MM)"), ("status", "Status"), ("days_in_month", "Days in month"),
                        ("working_days", "School days"), ("counted_until", "Attendance counted until"),
@@ -516,7 +517,9 @@ def _payroll(w: Writer, db, sid, M, users, login) -> int:
     structs = sorted(db.scalars(select(M.SalaryStructure).where(M.SalaryStructure.school_id == sid)),
                      key=lambda x: (login.get(x.user_id) or "", x.id))
     structs = [x for x in structs if x.user_id in login]
-    w.sheet("Salaries", H("Salaries"), [[login[x.user_id], users[x.user_id].name, x.basic, x.note, x.updated_at] for x in structs])
+    from .routers.payroll import left_on
+    w.sheet("Salaries", H("Salaries"), [[login[x.user_id], users[x.user_id].name, x.basic, x.note, x.updated_at, left_on(users[x.user_id])]
+                                        for x in structs])
     w.sheet("Salary lines", H("Salary lines"), [[login[x.user_id], label, ln.get("name"), ln.get("amount")]
                                                 for x in structs for key, label in SALARY_LINE_TYPES.items() for ln in (getattr(x, key) or [])])
     runs = list(db.scalars(select(M.PayrollRun).where(M.PayrollRun.school_id == sid).order_by(M.PayrollRun.month)))

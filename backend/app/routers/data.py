@@ -149,8 +149,8 @@ def _has_payroll(content: bytes) -> bool:
         wb.close()
 
 
-def _snapshot_file(db: Session, school: School) -> Response:
-    snap = _latest_snapshot(db, school.id)
+def _snapshot_file(db: Session, school: School, snap: DataSnapshot | None = None) -> Response:
+    snap = snap or _latest_snapshot(db, school.id)
     if not snap:  # noqa: SIM108
         raise HTTPException(404, "No undo backup yet — one is saved automatically before every Replace import")
     name = f"Prangan-Before-Replace-{school.code}-{snap.created_at:%Y-%m-%d-%H%M}.xlsx"
@@ -239,11 +239,12 @@ def admin_snapshot_file(sid: int, me: User = Depends(admin_only), db: Session = 
     s = _admin_school(db, sid)
     snap = _latest_snapshot(db, s.id)
     if snap and _has_payroll(snap.content):
-        raise HTTPException(403, "This undo backup contains staff salaries, which only the principal can download. "
-                                 "Ask the principal to download it (Import & backup → Undo backup) and send it to you.")
+        raise HTTPException(403, "This undo backup contains staff salaries, which only the principal can download "
+                                 "(Import & backup → Undo copy). The principal can restore it with Replace.")
+    resp = _snapshot_file(db, s, snap)          # the very copy that was checked, even if a new one is saved meanwhile
     audit(db, me, "data.undo_backup.downloaded", "by platform admin", school_id=s.id)
     db.commit()
-    return _snapshot_file(db, s)
+    return resp
 
 
 @router.post("/admin/schools/{sid}/data/import")

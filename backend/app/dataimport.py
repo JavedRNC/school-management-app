@@ -438,6 +438,8 @@ class Importer:
         self.counts: dict[str, dict[str, int]] = {}
         self.credentials: list[dict] = []
         self.passwords_kept = False
+        self.started = utcnow()
+        self.by_admin = me.school_id != school.id          # the platform admin, during the support access the principal gave
 
     # ---- bookkeeping
     def err(self, sheet: str, row: int, fld: str, msg: str):
@@ -487,6 +489,11 @@ class Importer:
             runs = self.db.scalar(select(func.count()).select_from(M.PayrollRun).where(M.PayrollRun.school_id == self.sid)) or 0
             pay = self.db.scalar(select(func.count()).select_from(M.SalaryStructure).where(M.SalaryStructure.school_id == self.sid)) or 0
             in_file = self.verified and any(b.rows(x) for x in ("Salaries", "Payroll months"))
+            if (runs or pay) and self.by_admin:
+                # salaries are the principal's alone: the admin can neither restore them nor delete them
+                self.issues.append(Issue(0, "", "This school has payroll (staff salaries). Only the principal can use Replace for this "
+                                                "school: use Merge, or ask the principal to import the file.", "Salaries"))
+                return self.report()
             if (runs or pay) and not in_file:
                 self.warnings.insert(0, f"This file has no payroll (only a backup downloaded by the principal has it). Replace deletes "
                                         f"the school's payroll: {pay} salaries and {runs} months of payslips. It stays in the undo backup "
@@ -1737,7 +1744,14 @@ class Importer:
         b = self.book
         if not any(b.rows(x) for x in PAYROLL_SHEETS):
             return
-        from .routers.payroll import MODES, PAID_ROLES, money, month_bounds, total
+        if self.by_admin:
+            self.warnings.append("Payroll sheets were skipped: only the principal can restore staff salaries.")
+            return
+        from datetime import timedelta
+
+        from .routers.payroll import MODES, PAID_ROLES, money, month_bounds, rupees, total
+        from .subscription import school_modules
+        from .util import today
 
         db, sid = self.db, self.sid
         paid_roles = tuple(PAID_ROLES)
@@ -1765,6 +1779,10 @@ class Importer:
                     self.err("Payroll settings", n, "value", "use up to 12 letters, numbers, - or /")
                     bad = True
                 vals["slip_prefix"] = pre
+            if vals.get("lop_enabled") and "staff_attendance" not in school_modules(db, self.school):
+                vals["lop_enabled"] = False
+                self.warnings.append("Payroll settings: cutting pay for absent days was switched off — it needs Staff attendance, "
+                                     "which is not in this school's plan.")
             if not bad:
                 if not cfg:
                     db.add(M.PayrollConfig(school_id=sid, **{"lop_enabled": False, "lop_basis": "calendar", "slip_prefix": "SAL", **vals}))
@@ -1784,6 +1802,8 @@ class Importer:
             u = self.user(r.get("person"), paid_roles)
             basic, ok = self.guard("Salaries", n, "basic", as_float, r.get("basic"), 0, 10_000_000)
             at, ok2 = self._dt("Salaries", n, "updated_at", r.get("updated_at"))
+            left, ok3 = self.guard("Salaries", n, "left_on", as_date, r.get("left_on"))
+            ok2 = ok2 and ok3
             if not u:
                 self.err("Salaries", n, "person", f"no staff member or principal with code “{r.get('person')}”" if r.get("person") not in (None, "")
                          else "is required")
@@ -1794,6 +1814,9 @@ class Importer:
             listed.add(u.id)
             if not (ok and ok2):
                 continue
+            if left and not u.active and (self.mode == "replace" or not u.archived_at or u.archived_at >= self.started - timedelta(minutes=5)):
+                # a removed person restored by this import gets back the day they really left (payroll pays up to that day)
+                u.archived_at = datetime(left.year, left.month, left.day, 6, 30)          # midday in India, stored in UTC
             mine = lines.get(u.login_id.lower(), {k: [] for k in SALARY_LINE_TYPES})
             basic = basic or 0.0
             if total(mine["deductions"]) > money(basic + total(mine["allowances"])):
@@ -1822,6 +1845,7 @@ class Importer:
         # ---- months and payslips. A month already in the app is kept as it is: its payslips in the file are skipped.
         months = {r.month: r for r in db.scalars(select(M.PayrollRun).where(M.PayrollRun.school_id == sid))}
         mref: dict[str, M.PayrollRun | None] = {}
+        file_months: set[str] = set()
         floor: dict[str, int] = {}
         for n, r in b.rows("Payroll months"):
             ref = as_text(r.get("ref"), 30)
@@ -1839,7 +1863,14 @@ class Importer:
             if status not in ("draft", "final"):
                 self.err("Payroll months", n, "status", "use draft or final")
                 continue
+            if month in file_months:
+                self.err("Payroll months", n, "month", "this month appears twice")
+                continue
+            file_months.add(month)
             start, end = month_bounds(month)
+            if start > today():
+                self.err("Payroll months", n, "month", "this month hasn't started")
+                continue
             dim, ok = self.guard("Payroll months", n, "days_in_month", as_int, r.get("days_in_month"))
             wd, ok1 = self.guard("Payroll months", n, "working_days", as_int, r.get("working_days"))
             cu, ok2 = self.guard("Payroll months", n, "counted_until", as_date, r.get("counted_until"))
@@ -1855,9 +1886,12 @@ class Importer:
                     or (last is not None and not 0 <= last <= 9999) or not basis:
                 self.err("Payroll months", n, "month", "the days, attendance date, payslip number or one day's pay don't fit this month")
                 continue
-            if month in months or any(x and x.month == month for x in mref.values()):
+            if month in months:
                 mref[ref] = None
                 self.cnt("Payroll months", "skip")
+                have_run = months[month]
+                self.warnings.append(f"Payroll for {month}: kept as it is in the app ({'locked' if have_run.status == 'final' else 'being prepared'}); "
+                                     f"the file's copy ({status if status == 'draft' else 'locked'}) was not used.")
                 continue
             run = M.PayrollRun(school_id=sid, month=month, status=status, days_in_month=dim, working_days=wd, counted_until=cu,
                                lop_enabled=bool(lop), lop_basis=basis, created_by=self.attrib(r.get("created_by")), created_at=ca,
@@ -1899,8 +1933,8 @@ class Importer:
                 continue
             seen.add((run.id, u.id))
             nums, okn = {}, True
-            for k, hi in (("basic", 10_000_000), ("absent_days", 31), ("lop_days", 31), ("lop_amount", 10_000_000), ("gross", 20_000_000),
-                          ("total_deductions", 20_000_000), ("net", 20_000_000)):
+            for k, hi in (("basic", 10_000_000), ("absent_days", 31), ("lop_days", 31), ("lop_amount", 300_000_000), ("gross", 300_000_000),
+                          ("total_deductions", 300_000_000), ("net", 300_000_000)):
                 nums[k], o = self.guard("Payslips", n, k, as_float, r.get(k), 0, hi)
                 okn = okn and o
                 nums[k] = nums[k] or 0.0
@@ -1909,7 +1943,17 @@ class Importer:
             if not (okn and ok1 and ok2):
                 continue
             mine = slip_lines.get(ref.lower(), {k: [] for k in SLIP_LINE_TYPES})
-            gross = money(nums["basic"] + total(mine["allowances"]) + total(mine["extra_earnings"]))
+            basis = run.days_in_month if run.lop_basis == "calendar" else run.working_days
+            if nums["lop_days"] > basis or (nums["lop_days"] * 2) % 1 or (nums["absent_days"] * 2) % 1:
+                self.err("Payslips", n, "lop_days", f"use whole or half days, at most {basis}")
+                continue
+            fixed = money(nums["basic"] + total(mine["allowances"]))
+            gross = money(fixed + total(mine["extra_earnings"]))
+            other = money(total(mine["deductions"]) + total(mine["extra_deductions"]))
+            cut = rupees(fixed * nums["lop_days"] / basis) if basis and nums["lop_days"] else 0.0
+            if abs(money(min(cut, max(gross - other, 0.0))) - nums["lop_amount"]) > 0.01:
+                self.err("Payslips", n, "lop_amount", "doesn't follow from the unpaid days")
+                continue
             ded = money(total(mine["deductions"]) + total(mine["extra_deductions"]) + nums["lop_amount"])
             if abs(gross - nums["gross"]) > 0.01 or abs(ded - nums["total_deductions"]) > 0.01 or abs(money(gross - ded) - nums["net"]) > 0.01:
                 self.err("Payslips", n, "net", "the totals don't match the payslip's lines")
@@ -1925,18 +1969,21 @@ class Importer:
             if run.status == "final" and not slip_no:
                 self.err("Payslips", n, "slip_no", "a locked month's payslip needs its number")
                 continue
+            if slip_no and not re.fullmatch(r"[0-9]{1,4}", slip_no.rsplit("/", 1)[-1]):
+                self.err("Payslips", n, "slip_no", "should end in a number, like SAL/202611/003")
+                continue
             if slip_no and slip_no in numbers.setdefault(run.id, set()):
                 self.err("Payslips", n, "slip_no", "this payslip number is used twice in the month")
                 continue
             if status == "paid":
                 start, _ = month_bounds(run.month)
-                if run.status != "final" or mode not in MODES or not paid_on or paid_on < start:
+                if run.status != "final" or mode not in MODES or not paid_on or paid_on < start or paid_on > today():
                     self.err("Payslips", n, "paid_on", "a paid salary needs a locked month, a payment date in or after the month, and "
                                                         "how it was paid (cash, bank, upi or cheque)")
                     continue
             if slip_no:
                 numbers[run.id].add(slip_no)
-            db.add(M.Payslip(school_id=sid, run_id=run.id, user_id=u.id, slip_no=slip_no if run.status == "final" else None,
+            db.add(M.Payslip(school_id=sid, run_id=run.id, user_id=u.id, slip_no=slip_no,           # a reopened month keeps its numbers
                              name=as_text(r.get("name"), 120) or u.name, role=role, login_id=u.login_id,
                              basic=money(nums["basic"]), allowances=mine["allowances"], deductions=mine["deductions"],
                              extra_earnings=mine["extra_earnings"], extra_deductions=mine["extra_deductions"],
@@ -1957,7 +2004,7 @@ class Importer:
                 continue
             if run.status == "final" and not any(k[0] == run.id for k in seen):
                 self.err("Payroll months", 0, "month", f"locked month {run.month} has no payslips in the file")
-            top = max([int(x.rsplit("/", 1)[-1]) for x in numbers.get(run.id, set()) if x.rsplit("/", 1)[-1].isdigit()] + [floor.get(ref, 0)])
+            top = max([int(x.rsplit("/", 1)[-1]) for x in numbers.get(run.id, set())] + [floor.get(ref, 0)])
             if top:              # numbers given in this month never come back, as in the app
                 mark = db.get(M.Meta, f"payroll_seq:{run.id}")
                 if mark:
