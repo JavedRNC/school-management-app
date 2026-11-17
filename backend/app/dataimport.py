@@ -1814,8 +1814,9 @@ class Importer:
             listed.add(u.id)
             if not (ok and ok2):
                 continue
-            if left and not u.active and (self.mode == "replace" or not u.archived_at or u.archived_at >= self.started - timedelta(minutes=5)):
-                # a removed person restored by this import gets back the day they really left (payroll pays up to that day)
+            if left and not u.active and (self.mode == "replace" or (u.created_at and u.created_at >= self.started - timedelta(minutes=5))):
+                # a removed person re-created by this import gets back the day they really left (payroll pays up to that day);
+                # someone already in the app keeps their own leaving day
                 u.archived_at = datetime(left.year, left.month, left.day, 6, 30)          # midday in India, stored in UTC
             mine = lines.get(u.login_id.lower(), {k: [] for k in SALARY_LINE_TYPES})
             basic = basic or 0.0
