@@ -98,11 +98,27 @@ SPEC: dict[str, list[tuple[str, str]]] = {
                  ("confirmed_at", "Confirmed at")],
     "Payment split": [("payment", "Payment ref"), ("charge", "Charge ref"), ("amount", "Amount ₹")],
     "Receipt numbers": [("year", "Academic year"), ("last_no", "Last receipt no.")],
+    # payroll (F36): full backups made by the principal only
+    "Payroll settings": [("setting", "Setting"), ("value", "Value")],
+    "Salaries": [("person", "Employee code"), ("name", "Name"), ("basic", "Basic pay ₹"), ("note", "Note"), ("updated_at", "Updated at")],
+    "Salary lines": [("person", "Employee code"), ("type", "Type"), ("name", "Name"), ("amount", "Amount ₹")],
+    "Payroll months": [("ref", "Ref"), ("month", "Month (YYYY-MM)"), ("status", "Status"), ("days_in_month", "Days in month"),
+                       ("working_days", "School days"), ("counted_until", "Attendance counted until"),
+                       ("lop_enabled", "Cut pay for absent days"), ("lop_basis", "One day's pay is"), ("last_no", "Last payslip no."),
+                       ("created_by", "Prepared by"), ("created_at", "Prepared at"), ("finalized_by", "Locked by"), ("finalized_at", "Locked at")],
+    "Payslips": [("ref", "Ref"), ("month", "Month ref"), ("person", "Employee code"), ("slip_no", "Payslip no."), ("name", "Name"),
+                 ("role", "Role"), ("basic", "Basic pay ₹"), ("absent_days", "Absent days"), ("lop_days", "Unpaid days"),
+                 ("lop_manual", "Unpaid days set by hand"), ("lop_amount", "Cut for unpaid days ₹"), ("gross", "Total pay ₹"),
+                 ("total_deductions", "Total deductions ₹"), ("net", "Net pay ₹"), ("note", "Note"), ("status", "Status"),
+                 ("paid_on", "Paid on"), ("mode", "How paid"), ("reference", "Reference"), ("paid_by", "Recorded by")],
+    "Payslip lines": [("payslip", "Payslip ref"), ("type", "Type"), ("name", "Name"), ("amount", "Amount ₹")],
 }
 SETUP_SHEETS = ["School", "Principal", "Classes", "Subjects", "Staff", "Parents", "Students", "Teaching", "Period timings",
                 "Timetable", "Holidays", "Fee setup", "Vehicles", "Routes", "Stops", "Bus riders"]
 HISTORY_SHEETS = ["Attendance", "Exams", "Marks", "Notices", "Leaves", "Staff attendance", "Banners", "Polls", "Poll answers",
                   "Extra fees", "Fee charges", "Payments", "Payment split", "Receipt numbers"]
+PAYROLL_SHEETS = ["Payroll settings", "Salaries", "Salary lines", "Payroll months", "Payslips", "Payslip lines"]
+HISTORY_SHEETS += PAYROLL_SHEETS
 
 SCHOOL_KEYS = [("name", "School name"), ("address", "Address"), ("phone", "Phone"), ("board", "Board"),
                ("working_days", "Working days (e.g. Mon, Tue, Wed, Thu, Fri, Sat)"), ("leave_casual", "Casual leave per year"),
@@ -211,6 +227,13 @@ def vault_open(school_code: str, chunks: list[str]) -> list[dict] | None:
         return None
 
 
+PAYROLL_KEYS = [("lop_enabled", "Cut pay for absent days (Yes/No)"),
+                ("lop_basis", "One day's pay is monthly pay divided by (Days in the month / School days)"),
+                ("slip_prefix", "Payslip numbers start with")]
+SALARY_LINE_TYPES = {"allowances": "Allowance", "deductions": "Deduction"}
+SLIP_LINE_TYPES = {"allowances": "Allowance", "deductions": "Deduction", "extra_earnings": "Extra payment", "extra_deductions": "Extra deduction"}
+BASIS_LABEL = {"calendar": "Days in the month", "working": "School days"}
+
 HEAD_FONT = Font(bold=True, color="FFFFFF")
 HEAD_FILL = PatternFill("solid", fgColor="1E3A8A")
 
@@ -292,7 +315,7 @@ def _col(i: int) -> str:
     return s
 
 
-def readme_rows(kind: str, school_name: str) -> list[list]:
+def readme_rows(kind: str, school_name: str, payroll: bool = False) -> list[list]:
     rows = [[f"Prangan · {'Backup' if kind == 'backup' else 'Import template'} · {school_name}"], [""],
             ["How to use"],
             ["1. Fill one sheet per topic. Leave a sheet empty to skip it — nothing is deleted by an import."],
@@ -306,13 +329,17 @@ def readme_rows(kind: str, school_name: str) -> list[list]:
         rows += [[""], ["This file is a full backup and contains personal data. Store it safely (DPDP Act 2023)."],
                  ["Restore it as-is to keep everyone's passwords and permissions. If the file is edited, it's still imported,"],
                  ["but as plain data: new accounts get temporary passwords."]]
+        if payroll:
+            rows += [[""], ["The payroll sheets (Payroll settings … Payslip lines) hold every staff member's salary: share this file with no one."],
+                     ["Payroll is restored only from this file exactly as downloaded."]]
     return rows
 
 
 # ================================================================ export
 def export_workbook(db, school, kind: str = "backup", with_vault: bool = True) -> bytes:
     """kind = 'template' (this school's setup data + dropdowns, no history/passwords) or 'backup' (everything).
-    with_vault=False leaves out password hashes, permissions and consent (admin downloads)."""
+    with_vault=False leaves out password hashes, permissions and consent, and payroll (admin downloads):
+    salaries are for the principal only."""
     from sqlalchemy import select
 
     from . import models as M
@@ -330,7 +357,8 @@ def export_workbook(db, school, kind: str = "backup", with_vault: bool = True) -
     sname = {i: s.name for i, s in subjects.items()}
     H = lambda n: [h for _, h in SPEC[n]]  # noqa: E731
 
-    w.sheet("Read me", ["Prangan"], readme_rows(kind, school.name), widths={0: 34, 1: 110})
+    payroll = full and with_vault
+    w.sheet("Read me", ["Prangan"], readme_rows(kind, school.name, payroll), widths={0: 34, 1: 110})
     prefs = get_prefs(db, sid)
     q = prefs.leave_quotas or {}
     sv = {"name": school.name, "address": school.address, "phone": school.phone, "board": school.board,
@@ -408,8 +436,11 @@ def export_workbook(db, school, kind: str = "backup", with_vault: bool = True) -
                                              stops[t.stop_id].name if t.stop_id in stops else ""]
                                             for t in db.scalars(select(M.StudentTransport).where(M.StudentTransport.school_id == sid))])
 
+    pay_rows = 0
     if full:
         _history(w, db, sid, M, users, login, cname, sname)
+        if payroll:
+            pay_rows = _payroll(w, db, sid, M, users, login)
         if with_vault:
             payload = [{"l": u.login_id, "r": u.role.value, "h": u.password_hash, "m": bool(u.must_change_password),
                         "p": u.permissions, "c": u.consent_at.isoformat() if u.consent_at else None}
@@ -417,7 +448,8 @@ def export_workbook(db, school, kind: str = "backup", with_vault: bool = True) -
                        if u.role in (M.Role.teacher, M.Role.vice_principal, M.Role.coordinator, M.Role.student, M.Role.parent)]
             w.sheet("_vault", ["data"], [[c] for c in vault_seal(school.code, payload)], hidden=True)
     exported_at = datetime.now().replace(microsecond=0).isoformat(sep=" ")
-    meta = [["kind", kind], ["school_code", school.code], ["format", FORMAT_VERSION], ["exported_at", exported_at]]
+    meta = [["kind", kind], ["school_code", school.code], ["format", FORMAT_VERSION], ["exported_at", exported_at],
+            ["payroll_rows", pay_rows]]
     if full:
         meta.append(["data_sig", w.signer.finish(school.code, exported_at)])
     w.sheet("_meta", ["key", "value"], meta, hidden=True)
@@ -471,3 +503,31 @@ def _history(w: Writer, db, sid, M, users, login, cname, sname):
         select(M.FeeAllocation).where(M.FeeAllocation.payment_id.in_(payids or [-1])).order_by(M.FeeAllocation.id)).scalars()))
     w.sheet("Receipt numbers", H("Receipt numbers"), ([c.year, c.last_no] for c in db.scalars(
         select(M.ReceiptCounter).where(M.ReceiptCounter.school_id == sid))))
+
+
+def _payroll(w: Writer, db, sid, M, users, login) -> int:
+    """Payroll sheets. Returns how many salary and payslip rows were written (0 = no payroll data)."""
+    from sqlalchemy import select
+
+    H = lambda n: [h for _, h in SPEC[n]]  # noqa: E731
+    cfg = db.get(M.PayrollConfig, sid)
+    pv = {"lop_enabled": cfg.lop_enabled, "lop_basis": BASIS_LABEL.get(cfg.lop_basis, cfg.lop_basis), "slip_prefix": cfg.slip_prefix} if cfg else {}
+    w.sheet("Payroll settings", H("Payroll settings"), [[label, pv.get(k)] for k, label in PAYROLL_KEYS] if cfg else [], widths={0: 60, 1: 30})
+    structs = sorted(db.scalars(select(M.SalaryStructure).where(M.SalaryStructure.school_id == sid)),
+                     key=lambda x: (login.get(x.user_id) or "", x.id))
+    structs = [x for x in structs if x.user_id in login]
+    w.sheet("Salaries", H("Salaries"), [[login[x.user_id], users[x.user_id].name, x.basic, x.note, x.updated_at] for x in structs])
+    w.sheet("Salary lines", H("Salary lines"), [[login[x.user_id], label, ln.get("name"), ln.get("amount")]
+                                                for x in structs for key, label in SALARY_LINE_TYPES.items() for ln in (getattr(x, key) or [])])
+    runs = list(db.scalars(select(M.PayrollRun).where(M.PayrollRun.school_id == sid).order_by(M.PayrollRun.month)))
+    marks = {m.key: m.value for m in db.scalars(select(M.Meta).where(M.Meta.key.in_([f"payroll_seq:{r.id}" for r in runs] or ["-"])))}
+    w.sheet("Payroll months", H("Payroll months"), [[r.id, r.month, r.status, r.days_in_month, r.working_days, r.counted_until, r.lop_enabled,
+                                                     BASIS_LABEL.get(r.lop_basis, r.lop_basis), int(marks.get(f"payroll_seq:{r.id}") or 0),
+                                                     login.get(r.created_by), r.created_at, login.get(r.finalized_by), r.finalized_at] for r in runs])
+    slips = [p for p in db.scalars(select(M.Payslip).where(M.Payslip.school_id == sid).order_by(M.Payslip.run_id, M.Payslip.id)) if p.user_id in login]
+    w.sheet("Payslips", H("Payslips"), [[p.id, p.run_id, login[p.user_id], p.slip_no, p.name, p.role, p.basic, p.absent_days, p.lop_days,
+                                         p.lop_manual, p.lop_amount, p.gross, p.total_deductions, p.net, p.note, p.status, p.paid_on, p.mode,
+                                         p.reference, login.get(p.paid_by)] for p in slips])
+    w.sheet("Payslip lines", H("Payslip lines"), [[p.id, label, ln.get("name"), ln.get("amount")]
+                                                  for p in slips for key, label in SLIP_LINE_TYPES.items() for ln in (getattr(p, key) or [])])
+    return len(structs) + len(slips) + len(runs)

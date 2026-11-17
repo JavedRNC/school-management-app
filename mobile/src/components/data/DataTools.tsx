@@ -259,11 +259,11 @@ export function DataTools({ base, schoolCode, schoolName }: { base: string; scho
       </FadeIn>
 
       <FadeIn index={1}>
-        <Panel title="Full backup" subtitle="Everything: people, timetable, attendance, marks, fees, receipts…" icon="cloud-download-outline">
+        <Panel title="Full backup" subtitle={base === '/data' ? 'Everything: people, timetable, attendance, marks, fees, receipts, payroll…' : 'Everything except staff salaries (only the principal\'s backup has payroll)'} icon="cloud-download-outline">
           <View style={{ flexDirection: 'row', gap: space.sm, backgroundColor: t.colors.errorContainer, borderRadius: radius.lg, padding: space.md, marginBottom: space.md }}>
             <Icon name="shield-alert-outline" size={20} color={t.colors.onErrorContainer} />
             <Text variant="bodySmall" style={{ flex: 1, color: t.colors.onErrorContainer }}>
-              The backup has personal data of students, parents and staff. Keep it private (e.g. your Google Drive), never post it in groups.
+              The backup has personal data of students, parents and staff{base === '/data' ? ", and every staff member's salary" : ''}. Keep it private (e.g. your Google Drive), never post it in groups.
               People keep their passwords on restore only if the file is unchanged.
             </Text>
           </View>

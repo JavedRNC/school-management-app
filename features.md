@@ -503,7 +503,8 @@ Today the timetable has a fixed 5 numbered periods and no times. Proposal:
 ### F36 · Staff payroll and payslips ✅ `L` — requested 17 Nov
 Principal sets each staff member's monthly salary (basic pay, allowances, deductions), prepares a month's payroll, adjusts any payslip for that month (extra payments, extra deductions, unpaid days), locks it, records how each salary was paid (bank, UPI, cash, cheque) and prints payslips. Staff see their own locked payslips in the app. Optional pay cut for absent days from staff attendance. Module `payroll` (top plan). Prangan records payments only; it moves no money.
 - App: Me/Home → Payroll (principal), My payslips (teacher, VP, coordinator). Portal: Payroll.
-- Not built yet (ideas): payroll in the Excel backup (today "Replace" import deletes payroll after a warning) · mid-month joining/leaving pro-rata · paid vs unpaid leave types · advances/loans ledger · PF/ESI/TDS statutory reports · bank transfer file · yearly salary statement · VP access to payroll.
+- Payroll is in the principal's Excel backup (6 sheets) and restored only from an unchanged backup; the admin's copy leaves salaries out.
+- Not built yet (ideas): mid-month joining/leaving pro-rata · paid vs unpaid leave types · advances/loans ledger · PF/ESI/TDS statutory reports · bank transfer file · yearly salary statement · VP access to payroll.
 
 ## ❓ Open questions for Javed
 1. **Admin data access (F25):** by default, should Admin see student **names** across schools, or only counts/summaries unless the school allows more?

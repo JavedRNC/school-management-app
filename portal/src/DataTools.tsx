@@ -94,8 +94,9 @@ export function DataTools({ base, schoolCode, admin }: { base: string; schoolCod
         </section>
         <section className="card stack">
           <h2>Full backup</h2>
-          <p className="muted">Everything for this school in one file: people, timetable, attendance, marks, fees and receipts.</p>
-          <div className="alert warn"><span>The backup contains personal data of students, parents and staff. Keep it private and never post it in groups.</span></div>
+          <p className="muted">{admin ? 'Everything for this school in one file: people, timetable, attendance, marks, fees and receipts. Staff salaries are left out: only the principal\'s own backup has payroll.'
+            : 'Everything for this school in one file: people, timetable, attendance, marks, fees, receipts and payroll.'}</p>
+          <div className="alert warn"><span>{admin ? 'The backup contains personal data of students, parents and staff.' : 'The backup contains personal data of students, parents and staff, and every staff member\'s salary.'} Keep it private and never post it in groups.</span></div>
           <div className="row">
             <Button icon="download" onClick={() => get('backup')} busy={busy === 'backup'} disabled={!!busy}>Download backup</Button>
             {undo.data?.exists ? <Button onClick={() => get('snapshot/file')} busy={busy === 'snapshot/file'} disabled={!!busy}>Undo copy from {fmtDateTime(undo.data.created_at)}</Button> : null}

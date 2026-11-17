@@ -17,7 +17,8 @@ from sqlalchemy.orm import Session
 
 from . import models as M
 from .bell import clean_slots, period_count, schedules
-from .databook import DAY_NAMES, FEE_KEYS, HISTORY_SHEETS, SCHOOL_KEYS, SETUP_SHEETS, SPEC, unsafe, vault_open
+from .databook import (DAY_NAMES, FEE_KEYS, HISTORY_SHEETS, PAYROLL_KEYS, PAYROLL_SHEETS, SALARY_LINE_TYPES, SCHOOL_KEYS, SETUP_SHEETS,
+                       SLIP_LINE_TYPES, SPEC, unsafe, vault_open)
 from .deps import get_prefs
 from .people import (Ctx, Issue, PeoplePlan, apply_plan, as_bool, as_date, as_int, as_text, check_student_limit,
                      norm_mobile, plan_rows)
@@ -485,9 +486,11 @@ class Importer:
         if self.mode == "replace":
             runs = self.db.scalar(select(func.count()).select_from(M.PayrollRun).where(M.PayrollRun.school_id == self.sid)) or 0
             pay = self.db.scalar(select(func.count()).select_from(M.SalaryStructure).where(M.SalaryStructure.school_id == self.sid)) or 0
-            if runs or pay:
-                self.warnings.insert(0, f"Payroll is not part of this file. Replace deletes it for good: {pay} salaries and {runs} "
-                                        "months of payslips. Print or save the payslips you need first.")
+            in_file = self.verified and any(b.rows(x) for x in ("Salaries", "Payroll months"))
+            if (runs or pay) and not in_file:
+                self.warnings.insert(0, f"This file has no payroll (only a backup downloaded by the principal has it). Replace deletes "
+                                        f"the school's payroll: {pay} salaries and {runs} months of payslips. It stays in the undo backup "
+                                        "saved before Replace, but print or save the payslips you need first.")
             self.wipe()
         self.refresh()
         pr = next((u for u in self.users.values() if u.role == Role.principal and u.active), None)
@@ -566,7 +569,7 @@ class Importer:
         run_ids = list(db.scalars(select(M.PayrollRun.id).where(M.PayrollRun.school_id == sid).with_for_update()))   # same lock order as the payroll screens
         if run_ids:
             db.execute(delete(M.Meta).where(M.Meta.key.in_([f"payroll_seq:{i}" for i in run_ids])))
-        for model in (M.Payslip, M.PayrollRun, M.SalaryStructure):       # payroll is not in the Excel file: Replace clears it
+        for model in (M.Payslip, M.PayrollRun, M.SalaryStructure):       # Replace clears payroll; a principal's backup brings it back
             db.execute(delete(model).where(model.school_id == sid))
         for model in (M.FeePayment, M.FeeItem, M.FeeBatch, M.ReceiptCounter, M.StudentTransport, M.Stop):
             db.execute(delete(model).where(model.school_id == sid))
@@ -1180,6 +1183,7 @@ class Importer:
         self.staff_attendance()
         self.banners_polls()
         self.fee_records()
+        self.payroll()
 
     def attendance(self):
         rows = self.book.rows("Attendance")
@@ -1688,6 +1692,278 @@ class Importer:
                           .having(func.sum(M.FeeAllocation.amount) > M.FeeItem.amount + 0.01)).all()
         for iid, amt, paid in over[:20]:
             self.issues.append(Issue(0, "Amount ₹", f"a charge of ₹{amt:g} would be paid ₹{paid:g} — check Payment split", "Payment split"))
+
+
+    # ================================================================ payroll (F36)
+    def _lines(self, sheet: str, n: int, r: dict, types: dict[str, str]) -> tuple[str, dict] | None:
+        """One line of a salary or payslip: (which list, {name, amount}) or None after recording the problem."""
+        kind = {v.lower(): k for k, v in types.items()}.get(as_text(r.get("type"), 30).lower())
+        if not kind:
+            self.err(sheet, n, "type", "use " + ", ".join(types.values()))
+            return None
+        name = " ".join(as_text(r.get("name"), 200).split())
+        if not name or len(name) > 40:
+            self.err(sheet, n, "name", "is required (up to 40 characters)")
+            return None
+        amt, ok = self.guard(sheet, n, "amount", as_float, r.get("amount"), 0.01, 10_000_000)
+        if not ok or amt is None:
+            if ok:
+                self.err(sheet, n, "amount", "is required")
+            return None
+        return kind, {"name": name, "amount": amt}
+
+    def _group(self, sheet: str, key: str, types: dict[str, str]) -> dict[str, dict[str, list[dict]]]:
+        """Lines of a sheet grouped by owner (employee code or payslip ref), in file order, checked like the payroll screens."""
+        out: dict[str, dict[str, list[dict]]] = {}
+        for n, r in self.book.rows(sheet):
+            owner = as_text(r.get(key), 60).lower()
+            got = self._lines(sheet, n, r, types)
+            if not owner or not got:
+                if not owner:
+                    self.err(sheet, n, key, "is required")
+                continue
+            kind, line = got
+            lists = out.setdefault(owner, {k: [] for k in types})
+            if any(x["name"].lower() == line["name"].lower() for x in lists[kind]):
+                self.err(sheet, n, "name", f"“{line['name']}” is listed twice for the same {'person' if key == 'person' else 'payslip'}")
+                continue
+            if len(lists[kind]) >= 12:
+                self.err(sheet, n, "name", "no more than 12 lines of one type")
+                continue
+            lists[kind].append(line)
+        return out
+
+    def payroll(self):
+        b = self.book
+        if not any(b.rows(x) for x in PAYROLL_SHEETS):
+            return
+        from .routers.payroll import MODES, PAID_ROLES, money, month_bounds, total
+
+        db, sid = self.db, self.sid
+        paid_roles = tuple(PAID_ROLES)
+
+        # ---- settings
+        d = self.kv("Payroll settings", PAYROLL_KEYS)
+        if d:
+            cfg = db.get(M.PayrollConfig, sid)
+            vals, bad = {}, False
+            if "lop_enabled" in d:
+                n, v = d["lop_enabled"]
+                vals["lop_enabled"], ok = self.guard("Payroll settings", n, "value", as_bool, v, False)
+                bad = bad or not ok
+            if "lop_basis" in d:
+                n, v = d["lop_basis"]
+                basis = {"days in the month": "calendar", "calendar": "calendar", "school days": "working", "working": "working"}.get(as_text(v, 40).lower())
+                if not basis:
+                    self.err("Payroll settings", n, "value", "use Days in the month or School days")
+                    bad = True
+                vals["lop_basis"] = basis
+            if "slip_prefix" in d:
+                n, v = d["slip_prefix"]
+                pre = as_text(v, 40).upper()
+                if not re.fullmatch(r"[A-Z0-9/-]{1,12}", pre):
+                    self.err("Payroll settings", n, "value", "use up to 12 letters, numbers, - or /")
+                    bad = True
+                vals["slip_prefix"] = pre
+            if not bad:
+                if not cfg:
+                    db.add(M.PayrollConfig(school_id=sid, **{"lop_enabled": False, "lop_basis": "calendar", "slip_prefix": "SAL", **vals}))
+                    self.cnt("Payroll settings", "add")
+                elif any(getattr(cfg, k) != v for k, v in vals.items()):
+                    for k, v in vals.items():
+                        setattr(cfg, k, v)
+                    self.cnt("Payroll settings", "update")
+                else:
+                    self.cnt("Payroll settings", "skip")
+
+        # ---- salaries (the file wins for every person on the Salaries sheet)
+        lines = self._group("Salary lines", "person", SALARY_LINE_TYPES)
+        have = {x.user_id: x for x in db.scalars(select(M.SalaryStructure).where(M.SalaryStructure.school_id == sid))}
+        listed = set()
+        for n, r in b.rows("Salaries"):
+            u = self.user(r.get("person"), paid_roles)
+            basic, ok = self.guard("Salaries", n, "basic", as_float, r.get("basic"), 0, 10_000_000)
+            at, ok2 = self._dt("Salaries", n, "updated_at", r.get("updated_at"))
+            if not u:
+                self.err("Salaries", n, "person", f"no staff member or principal with code “{r.get('person')}”" if r.get("person") not in (None, "")
+                         else "is required")
+                continue
+            if u.id in listed:
+                self.err("Salaries", n, "person", "this person appears twice")
+                continue
+            listed.add(u.id)
+            if not (ok and ok2):
+                continue
+            mine = lines.get(u.login_id.lower(), {k: [] for k in SALARY_LINE_TYPES})
+            basic = basic or 0.0
+            if total(mine["deductions"]) > money(basic + total(mine["allowances"])):
+                self.err("Salaries", n, "basic", "deductions are more than the pay")
+                continue
+            vals = {"basic": money(basic), "allowances": mine["allowances"], "deductions": mine["deductions"], "note": as_text(r.get("note"), 200)}
+            x = have.get(u.id)
+            if not x:
+                db.add(M.SalaryStructure(school_id=sid, user_id=u.id, updated_by=self.actor_id, updated_at=at, **vals))
+                what = "add"
+            elif any(getattr(x, k) != v for k, v in vals.items()):
+                for k, v in vals.items():
+                    setattr(x, k, v)
+                x.updated_by, x.updated_at = self.actor_id, utcnow()
+                what = "update"
+            else:
+                what = "skip"
+            self.cnt("Salaries", what)
+            if mine["allowances"] or mine["deductions"]:
+                self.cnt("Salary lines", what, len(mine["allowances"]) + len(mine["deductions"]))
+        for owner in lines:
+            u = self.user(owner, paid_roles)
+            if not u or u.id not in listed:
+                self.err("Salary lines", 0, "person", f"“{owner}” has salary lines but no row on the Salaries sheet")
+
+        # ---- months and payslips. A month already in the app is kept as it is: its payslips in the file are skipped.
+        months = {r.month: r for r in db.scalars(select(M.PayrollRun).where(M.PayrollRun.school_id == sid))}
+        mref: dict[str, M.PayrollRun | None] = {}
+        floor: dict[str, int] = {}
+        for n, r in b.rows("Payroll months"):
+            ref = as_text(r.get("ref"), 30)
+            month = as_text(r.get("month"), 10)
+            status = as_text(r.get("status"), 10).lower()
+            if not ref:
+                self.err("Payroll months", n, "ref", "is required")
+                continue
+            if ref in mref:
+                self.err("Payroll months", n, "ref", "this ref appears twice")
+                continue
+            if not re.fullmatch(r"\d{4}-(0[1-9]|1[0-2])", month):
+                self.err("Payroll months", n, "month", "use YYYY-MM")
+                continue
+            if status not in ("draft", "final"):
+                self.err("Payroll months", n, "status", "use draft or final")
+                continue
+            start, end = month_bounds(month)
+            dim, ok = self.guard("Payroll months", n, "days_in_month", as_int, r.get("days_in_month"))
+            wd, ok1 = self.guard("Payroll months", n, "working_days", as_int, r.get("working_days"))
+            cu, ok2 = self.guard("Payroll months", n, "counted_until", as_date, r.get("counted_until"))
+            lop, ok3 = self.guard("Payroll months", n, "lop_enabled", as_bool, r.get("lop_enabled"), False)
+            last, ok4 = self.guard("Payroll months", n, "last_no", as_int, r.get("last_no"))
+            ca, ok5 = self._dt("Payroll months", n, "created_at", r.get("created_at"))
+            fa, ok6 = self._dt("Payroll months", n, "finalized_at", r.get("finalized_at"), False)
+            basis = {"days in the month": "calendar", "calendar": "calendar", "school days": "working", "working": "working"}.get(
+                as_text(r.get("lop_basis"), 40).lower() or "calendar")
+            if not all((ok, ok1, ok2, ok3, ok4, ok5, ok6)):
+                continue
+            if dim != (end - start).days + 1 or wd is None or not 0 <= wd <= dim or (cu and not start <= cu <= end) \
+                    or (last is not None and not 0 <= last <= 9999) or not basis:
+                self.err("Payroll months", n, "month", "the days, attendance date, payslip number or one day's pay don't fit this month")
+                continue
+            if month in months or any(x and x.month == month for x in mref.values()):
+                mref[ref] = None
+                self.cnt("Payroll months", "skip")
+                continue
+            run = M.PayrollRun(school_id=sid, month=month, status=status, days_in_month=dim, working_days=wd, counted_until=cu,
+                               lop_enabled=bool(lop), lop_basis=basis, created_by=self.attrib(r.get("created_by")), created_at=ca,
+                               finalized_by=self.attrib(r.get("finalized_by")) if status == "final" else None,
+                               finalized_at=(fa or ca) if status == "final" else None)
+            db.add(run)
+            mref[ref] = run
+            floor[ref] = last or 0
+            self.cnt("Payroll months", "add")
+        db.flush()
+
+        slip_lines = self._group("Payslip lines", "payslip", SLIP_LINE_TYPES)
+        seen: set[tuple[int, int]] = set()
+        numbers: dict[int, set[str]] = {}
+        used_refs: set[str] = set()
+        for n, r in b.rows("Payslips"):
+            ref = as_text(r.get("ref"), 30)
+            mr = as_text(r.get("month"), 30)
+            if not ref or ref.lower() in used_refs:
+                self.err("Payslips", n, "ref", "is required" if not ref else "this ref appears twice")
+                continue
+            used_refs.add(ref.lower())
+            if mr not in mref:
+                self.err("Payslips", n, "month", "month ref not found on the Payroll months sheet")
+                continue
+            run = mref[mr]
+            if run is None:
+                self.cnt("Payslips", "skip")
+                skipped = sum(len(v) for v in slip_lines.get(ref.lower(), {}).values())
+                if skipped:
+                    self.cnt("Payslip lines", "skip", skipped)
+                continue
+            u = self.user(r.get("person"), paid_roles)
+            if not u:
+                self.err("Payslips", n, "person", f"no staff member or principal with code “{r.get('person')}”")
+                continue
+            if (run.id, u.id) in seen:
+                self.err("Payslips", n, "person", "two payslips for the same person in one month")
+                continue
+            seen.add((run.id, u.id))
+            nums, okn = {}, True
+            for k, hi in (("basic", 10_000_000), ("absent_days", 31), ("lop_days", 31), ("lop_amount", 10_000_000), ("gross", 20_000_000),
+                          ("total_deductions", 20_000_000), ("net", 20_000_000)):
+                nums[k], o = self.guard("Payslips", n, k, as_float, r.get(k), 0, hi)
+                okn = okn and o
+                nums[k] = nums[k] or 0.0
+            manual, ok1 = self.guard("Payslips", n, "lop_manual", as_bool, r.get("lop_manual"), False)
+            paid_on, ok2 = self.guard("Payslips", n, "paid_on", as_date, r.get("paid_on"))
+            if not (okn and ok1 and ok2):
+                continue
+            mine = slip_lines.get(ref.lower(), {k: [] for k in SLIP_LINE_TYPES})
+            gross = money(nums["basic"] + total(mine["allowances"]) + total(mine["extra_earnings"]))
+            ded = money(total(mine["deductions"]) + total(mine["extra_deductions"]) + nums["lop_amount"])
+            if abs(gross - nums["gross"]) > 0.01 or abs(ded - nums["total_deductions"]) > 0.01 or abs(money(gross - ded) - nums["net"]) > 0.01:
+                self.err("Payslips", n, "net", "the totals don't match the payslip's lines")
+                continue
+            status = as_text(r.get("status"), 10).lower() or "unpaid"
+            mode = as_text(r.get("mode"), 12).lower()
+            slip_no = as_text(r.get("slip_no"), 40) or None
+            role = as_text(r.get("role"), 20).lower() or u.role.value
+            if status not in ("paid", "unpaid") or role not in {x.value for x in paid_roles}:
+                self.err("Payslips", n, "status" if status not in ("paid", "unpaid") else "role",
+                         "use paid or unpaid" if status not in ("paid", "unpaid") else "not a staff role")
+                continue
+            if run.status == "final" and not slip_no:
+                self.err("Payslips", n, "slip_no", "a locked month's payslip needs its number")
+                continue
+            if slip_no and slip_no in numbers.setdefault(run.id, set()):
+                self.err("Payslips", n, "slip_no", "this payslip number is used twice in the month")
+                continue
+            if status == "paid":
+                start, _ = month_bounds(run.month)
+                if run.status != "final" or mode not in MODES or not paid_on or paid_on < start:
+                    self.err("Payslips", n, "paid_on", "a paid salary needs a locked month, a payment date in or after the month, and "
+                                                        "how it was paid (cash, bank, upi or cheque)")
+                    continue
+            if slip_no:
+                numbers[run.id].add(slip_no)
+            db.add(M.Payslip(school_id=sid, run_id=run.id, user_id=u.id, slip_no=slip_no if run.status == "final" else None,
+                             name=as_text(r.get("name"), 120) or u.name, role=role, login_id=u.login_id,
+                             basic=money(nums["basic"]), allowances=mine["allowances"], deductions=mine["deductions"],
+                             extra_earnings=mine["extra_earnings"], extra_deductions=mine["extra_deductions"],
+                             absent_days=nums["absent_days"], lop_days=nums["lop_days"], lop_manual=bool(manual), lop_amount=nums["lop_amount"],
+                             gross=gross, total_deductions=ded, net=money(gross - ded), note=as_text(r.get("note"), 300), status=status,
+                             paid_on=paid_on if status == "paid" else None, mode=mode if status == "paid" else "",
+                             reference=as_text(r.get("reference"), 80) if status == "paid" else "",
+                             paid_by=self.attrib(r.get("paid_by")) if status == "paid" else None))
+            self.cnt("Payslips", "add")
+            if any(mine.values()):
+                self.cnt("Payslip lines", "add", sum(len(v) for v in mine.values()))
+        for owner in slip_lines:
+            if owner not in used_refs:
+                self.err("Payslip lines", 0, "payslip", f"payslip ref “{owner}” not found on the Payslips sheet")
+        db.flush()
+        for ref, run in mref.items():
+            if run is None:
+                continue
+            if run.status == "final" and not any(k[0] == run.id for k in seen):
+                self.err("Payroll months", 0, "month", f"locked month {run.month} has no payslips in the file")
+            top = max([int(x.rsplit("/", 1)[-1]) for x in numbers.get(run.id, set()) if x.rsplit("/", 1)[-1].isdigit()] + [floor.get(ref, 0)])
+            if top:              # numbers given in this month never come back, as in the app
+                mark = db.get(M.Meta, f"payroll_seq:{run.id}")
+                if mark:
+                    mark.value = str(top)
+                else:
+                    db.add(M.Meta(key=f"payroll_seq:{run.id}", value=str(top)))
 
 
 def run_import(db: Session, school: M.School, me: M.User, data: bytes, mode: str, confirm: bool = False) -> tuple[dict, list[dict]]:

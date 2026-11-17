@@ -128,6 +128,27 @@ def _latest_snapshot(db: Session, school_id: int) -> DataSnapshot | None:
                      .order_by(DataSnapshot.created_at.desc(), DataSnapshot.id.desc()).limit(1))
 
 
+def _has_payroll(content: bytes) -> bool:
+    """True when a stored backup carries payroll rows (written to its hidden _meta sheet when it was made)."""
+    import io
+
+    from openpyxl import load_workbook
+
+    wb = load_workbook(io.BytesIO(content), read_only=True, data_only=True)
+    try:
+        if "_meta" not in wb.sheetnames:
+            return False
+        for row in wb["_meta"].iter_rows(min_row=2, max_row=40, values_only=True):
+            if row and row[0] == "payroll_rows":
+                try:
+                    return int(row[1] or 0) > 0
+                except (TypeError, ValueError):
+                    return True
+        return False
+    finally:
+        wb.close()
+
+
 def _snapshot_file(db: Session, school: School) -> Response:
     snap = _latest_snapshot(db, school.id)
     if not snap:  # noqa: SIM108
@@ -216,6 +237,10 @@ def admin_backup(sid: int, me: User = Depends(admin_only), db: Session = Depends
 @router.get("/admin/schools/{sid}/data/snapshot/file")
 def admin_snapshot_file(sid: int, me: User = Depends(admin_only), db: Session = Depends(get_db)):
     s = _admin_school(db, sid)
+    snap = _latest_snapshot(db, s.id)
+    if snap and _has_payroll(snap.content):
+        raise HTTPException(403, "This undo backup contains staff salaries, which only the principal can download. "
+                                 "Ask the principal to download it (Import & backup → Undo backup) and send it to you.")
     audit(db, me, "data.undo_backup.downloaded", "by platform admin", school_id=s.id)
     db.commit()
     return _snapshot_file(db, s)
