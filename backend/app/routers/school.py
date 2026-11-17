@@ -294,7 +294,7 @@ def update_user(user_id: int, body: UserUpdate, me: User = Depends(require_area(
         data.pop("permissions", None)
         data.pop("scope_class_ids", None)
     if "active" in data:
-        u.archived_at = None if data["active"] else utcnow()
+        u.archived_at = None if data["active"] else (utcnow() if u.active or not u.archived_at else u.archived_at)   # keep the day they first left
     for k, v in data.items():
         setattr(u, k, v)
     if kids is not None and u.role == Role.parent:

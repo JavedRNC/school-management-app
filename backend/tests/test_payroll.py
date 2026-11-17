@@ -293,7 +293,8 @@ def test_absence_cut_uses_staff_attendance(c, h):
     slips = {p["login_id"]: p for p in r.json()["payslips"]}
     assert run["lop_enabled"] is True and run["lop_basis"] == "working" and run["working_days"] == n and run["counted_until"] == str(date(y, m, n))
     me = slips["T003"]
-    assert me["absent_days"] == 1 and me["lop_days"] == 1 and me["lop_amount"] == 1000 and me["net"] == 29000
+    day = int(30000 / n + 0.5)                      # one school day's pay, half a rupee rounded up
+    assert me["absent_days"] == 1 and me["lop_days"] == 1 and me["lop_amount"] == day and me["net"] == 30000 - day
     assert slips["principal"]["absent_days"] == 0 and slips["principal"]["lop_days"] == 0       # the principal doesn't check in
     # absent all month with a fixed deduction: the cut is kept and stops at zero pay, it is never dropped
     gone = slips["T004"]
@@ -343,28 +344,73 @@ def test_config_rules(c, h):
     assert c.put("/payroll/config", json={"lop_enabled": True}, headers=h2).status_code == 400
 
 
-def test_staff_removed_this_month_are_still_paid_for_it(c, h):
-    fresh_month(c, h)
+def test_staff_who_leave_are_paid_up_to_the_day_they_left(c, h):
+    """Uses a finished month and a set leaving date, so it does not depend on today's date or the time of day."""
+    import calendar
+    from datetime import date, datetime
+
+    from app.db import SessionLocal
+    from app.models import User
+    month = months_back(3)
+    y, m = int(month[:4]), int(month[5:])
+    n = calendar.monthrange(y, m)[1]
     s = staff(c, h)
     uid = s["T005"]["user_id"]
-    c.put(f"/payroll/staff/{uid}", json={"basic": 25000}, headers=h)
-    run = c.post("/payroll/runs", json={"month": THIS}, headers=h).json()
+    c.put(f"/payroll/staff/{uid}", json={"basic": 30000}, headers=h)
+    run = c.post("/payroll/runs", json={"month": month}, headers=h).json()
     slip = next(p for p in run["payslips"] if p["user_id"] == uid)
+    assert slip["net"] == 30000 and slip["note"] == ""
     assert c.put(f"/payroll/payslips/{slip['id']}", json={"extra_earnings": [{"name": "Final dues", "amount": 5000}]}, headers=h).status_code == 200
     assert c.delete(f"/users/{uid}", headers=h).status_code == 200
+
+    def leave(on):
+        with SessionLocal() as db:
+            db.get(User, uid).archived_at = on
+            db.commit()
     try:
         assert "T005" not in staff(c, h)                                                      # no longer on the salary list
-        after = c.post(f"/payroll/runs/{run['run']['id']}/recalculate", headers=h).json()["payslips"]
-        kept = next(p for p in after if p["user_id"] == uid)                                  # but this month's payslip and its hand-made line stay
-        assert kept["extra_earnings"] == [{"name": "Final dues", "amount": 5000}] and kept["net"] == 30000
-        assert c.delete(f"/payroll/runs/{run['run']['id']}", headers=h).status_code == 200
-        again = c.post("/payroll/runs", json={"month": THIS}, headers=h).json()                # a payroll prepared after they left still pays them
-        assert any(p["user_id"] == uid for p in again["payslips"])
-        assert c.delete(f"/payroll/runs/{again['run']['id']}", headers=h).status_code == 200
-        old = c.get("/payroll/runs", headers=h).json()["runs"][-1]                             # last month, seeded and paid: untouched
-        assert any(p["user_id"] == uid for p in c.get(f"/payroll/runs/{old['id']}", headers=h).json()["payslips"])
+        # left on the 10th (noon in India): paid for 10 days, the hand-made line stays, the payslip says so
+        leave(datetime(y, m, 10, 6, 30))
+        kept = next(p for p in c.post(f"/payroll/runs/{run['run']['id']}/recalculate", headers=h).json()["payslips"] if p["user_id"] == uid)
+        cut = int(30000 * (n - 10) / n + 0.5)
+        assert kept["lop_days"] == n - 10 and kept["lop_amount"] == cut and kept["net"] == 35000 - cut
+        assert kept["extra_earnings"] == [{"name": "Final dues", "amount": 5000}] and kept["note"].startswith("Left the school on 10 ")
+        # removing an already-removed person again (an edit from the people screen) does not move the leaving day
+        assert c.put(f"/users/{uid}", json={"active": False}, headers=h).status_code == 200
+        again = next(p for p in c.post(f"/payroll/runs/{run['run']['id']}/recalculate", headers=h).json()["payslips"] if p["user_id"] == uid)
+        assert again["lop_days"] == n - 10
+        # late evening UTC on the last day of the month before is already the 1st in India: still this month's payslip
+        leave(datetime(y, m, 1, 0, 0) - timedelta(hours=2))
+        first = next(p for p in c.post(f"/payroll/runs/{run['run']['id']}/recalculate", headers=h).json()["payslips"] if p["user_id"] == uid)
+        assert first["lop_days"] == n - 1
+        # left before the month began: not in this month at all
+        leave(datetime(y, m, 1, 0, 0) - timedelta(days=3))
+        assert not any(p["user_id"] == uid for p in c.post(f"/payroll/runs/{run['run']['id']}/recalculate", headers=h).json()["payslips"])
     finally:
         assert c.post(f"/archive/user/{uid}/restore", headers=h).status_code == 200
+        assert c.delete(f"/payroll/runs/{run['run']['id']}", headers=h).status_code == 200
+
+
+def test_a_payslip_number_is_never_given_to_someone_else(c, h):
+    month = months_back(4)
+    s = staff(c, h)
+    a, b = s["T001"]["user_id"], s["T002"]["user_id"]
+    c.put(f"/payroll/staff/{b}", json={"basic": 0}, headers=h)                                 # T002 starts outside payroll
+    run = c.post("/payroll/runs", json={"month": month}, headers=h).json()["run"]
+    first = {p["login_id"]: p["slip_no"] for p in c.post(f"/payroll/runs/{run['id']}/finalize", headers=h).json()["payslips"]}
+    top = max(first.values())
+    holder = next(k for k, v in first.items() if v == top)
+    assert c.post(f"/payroll/runs/{run['id']}/reopen", headers=h).status_code == 200
+    c.put(f"/payroll/staff/{s[holder]['user_id']}", json={"basic": 0}, headers=h)             # the holder of the highest number drops out
+    c.put(f"/payroll/staff/{b}", json={"basic": 21000}, headers=h)                            # and someone new comes in
+    c.post(f"/payroll/runs/{run['id']}/recalculate", headers=h)
+    second = {p["login_id"]: p["slip_no"] for p in c.post(f"/payroll/runs/{run['id']}/finalize", headers=h).json()["payslips"]}
+    assert holder not in second and second["T002"] > top, (first, second)
+    assert all(second[k] == v for k, v in first.items() if k in second)
+    assert c.post(f"/payroll/runs/{run['id']}/reopen", headers=h).status_code == 200
+    assert c.delete(f"/payroll/runs/{run['id']}", headers=h).status_code == 200
+    c.put(f"/payroll/staff/{s[holder]['user_id']}", json={"basic": 30000}, headers=h)
+    assert a
 
 
 def test_read_only_school_cannot_change_payroll(c, h):

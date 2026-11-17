@@ -563,6 +563,9 @@ class Importer:
         pay_ids = select(M.FeePayment.id).where(M.FeePayment.school_id == sid)
         poll_ids = select(M.Poll.id).where(M.Poll.school_id == sid)
         db.execute(delete(M.FeeAllocation).where(M.FeeAllocation.payment_id.in_(pay_ids)))
+        run_ids = list(db.scalars(select(M.PayrollRun.id).where(M.PayrollRun.school_id == sid).with_for_update()))   # same lock order as the payroll screens
+        if run_ids:
+            db.execute(delete(M.Meta).where(M.Meta.key.in_([f"payroll_seq:{i}" for i in run_ids])))
         for model in (M.Payslip, M.PayrollRun, M.SalaryStructure):       # payroll is not in the Excel file: Replace clears it
             db.execute(delete(model).where(model.school_id == sid))
         for model in (M.FeePayment, M.FeeItem, M.FeeBatch, M.ReceiptCounter, M.StudentTransport, M.Stop):

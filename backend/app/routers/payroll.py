@@ -4,7 +4,7 @@ records how each person was paid, and every staff member sees their own payslips
 Prangan only keeps the record: it never moves money."""
 import calendar
 import logging
-from datetime import date, timedelta
+from datetime import date, datetime, timedelta, timezone
 from decimal import ROUND_HALF_UP, Decimal
 
 from fastapi import APIRouter, Depends, HTTPException
@@ -17,10 +17,10 @@ from .. import push
 from ..auth import audit, require, require_module
 from ..db import get_db
 from ..deps import get_school
-from ..models import PayrollConfig, PayrollRun, Payslip, Role, SalaryStructure, School, StaffAttendance, User, utcnow
+from ..models import Meta, PayrollConfig, PayrollRun, Payslip, Role, SalaryStructure, School, StaffAttendance, User, utcnow
 from ..routers.leaves import approved_leave_dates
 from ..subscription import school_modules
-from ..util import school_days, today
+from ..util import SCHOOL_TZ, school_days, today
 
 log = logging.getLogger("payroll")
 router = APIRouter(prefix="/payroll", tags=["payroll"], dependencies=[Depends(require_module("payroll"))])
@@ -120,6 +120,16 @@ def total(lines: list | None) -> float:
     return money(sum(float(x.get("amount", 0)) for x in (lines or [])))
 
 
+def school_date(at: datetime | None) -> date | None:
+    """A stored time (UTC) as the school's calendar day."""
+    return at.replace(tzinfo=timezone.utc).astimezone(SCHOOL_TZ).date() if at else None
+
+
+def left_on(u: User) -> date | None:
+    """The day a removed staff member left; None while they are with the school."""
+    return None if u.active else school_date(u.archived_at)
+
+
 def month_bounds(month: str) -> tuple[date, date]:
     y, m = int(month[:4]), int(month[5:7])
     return date(y, m, 1), date(y, m, calendar.monthrange(y, m)[1])
@@ -192,8 +202,10 @@ def _own_slip(db: Session, slip_id: int, user: User, lock: bool = False) -> tupl
     if not p or p.school_id != user.school_id:
         raise HTTPException(404, "Payslip not found")
     run = _own_run(db, p.run_id, user, lock)
-    if lock:
-        db.refresh(p)                 # read again now that the month is held: another request may just have changed it
+    if lock:                          # read again now that the month is held: another request may just have changed or removed it
+        p = db.scalar(select(Payslip).where(Payslip.id == slip_id).execution_options(populate_existing=True))
+        if not p:
+            raise HTTPException(404, "Payslip not found")
     return p, run
 
 
@@ -236,8 +248,8 @@ def _absent_days(db: Session, school: School, staff: list[User], start: date, un
     for u in staff:
         if u.id not in ids:
             continue
-        joined = u.created_at.date() if u.created_at else start
-        left = u.archived_at.date() if (not u.active and u.archived_at) else until       # removed staff: not absent after they left
+        joined = school_date(u.created_at) or start
+        left = left_on(u) or until                # removed staff are not "absent" after they left: those days are unpaid, see _build
         mine, lv = present.get(u.id, set()), leave.get(u.id, set())
         out[u.id] = float(sum(1 for d in days if joined <= d <= left and d not in mine and d not in lv))
     return out
@@ -257,7 +269,7 @@ def _build(db: Session, run: PayrollRun, school: School) -> None:
     run.counted_until = until if until >= start else None
     run.lop_enabled, run.lop_basis = bool(use_att), cfg.lop_basis
     staff = [u for u in db.scalars(select(User).where(User.school_id == school.id, User.role.in_(PAID_ROLES)))
-             if u.active or (u.archived_at and u.archived_at.date() >= start)]
+             if u.active or (left_on(u) and left_on(u) >= start)]
     by_id = {u.id: u for u in staff}
     structures = {s.user_id: s for s in db.scalars(select(SalaryStructure).where(SalaryStructure.school_id == school.id))}
     payable = {uid: s for uid, s in structures.items() if uid in by_id and money(s.basic + total(s.allowances)) > 0}
@@ -275,8 +287,14 @@ def _build(db: Session, run: PayrollRun, school: School) -> None:
         p.name, p.role, p.login_id = u.name, u.role.value, u.login_id
         p.basic, p.allowances, p.deductions = s.basic, list(s.allowances or []), list(s.deductions or [])
         p.absent_days = absent.get(uid, 0.0)
+        gone = left_on(u)
+        after = 0.0                           # someone who left during the month is not paid for the days after leaving
+        if gone and gone < end:
+            after = float((end - gone).days if cfg.lop_basis == "calendar" else len(school_days(db, school, gone + timedelta(days=1), end)))
+            if not p.note:
+                p.note = f"Left the school on {gone.day} {calendar.month_name[gone.month]} {gone.year}"
         if not p.lop_manual:
-            p.lop_days = p.absent_days if use_att else 0.0
+            p.lop_days = (p.absent_days if use_att else 0.0) + after
         _settle(p, run)
     db.flush()
 
@@ -408,6 +426,9 @@ def delete_run(run_id: int, user: User = Depends(principal), db: Session = Depen
     for p in _slips(db, run.id):
         db.delete(p)
     db.flush()
+    mark = db.get(Meta, f"payroll_seq:{run.id}")
+    if mark:
+        db.delete(mark)
     db.delete(run)
     audit(db, user, "payroll.deleted", month_label(run.month))
     db.commit()
@@ -423,7 +444,8 @@ def finalize(run_id: int, user: User = Depends(principal), db: Session = Depends
     if not slips:
         raise HTTPException(400, "There are no payslips in this payroll")
     prefix = get_config(db, user.school_id).slip_prefix or "SAL"
-    last = max([_slip_seq(p.slip_no) for p in slips] + [0])
+    mark = db.get(Meta, f"payroll_seq:{run.id}")      # the highest number ever given in this month, so none is ever reused
+    last = max([_slip_seq(p.slip_no) for p in slips] + [int(mark.value) if mark else 0])
     for p in slips:
         _settle(p, run)
         if p.net < 0:
@@ -432,6 +454,10 @@ def finalize(run_id: int, user: User = Depends(principal), db: Session = Depends
         if not p.slip_no:                 # a number, once given, stays with that person even if the month is reopened
             last += 1
             p.slip_no = f"{prefix}/{run.month.replace('-', '')}/{last:03d}"
+    if mark:
+        mark.value = str(last)
+    else:
+        db.add(Meta(key=f"payroll_seq:{run.id}", value=str(last)))
     run.status, run.finalized_by, run.finalized_at = "final", user.id, utcnow()
     audit(db, user, "payroll.locked", f"{month_label(run.month)}: {len(slips)} payslips" + ("" if today() >= end else " (before the month ended)"))
     db.commit()
@@ -464,7 +490,8 @@ def edit_slip(slip_id: int, body: SlipIn, user: User = Depends(principal), db: S
             raise HTTPException(400, f"Unpaid days can't be more than {basis}")
         if round(body.lop_days * 2) != body.lop_days * 2:
             raise HTTPException(400, "Use whole or half days")
-        p.lop_manual = body.lop_days != (p.absent_days if run.lop_enabled else 0.0)
+        if body.lop_days != p.lop_days:                   # a number changed by hand is kept when the month is worked out again
+            p.lop_manual = True
         p.lop_days = body.lop_days
     _settle(p, run)
     if p.net < 0:

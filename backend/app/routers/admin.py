@@ -258,7 +258,7 @@ def admin_update_user(sid: int, uid: int, body: UserUpdate, me: User = Depends(a
     if u.role in (Role.vice_principal, Role.coordinator) and "permissions" in data:
         data["permissions"] = clean_permissions(data["permissions"], u.role)
     if "active" in data:
-        u.archived_at = None if data["active"] else utcnow()
+        u.archived_at = None if data["active"] else (utcnow() if u.active or not u.archived_at else u.archived_at)   # keep the day they first left
     for k, v in data.items():
         setattr(u, k, v.strip() if isinstance(v, str) else v)
     if kids is not None and u.role == Role.parent:
