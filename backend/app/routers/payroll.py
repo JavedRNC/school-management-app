@@ -255,6 +255,17 @@ def _absent_days(db: Session, school: School, staff: list[User], start: date, un
     return out
 
 
+LEFT_NOTE = "Left the school on "
+
+
+def _days_after_leaving(db: Session, school: School, u: User | None, end: date, basis: str) -> float:
+    """Someone who left during the month is not paid for the days after leaving."""
+    gone = left_on(u) if u else None
+    if not gone or gone >= end:
+        return 0.0
+    return float((end - gone).days if basis == "calendar" else len(school_days(db, school, gone + timedelta(days=1), end)))
+
+
 def _build(db: Session, run: PayrollRun, school: School) -> None:
     """Create or refresh every payslip of a draft from today's salaries and attendance.
     Lines added by hand for this month (extras, a hand-set number of unpaid days, the note) are kept.
@@ -288,13 +299,12 @@ def _build(db: Session, run: PayrollRun, school: School) -> None:
         p.basic, p.allowances, p.deductions = s.basic, list(s.allowances or []), list(s.deductions or [])
         p.absent_days = absent.get(uid, 0.0)
         gone = left_on(u)
-        after = 0.0                           # someone who left during the month is not paid for the days after leaving
-        if gone and gone < end:
-            after = float((end - gone).days if cfg.lop_basis == "calendar" else len(school_days(db, school, gone + timedelta(days=1), end)))
-            if not p.note:
-                p.note = f"Left the school on {gone.day} {calendar.month_name[gone.month]} {gone.year}"
+        if (p.note or "").startswith(LEFT_NOTE):          # our own note: written afresh each time, so it never outlives its reason
+            p.note = ""
+        if gone and gone <= end and not p.note:
+            p.note = f"{LEFT_NOTE}{gone.day} {calendar.month_name[gone.month]} {gone.year}"
         if not p.lop_manual:
-            p.lop_days = (p.absent_days if use_att else 0.0) + after
+            p.lop_days = (p.absent_days if use_att else 0.0) + _days_after_leaving(db, school, u, end, cfg.lop_basis)
         _settle(p, run)
     db.flush()
 
@@ -490,7 +500,11 @@ def edit_slip(slip_id: int, body: SlipIn, user: User = Depends(principal), db: S
             raise HTTPException(400, f"Unpaid days can't be more than {basis}")
         if round(body.lop_days * 2) != body.lop_days * 2:
             raise HTTPException(400, "Use whole or half days")
-        if body.lop_days != p.lop_days:                   # a number changed by hand is kept when the month is worked out again
+        _, end = month_bounds(run.month)
+        auto = (p.absent_days if run.lop_enabled else 0.0) + _days_after_leaving(db, get_school(db, user), db.get(User, p.user_id), end, run.lop_basis)
+        if body.lop_days == auto:                         # back to the worked-out number: follow it again from now on
+            p.lop_manual = False
+        elif body.lop_days != p.lop_days:                 # a number changed by hand is kept when the month is worked out again
             p.lop_manual = True
         p.lop_days = body.lop_days
     _settle(p, run)

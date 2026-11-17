@@ -142,3 +142,5 @@ Open: Sign in details (prefilled, Javed types password), Content rating (IARC te
 - App: lib/payroll.ts, components/payroll/{parts,PaySheet,payslipHtml}, app/more/payroll/{index,my,run/[id],slip/[id]}; OpsGrid shortcut (Payroll for principal, My payslips for staff).
 - Tests: backend tests/test_payroll.py (14), portal e2e/test_45_payroll.py (3); e2e _sweep resets payroll in E2EQA1.
 - Play: the Play Store app (production) does not have payroll until this is released to main AND a new .aab is uploaded to Play.
+- Fable review of payroll: 3 rounds (17 Nov), final verdict "No Critical/High/Medium". Fixed: absence cut capped at zero pay (never dropped), today not counted, row lock on the month (FOR UPDATE) in every change, leavers paid up to leaving day (school time) with an automatic note, slip numbers never reused within a run (meta key payroll_seq:<run id>), half-up rupee rounding, config GET never writes. Accepted (Low): deleting a month and preparing it again restarts numbers at 001.
+- Released to TEST on 17 Nov. NOT on main.

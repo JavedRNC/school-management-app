@@ -375,6 +375,9 @@ def test_staff_who_leave_are_paid_up_to_the_day_they_left(c, h):
         cut = int(30000 * (n - 10) / n + 0.5)
         assert kept["lop_days"] == n - 10 and kept["lop_amount"] == cut and kept["net"] == 35000 - cut
         assert kept["extra_earnings"] == [{"name": "Final dues", "amount": 5000}] and kept["note"].startswith("Left the school on 10 ")
+        # the principal tries another number, then types the worked-out one again: it follows the leaving day once more
+        assert c.put(f"/payroll/payslips/{slip['id']}", json={"lop_days": 3, "extra_earnings": kept["extra_earnings"], "note": kept["note"]}, headers=h).json()["lop_manual"] is True
+        assert c.put(f"/payroll/payslips/{slip['id']}", json={"lop_days": n - 10, "extra_earnings": kept["extra_earnings"], "note": kept["note"]}, headers=h).json()["lop_manual"] is False
         # removing an already-removed person again (an edit from the people screen) does not move the leaving day
         assert c.put(f"/users/{uid}", json={"active": False}, headers=h).status_code == 200
         again = next(p for p in c.post(f"/payroll/runs/{run['run']['id']}/recalculate", headers=h).json()["payslips"] if p["user_id"] == uid)
@@ -386,8 +389,14 @@ def test_staff_who_leave_are_paid_up_to_the_day_they_left(c, h):
         # left before the month began: not in this month at all
         leave(datetime(y, m, 1, 0, 0) - timedelta(days=3))
         assert not any(p["user_id"] == uid for p in c.post(f"/payroll/runs/{run['run']['id']}/recalculate", headers=h).json()["payslips"])
-    finally:
+        # back with the school: full pay again and the note about leaving is gone
+        leave(datetime(y, m, 10, 6, 30))
+        c.post(f"/payroll/runs/{run['run']['id']}/recalculate", headers=h)
         assert c.post(f"/archive/user/{uid}/restore", headers=h).status_code == 200
+        back = next(p for p in c.post(f"/payroll/runs/{run['run']['id']}/recalculate", headers=h).json()["payslips"] if p["user_id"] == uid)
+        assert back["lop_days"] == 0 and back["net"] == 30000 and back["note"] == ""      # (the payslip was made afresh a step earlier)
+    finally:
+        c.post(f"/archive/user/{uid}/restore", headers=h)
         assert c.delete(f"/payroll/runs/{run['run']['id']}", headers=h).status_code == 200
 
 
