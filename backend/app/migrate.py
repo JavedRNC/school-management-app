@@ -29,16 +29,22 @@ def _current_version() -> int:
 
 
 def _add_module_to_top_plan(db, module: str) -> None:
-    """A module added after a database was created is not in its stored plans. Give it to the plan that already has
-    every other module (the top plan), and to no other: cheaper plans and schools with hand-picked modules stay as set."""
+    """A module added after a database was created is not in its stored plans. Give it to every plan that already has
+    all the other modules; if the plans were trimmed and none does, to the one plan with the most modules.
+    Smaller plans and schools with hand-picked modules stay as set (the Admin can tick the module for them)."""
     from .models import Plan
     from .perms import MODULES
 
     others = set(MODULES) - {module}
-    for p in db.scalars(select(Plan)):
-        mods = list(p.modules or [])
-        if module not in mods and others <= set(mods):
-            p.modules = mods + [module]
+    plans = list(db.scalars(select(Plan)))
+    if any(module in (p.modules or []) for p in plans):
+        return
+    top = [p for p in plans if others <= set(p.modules or [])]
+    if not top and plans:
+        top = [max(plans, key=lambda p: (len(p.modules or []), -p.id))]
+    for p in top:
+        p.modules = list(p.modules or []) + [module]
+    log.warning("Module %s added to plan(s): %s", module, ", ".join(p.name for p in top) or "none (there are no plans)")
 
 
 def migrate() -> None:

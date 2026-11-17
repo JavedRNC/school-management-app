@@ -3,7 +3,9 @@ records how each person was paid, and every staff member sees their own payslips
 
 Prangan only keeps the record: it never moves money."""
 import calendar
+import logging
 from datetime import date, timedelta
+from decimal import ROUND_HALF_UP, Decimal
 
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel, Field, field_validator
@@ -20,6 +22,7 @@ from ..routers.leaves import approved_leave_dates
 from ..subscription import school_modules
 from ..util import school_days, today
 
+log = logging.getLogger("payroll")
 router = APIRouter(prefix="/payroll", tags=["payroll"], dependencies=[Depends(require_module("payroll"))])
 
 principal = require(Role.principal)
@@ -35,6 +38,14 @@ OLDEST_MONTHS = 24            # payroll can be prepared for this month or up to 
 class Line(BaseModel):
     name: str = Field(min_length=1, max_length=40)
     amount: float = Field(gt=0, le=MAX_AMOUNT)
+
+    @field_validator("amount")
+    @classmethod
+    def _amount(cls, v: float) -> float:
+        v = round(v, 2)
+        if v < 0.01:
+            raise ValueError("Enter an amount of at least 0.01")
+        return v
 
     @field_validator("name")
     @classmethod
@@ -100,6 +111,11 @@ def money(x: float) -> float:
     return round(float(x) + 0.0, 2)
 
 
+def rupees(x: float) -> float:
+    """Whole rupees, halves rounded up (the same rule the portal and the app use for their preview)."""
+    return float(Decimal(str(x)).quantize(Decimal("1"), rounding=ROUND_HALF_UP))
+
+
 def total(lines: list | None) -> float:
     return money(sum(float(x.get("amount", 0)) for x in (lines or [])))
 
@@ -115,12 +131,8 @@ def month_label(month: str) -> str:
 
 
 def get_config(db: Session, school_id: int) -> PayrollConfig:
-    cfg = db.get(PayrollConfig, school_id)
-    if not cfg:
-        cfg = PayrollConfig(school_id=school_id, lop_enabled=False, lop_basis="calendar", slip_prefix="SAL")
-        db.add(cfg)
-        db.flush()
-    return cfg
+    """The school's payroll settings, or the defaults when none were saved yet (reading never writes)."""
+    return db.get(PayrollConfig, school_id) or PayrollConfig(school_id=school_id, lop_enabled=False, lop_basis="calendar", slip_prefix="SAL")
 
 
 def _config_out(db: Session, school: School, cfg: PayrollConfig) -> dict:
@@ -159,9 +171,14 @@ def _run_out(run: PayrollRun, slips: list[Payslip]) -> dict:
             "unpaid_count": len(slips) - len(paid), "unpaid_amount": money(sum(p.net for p in slips if p.status != "paid"))}
 
 
-def _own_run(db: Session, run_id: int, user: User) -> PayrollRun:
-    run = db.get(PayrollRun, run_id)
-    if not run or run.school_id != user.school_id:
+def _own_run(db: Session, run_id: int, user: User, lock: bool = False) -> PayrollRun:
+    """lock=True holds the month's row until the request ends, so two changes to the same month (two phones, two tabs)
+    run one after the other and each sees what the other did."""
+    q = select(PayrollRun).where(PayrollRun.id == run_id, PayrollRun.school_id == user.school_id)
+    if lock:
+        q = q.with_for_update().execution_options(populate_existing=True)
+    run = db.scalar(q)
+    if not run:
         raise HTTPException(404, "Payroll not found")
     return run
 
@@ -170,11 +187,19 @@ def _slips(db: Session, run_id: int) -> list[Payslip]:
     return list(db.scalars(select(Payslip).where(Payslip.run_id == run_id).order_by(Payslip.name, Payslip.id)))
 
 
-def _own_slip(db: Session, slip_id: int, user: User) -> tuple[Payslip, PayrollRun]:
+def _own_slip(db: Session, slip_id: int, user: User, lock: bool = False) -> tuple[Payslip, PayrollRun]:
     p = db.get(Payslip, slip_id)
     if not p or p.school_id != user.school_id:
         raise HTTPException(404, "Payslip not found")
-    return p, db.get(PayrollRun, p.run_id)
+    run = _own_run(db, p.run_id, user, lock)
+    if lock:
+        db.refresh(p)                 # read again now that the month is held: another request may just have changed it
+    return p, run
+
+
+def _slip_seq(slip_no: str | None) -> int:
+    tail = (slip_no or "").rsplit("/", 1)[-1]
+    return int(tail) if tail.isdigit() else 0
 
 
 def _draft(run: PayrollRun) -> None:
@@ -187,9 +212,11 @@ def _settle(p: Payslip, run: PayrollRun) -> None:
     fixed = money(p.basic + total(p.allowances))
     basis = run.days_in_month if run.lop_basis == "calendar" else run.working_days
     p.lop_days = min(float(p.lop_days or 0), float(basis)) if basis else 0.0
-    p.lop_amount = money(round(fixed * p.lop_days / basis)) if basis and p.lop_days else 0.0
     p.gross = money(fixed + total(p.extra_earnings))
-    p.total_deductions = money(total(p.deductions) + total(p.extra_deductions) + p.lop_amount)
+    other = money(total(p.deductions) + total(p.extra_deductions))
+    cut = rupees(fixed * p.lop_days / basis) if basis and p.lop_days else 0.0
+    p.lop_amount = money(min(cut, max(p.gross - other, 0.0)))        # the cut for absence never takes a payslip below zero
+    p.total_deductions = money(other + p.lop_amount)
     p.net = money(p.gross - p.total_deductions)
 
 
@@ -210,26 +237,31 @@ def _absent_days(db: Session, school: School, staff: list[User], start: date, un
         if u.id not in ids:
             continue
         joined = u.created_at.date() if u.created_at else start
+        left = u.archived_at.date() if (not u.active and u.archived_at) else until       # removed staff: not absent after they left
         mine, lv = present.get(u.id, set()), leave.get(u.id, set())
-        out[u.id] = float(sum(1 for d in days if d >= joined and d not in mine and d not in lv))
+        out[u.id] = float(sum(1 for d in days if joined <= d <= left and d not in mine and d not in lv))
     return out
 
 
 def _build(db: Session, run: PayrollRun, school: School) -> None:
     """Create or refresh every payslip of a draft from today's salaries and attendance.
-    Lines added by hand for this month (extras, a hand-set number of unpaid days, the note) are kept."""
+    Lines added by hand for this month (extras, a hand-set number of unpaid days, the note) are kept.
+    Someone removed from the school during or after this month is still paid for it."""
     start, end = month_bounds(run.month)
     cfg = get_config(db, school.id)
     use_att = cfg.lop_enabled and "staff_attendance" in school_modules(db, school)
+    t = today()
+    until = end if end < t else t - timedelta(days=1)       # today is still going on: people may yet check in
     run.days_in_month = (end - start).days + 1
     run.working_days = len(school_days(db, school, start, end))
-    run.counted_until = min(end, today())
+    run.counted_until = until if until >= start else None
     run.lop_enabled, run.lop_basis = bool(use_att), cfg.lop_basis
-    staff = list(db.scalars(select(User).where(User.school_id == school.id, User.role.in_(PAID_ROLES), User.active.is_(True))))
+    staff = [u for u in db.scalars(select(User).where(User.school_id == school.id, User.role.in_(PAID_ROLES)))
+             if u.active or (u.archived_at and u.archived_at.date() >= start)]
     by_id = {u.id: u for u in staff}
     structures = {s.user_id: s for s in db.scalars(select(SalaryStructure).where(SalaryStructure.school_id == school.id))}
     payable = {uid: s for uid, s in structures.items() if uid in by_id and money(s.basic + total(s.allowances)) > 0}
-    absent = _absent_days(db, school, [by_id[i] for i in payable], start, run.counted_until) if use_att else {}
+    absent = _absent_days(db, school, [by_id[i] for i in payable], start, until) if use_att else {}
     existing = {p.user_id: p for p in db.scalars(select(Payslip).where(Payslip.run_id == run.id))}
     for uid, p in existing.items():
         if uid not in payable:
@@ -246,29 +278,31 @@ def _build(db: Session, run: PayrollRun, school: School) -> None:
         if not p.lop_manual:
             p.lop_days = p.absent_days if use_att else 0.0
         _settle(p, run)
-        if p.net < 0:                         # the fixed deductions are bigger than this month's pay: never a negative payslip
-            p.lop_days, p.lop_manual = 0.0, False
-            _settle(p, run)
     db.flush()
 
 
 # ---------------------------------------------------------------- settings and salaries
 @router.get("/config")
 def read_config(user: User = Depends(principal), db: Session = Depends(get_db)):
-    out = _config_out(db, get_school(db, user), get_config(db, user.school_id))
-    db.commit()
-    return out
+    return _config_out(db, get_school(db, user), get_config(db, user.school_id))
 
 
 @router.put("/config")
 def save_config(body: ConfigIn, user: User = Depends(principal), db: Session = Depends(get_db)):
     school = get_school(db, user)
-    cfg = get_config(db, user.school_id)
     if body.lop_enabled and "staff_attendance" not in school_modules(db, school):
         raise HTTPException(400, "Pay can be cut for absent days only when Staff attendance is part of your plan")
+    cfg = db.get(PayrollConfig, user.school_id)
+    if not cfg:
+        cfg = PayrollConfig(school_id=user.school_id)
+        db.add(cfg)
     cfg.lop_enabled, cfg.lop_basis, cfg.slip_prefix = body.lop_enabled, body.lop_basis, body.slip_prefix.upper()
     audit(db, user, "payroll.settings", f"cut pay for absence: {'on' if body.lop_enabled else 'off'} ({body.lop_basis} days), slip prefix {cfg.slip_prefix}")
-    db.commit()
+    try:
+        db.commit()
+    except IntegrityError:
+        db.rollback()
+        raise HTTPException(409, "These settings were just saved from another screen. Open them again.")
     return _config_out(db, school, cfg)
 
 
@@ -355,7 +389,7 @@ def read_run(run_id: int, user: User = Depends(principal), db: Session = Depends
 
 @router.post("/runs/{run_id}/recalculate")
 def recalculate(run_id: int, user: User = Depends(principal), db: Session = Depends(get_db)):
-    run = _own_run(db, run_id, user)
+    run = _own_run(db, run_id, user, lock=True)
     _draft(run)
     _build(db, run, get_school(db, user))
     slips = _slips(db, run.id)
@@ -369,7 +403,7 @@ def recalculate(run_id: int, user: User = Depends(principal), db: Session = Depe
 
 @router.delete("/runs/{run_id}")
 def delete_run(run_id: int, user: User = Depends(principal), db: Session = Depends(get_db)):
-    run = _own_run(db, run_id, user)
+    run = _own_run(db, run_id, user, lock=True)
     _draft(run)
     for p in _slips(db, run.id):
         db.delete(p)
@@ -382,18 +416,22 @@ def delete_run(run_id: int, user: User = Depends(principal), db: Session = Depen
 
 @router.post("/runs/{run_id}/finalize")
 def finalize(run_id: int, user: User = Depends(principal), db: Session = Depends(get_db)):
-    run = _own_run(db, run_id, user)
+    run = _own_run(db, run_id, user, lock=True)
     _draft(run)
     _, end = month_bounds(run.month)
     slips = _slips(db, run.id)
     if not slips:
         raise HTTPException(400, "There are no payslips in this payroll")
     prefix = get_config(db, user.school_id).slip_prefix or "SAL"
-    for i, p in enumerate(slips, 1):
+    last = max([_slip_seq(p.slip_no) for p in slips] + [0])
+    for p in slips:
         _settle(p, run)
         if p.net < 0:
+            db.rollback()
             raise HTTPException(400, f"{p.name}'s deductions are more than the pay. Fix that payslip first.")
-        p.slip_no = f"{prefix}/{run.month.replace('-', '')}/{i:03d}"
+        if not p.slip_no:                 # a number, once given, stays with that person even if the month is reopened
+            last += 1
+            p.slip_no = f"{prefix}/{run.month.replace('-', '')}/{last:03d}"
     run.status, run.finalized_by, run.finalized_at = "final", user.id, utcnow()
     audit(db, user, "payroll.locked", f"{month_label(run.month)}: {len(slips)} payslips" + ("" if today() >= end else " (before the month ended)"))
     db.commit()
@@ -402,14 +440,12 @@ def finalize(run_id: int, user: User = Depends(principal), db: Session = Depends
 
 @router.post("/runs/{run_id}/reopen")
 def reopen(run_id: int, user: User = Depends(principal), db: Session = Depends(get_db)):
-    run = _own_run(db, run_id, user)
+    run = _own_run(db, run_id, user, lock=True)
     if run.status != "final":
         raise HTTPException(409, "This payroll is already open")
     slips = _slips(db, run.id)
     if any(p.status == "paid" for p in slips):
         raise HTTPException(409, "Some salaries are already marked paid. Undo those payments first.")
-    for p in slips:
-        p.slip_no = None
     run.status, run.finalized_by, run.finalized_at = "draft", None, None
     audit(db, user, "payroll.reopened", month_label(run.month))
     db.commit()
@@ -419,7 +455,7 @@ def reopen(run_id: int, user: User = Depends(principal), db: Session = Depends(g
 # ---------------------------------------------------------------- payslips
 @router.put("/payslips/{slip_id}")
 def edit_slip(slip_id: int, body: SlipIn, user: User = Depends(principal), db: Session = Depends(get_db)):
-    p, run = _own_slip(db, slip_id, user)
+    p, run = _own_slip(db, slip_id, user, lock=True)
     _draft(run)
     p.extra_earnings, p.extra_deductions, p.note = _lines(body.extra_earnings), _lines(body.extra_deductions), body.note.strip()
     if body.lop_days is not None:
@@ -457,7 +493,7 @@ def _check_pay(body: PayIn, run: PayrollRun) -> None:
 
 @router.post("/payslips/{slip_id}/pay")
 def pay_one(slip_id: int, body: PayIn, user: User = Depends(principal), db: Session = Depends(get_db)):
-    p, run = _own_slip(db, slip_id, user)
+    p, run = _own_slip(db, slip_id, user, lock=True)
     _check_pay(body, run)
     if p.status == "paid":
         raise HTTPException(409, "This salary is already marked paid")
@@ -470,7 +506,7 @@ def pay_one(slip_id: int, body: PayIn, user: User = Depends(principal), db: Sess
 
 @router.post("/runs/{run_id}/pay")
 def pay_many(run_id: int, body: PayManyIn, user: User = Depends(principal), db: Session = Depends(get_db)):
-    run = _own_run(db, run_id, user)
+    run = _own_run(db, run_id, user, lock=True)
     _check_pay(body, run)
     slips = [p for p in _slips(db, run.id) if p.status != "paid"]
     if body.payslip_ids is not None:
@@ -489,7 +525,7 @@ def pay_many(run_id: int, body: PayManyIn, user: User = Depends(principal), db: 
 
 @router.post("/payslips/{slip_id}/undo-payment")
 def undo_payment(slip_id: int, body: UndoIn, user: User = Depends(principal), db: Session = Depends(get_db)):
-    p, run = _own_slip(db, slip_id, user)
+    p, run = _own_slip(db, slip_id, user, lock=True)
     if p.status != "paid":
         raise HTTPException(409, "This salary isn't marked paid")
     audit(db, user, "payroll.payment_undone", f"{p.name}, {month_label(run.month)} (was {p.mode} on {p.paid_on}): {body.reason.strip()}")

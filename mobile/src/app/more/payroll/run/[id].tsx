@@ -18,7 +18,7 @@ import { useLoad } from '@/lib/useLoad';
 type Ask = 'lock' | 'reopen' | 'delete';
 const ASK: Record<Ask, { icon: string; title: string; body: string; action: string; danger?: boolean }> = {
   lock: { icon: 'lock-check-outline', title: 'Lock this payroll?', body: 'Payslips get their numbers and staff can see them in the app. You can reopen it only while no salary is marked paid.', action: 'Lock payroll' },
-  reopen: { icon: 'lock-open-variant-outline', title: 'Reopen this payroll?', body: 'Staff stop seeing these payslips until you lock it again. Payslip numbers are given afresh.', action: 'Reopen' },
+  reopen: { icon: 'lock-open-variant-outline', title: 'Reopen this payroll?', body: 'Staff stop seeing these payslips until you lock it again. Payslip numbers stay the same.', action: 'Reopen' },
   delete: { icon: 'delete-outline', title: 'Delete this payroll?', body: 'The payslips prepared for this month are removed. Salaries are not changed.', action: 'Delete payroll', danger: true },
 };
 
@@ -91,7 +91,7 @@ function Run() {
                   <View><Text variant="labelMedium" style={{ color: t.colors.onSurfaceVariant }}>Still to pay</Text><Text variant="titleMedium" style={{ fontWeight: '700', color: run.unpaid_count ? t.custom.warning : t.colors.onSurface }}>{inr(run.unpaid_amount)}</Text></View>
                 </View>
               ) : null}
-              {run.lop_enabled ? <Text variant="bodySmall" style={{ color: t.colors.onSurfaceVariant, marginTop: space.sm }}>Pay is cut for absent days without approved leave, counted up to {fmtDate(run.counted_until)}.</Text> : null}
+              {run.lop_enabled ? <Text variant="bodySmall" style={{ color: t.colors.onSurfaceVariant, marginTop: space.sm }}>Pay is cut for absent days without approved leave, {run.counted_until ? `counted up to ${fmtDate(run.counted_until)}` : 'but no day of this month is counted yet'}. Today is counted after it ends.</Text> : null}
             </Panel>
           </FadeIn>
           {canWrite ? (

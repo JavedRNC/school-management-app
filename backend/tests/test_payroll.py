@@ -117,6 +117,7 @@ def test_set_salary_and_its_rules(c, h):
     bad = [{"basic": -1}, {"basic": 20000000},
            {"basic": 100, "allowances": [{"name": "", "amount": 5}]},
            {"basic": 100, "allowances": [{"name": "A", "amount": 0}]},
+           {"basic": 100, "allowances": [{"name": "A", "amount": 0.004}]},
            {"basic": 100, "allowances": [{"name": "A", "amount": 5}, {"name": "a", "amount": 6}]},
            {"basic": 100, "deductions": [{"name": "Too much", "amount": 500}]},
            {"basic": 100, "allowances": [{"name": f"L{i}", "amount": 1} for i in range(13)]}]
@@ -182,6 +183,11 @@ def test_prepare_edit_lock_pay(c, h):
     locked = {x["login_id"]: x for x in r.json()["payslips"]}
     assert r.json()["run"]["status"] == "final" and locked["T001"]["slip_no"].startswith("GVPS-SAL/" + THIS.replace("-", "") + "/")
     assert len({x["slip_no"] for x in locked.values()}) == len(locked)
+    # reopening and locking again keeps every payslip number with the same person
+    assert c.post(f"/payroll/runs/{run['id']}/reopen", headers=h).status_code == 200
+    assert all(x["month"] != THIS for x in c.get("/payroll/me", headers=ht).json()["payslips"])      # hidden again while open
+    relocked = {x["login_id"]: x["slip_no"] for x in c.post(f"/payroll/runs/{run['id']}/finalize", headers=h).json()["payslips"]}
+    assert relocked == {k: v["slip_no"] for k, v in locked.items()}
     # locked means locked
     assert c.put(f"/payroll/payslips/{p['id']}", json={"note": "x"}, headers=h).status_code == 409
     assert c.post(f"/payroll/runs/{run['id']}/recalculate", headers=h).status_code == 409
@@ -254,44 +260,79 @@ def test_other_schools_never_see_it(c, h):
 
 
 # ---------------------------------------------------------------- pay cut for absence
+def months_back(n):
+    y, m = today().year, today().month - n
+    while m < 1:
+        y, m = y - 1, m + 12
+    return f"{y:04d}-{m:02d}"
+
+
 def test_absence_cut_uses_staff_attendance(c, h):
-    fresh_month(c, h)
-    assert c.put("/payroll/config", json={"lop_enabled": True, "lop_basis": "working", "slip_prefix": "gv/sal"}, headers=h).json()["slip_prefix"] == "GV/SAL"
-    s = staff(c, h)
-    c.put(f"/payroll/staff/{s['T003']['user_id']}", json={"basic": 30000}, headers=h)
+    """A finished month two months back: nothing else writes attendance there, so the count is the same on any day this runs."""
+    import calendar
+    from datetime import date
+
     from app.db import SessionLocal
     from app.models import User
     with SessionLocal() as db:                      # the demo accounts were made a moment ago: pretend they joined long before
         for u in db.query(User).filter(User.school_id == 1):
-            u.created_at = u.created_at - timedelta(days=90)
+            u.created_at = u.created_at - timedelta(days=200)
         db.commit()
-    t = today()
-    first = t.replace(day=1)
-    days = [(first + timedelta(days=i)) for i in range((t - first).days + 1)]
-    # T003: present on all days but the first; if the month has 3+ days so far, one more day is approved leave
-    for d in days[1:]:
-        assert c.post("/staff-attendance/manual", json={"user_id": s["T003"]["user_id"], "date": str(d), "present": True}, headers=h).status_code == 200
-    r = c.post("/payroll/runs", json={"month": THIS}, headers=h)
+    month = months_back(2)
+    y, m = int(month[:4]), int(month[5:])
+    n = calendar.monthrange(y, m)[1]
+    assert c.put("/payroll/config", json={"lop_enabled": True, "lop_basis": "working", "slip_prefix": "gv/sal"}, headers=h).json()["slip_prefix"] == "GV/SAL"
+    s = staff(c, h)
+    c.put(f"/payroll/staff/{s['T003']['user_id']}", json={"basic": 30000}, headers=h)
+    c.put(f"/payroll/staff/{s['T004']['user_id']}", json={"basic": 30015, "deductions": [{"name": "Provident fund", "amount": 3600}]}, headers=h)
+    for d in range(2, n + 1):                       # T003: present every day but the 1st. T004: never.
+        assert c.post("/staff-attendance/manual", json={"user_id": s["T003"]["user_id"], "date": str(date(y, m, d)), "present": True}, headers=h).status_code == 200
+    r = c.post("/payroll/runs", json={"month": month}, headers=h)
     assert r.status_code == 200, r.text
     run = r.json()["run"]
     slips = {p["login_id"]: p for p in r.json()["payslips"]}
-    assert run["lop_enabled"] is True and run["lop_basis"] == "working" and run["counted_until"] == str(t)
+    assert run["lop_enabled"] is True and run["lop_basis"] == "working" and run["working_days"] == n and run["counted_until"] == str(date(y, m, n))
     me = slips["T003"]
-    assert me["absent_days"] == 1 and me["lop_days"] == 1 and me["lop_amount"] == round(30000 / run["working_days"])
+    assert me["absent_days"] == 1 and me["lop_days"] == 1 and me["lop_amount"] == 1000 and me["net"] == 29000
     assert slips["principal"]["absent_days"] == 0 and slips["principal"]["lop_days"] == 0       # the principal doesn't check in
-    # the principal forgives the day; recalculating keeps that decision
+    # absent all month with a fixed deduction: the cut is kept and stops at zero pay, it is never dropped
+    gone = slips["T004"]
+    assert gone["absent_days"] == n and gone["lop_days"] == n and gone["net"] == 0 and gone["lop_amount"] == 30015 - 3600
+    assert all(p["net"] >= 0 for p in slips.values())
+    # half a rupee rounds up, the same as the preview in the portal and the app (30015 / 30 days = 1000.5)
+    if n == 30:
+        r = c.put(f"/payroll/payslips/{gone['id']}", json={"lop_days": 1}, headers=h)
+        assert r.json()["lop_amount"] == 1001, r.text
+    # the principal forgives the day; working it out again keeps that decision
     r = c.put(f"/payroll/payslips/{me['id']}", json={"lop_days": 0}, headers=h)
     assert r.json()["lop_amount"] == 0 and r.json()["lop_manual"] is True and r.json()["absent_days"] == 1
     again = {p["login_id"]: p for p in c.post(f"/payroll/runs/{run['id']}/recalculate", headers=h).json()["payslips"]}["T003"]
     assert again["lop_days"] == 0 and again["net"] == 30000
-    # a cut can never push a payslip below zero: someone absent all month with fixed deductions gets a zero-cut payslip to review
-    for p in slips.values():
-        assert p["net"] >= 0, p["name"]
     # switching the rule off stops the cut on the next calculation
     c.put("/payroll/config", json={"lop_enabled": False, "lop_basis": "calendar", "slip_prefix": "GVPS-SAL"}, headers=h)
     r = c.post(f"/payroll/runs/{run['id']}/recalculate", headers=h).json()
     assert r["run"]["lop_enabled"] is False and all(p["lop_days"] == 0 or p["lop_manual"] for p in r["payslips"])
     assert c.delete(f"/payroll/runs/{run['id']}", headers=h).status_code == 200
+
+
+def test_today_is_not_counted_as_absent(c, h):
+    """Preparing this month's payroll in the morning must not cut a day's pay from everyone who has not checked in yet."""
+    fresh_month(c, h)
+    c.put("/payroll/config", json={"lop_enabled": True, "lop_basis": "calendar", "slip_prefix": "GVPS-SAL"}, headers=h)
+    try:
+        s = staff(c, h)
+        t = today()
+        c.put(f"/payroll/staff/{s['T003']['user_id']}", json={"basic": 30000}, headers=h)
+        for d in range(1, t.day):
+            c.post("/staff-attendance/manual", json={"user_id": s["T003"]["user_id"], "date": str(t.replace(day=d)), "present": True}, headers=h)
+        c.post("/staff-attendance/manual", json={"user_id": s["T003"]["user_id"], "date": str(t), "present": False}, headers=h)     # not in yet today
+        r = c.post("/payroll/runs", json={"month": THIS}, headers=h).json()
+        assert r["run"]["counted_until"] == (str(t - timedelta(days=1)) if t.day > 1 else None)
+        me = {p["login_id"]: p for p in r["payslips"]}["T003"]
+        assert me["absent_days"] == 0 and me["lop_amount"] == 0 and me["net"] == 30000
+        assert c.delete(f"/payroll/runs/{r['run']['id']}", headers=h).status_code == 200
+    finally:
+        c.put("/payroll/config", json={"lop_enabled": False, "lop_basis": "calendar", "slip_prefix": "GVPS-SAL"}, headers=h)
 
 
 def test_config_rules(c, h):
@@ -302,21 +343,28 @@ def test_config_rules(c, h):
     assert c.put("/payroll/config", json={"lop_enabled": True}, headers=h2).status_code == 400
 
 
-def test_removed_staff_leave_the_next_payroll_but_keep_old_payslips(c, h):
+def test_staff_removed_this_month_are_still_paid_for_it(c, h):
     fresh_month(c, h)
     s = staff(c, h)
     uid = s["T005"]["user_id"]
     c.put(f"/payroll/staff/{uid}", json={"basic": 25000}, headers=h)
-    run = c.post("/payroll/runs", json={"month": THIS}, headers=h).json()["run"]
-    assert any(p["user_id"] == uid for p in c.get(f"/payroll/runs/{run['id']}", headers=h).json()["payslips"])
+    run = c.post("/payroll/runs", json={"month": THIS}, headers=h).json()
+    slip = next(p for p in run["payslips"] if p["user_id"] == uid)
+    assert c.put(f"/payroll/payslips/{slip['id']}", json={"extra_earnings": [{"name": "Final dues", "amount": 5000}]}, headers=h).status_code == 200
     assert c.delete(f"/users/{uid}", headers=h).status_code == 200
-    assert "T005" not in staff(c, h)
-    after = c.post(f"/payroll/runs/{run['id']}/recalculate", headers=h).json()["payslips"]
-    assert not any(p["user_id"] == uid for p in after)
-    old = c.get("/payroll/runs", headers=h).json()["runs"][-1]                                   # last month, seeded and paid
-    assert any(p["user_id"] == uid for p in c.get(f"/payroll/runs/{old['id']}", headers=h).json()["payslips"])
-    assert c.post(f"/archive/user/{uid}/restore", headers=h).status_code == 200
-    assert c.delete(f"/payroll/runs/{run['id']}", headers=h).status_code == 200
+    try:
+        assert "T005" not in staff(c, h)                                                      # no longer on the salary list
+        after = c.post(f"/payroll/runs/{run['run']['id']}/recalculate", headers=h).json()["payslips"]
+        kept = next(p for p in after if p["user_id"] == uid)                                  # but this month's payslip and its hand-made line stay
+        assert kept["extra_earnings"] == [{"name": "Final dues", "amount": 5000}] and kept["net"] == 30000
+        assert c.delete(f"/payroll/runs/{run['run']['id']}", headers=h).status_code == 200
+        again = c.post("/payroll/runs", json={"month": THIS}, headers=h).json()                # a payroll prepared after they left still pays them
+        assert any(p["user_id"] == uid for p in again["payslips"])
+        assert c.delete(f"/payroll/runs/{again['run']['id']}", headers=h).status_code == 200
+        old = c.get("/payroll/runs", headers=h).json()["runs"][-1]                             # last month, seeded and paid: untouched
+        assert any(p["user_id"] == uid for p in c.get(f"/payroll/runs/{old['id']}", headers=h).json()["payslips"])
+    finally:
+        assert c.post(f"/archive/user/{uid}/restore", headers=h).status_code == 200
 
 
 def test_read_only_school_cannot_change_payroll(c, h):
@@ -367,3 +415,21 @@ def test_upgrade_gives_payroll_to_the_top_plan_only(tmp_path):
     out = subprocess.run([sys.executable, "-c", code], capture_output=True, text=True,
                          env={**os.environ, "DATABASE_URL": f"sqlite:///{db}", "SEED_DEMO": "0"}, cwd=os.path.dirname(os.path.dirname(__file__)))
     assert out.stdout.strip() == "{'Premium': True, 'Standard': False} 10", out.stderr
+
+
+def test_upgrade_falls_back_to_the_biggest_plan(tmp_path):
+    """If the Admin trimmed the plans so none has every module, the biggest one still gets payroll (the demo school is on it)."""
+    import subprocess
+    import sys
+
+    db = tmp_path / "old2.db"
+    code = (
+        "from app.migrate import migrate; migrate();"
+        "from app.db import SessionLocal; from app.models import Plan, Meta;"
+        "db=SessionLocal(); db.add(Plan(name='Premium', modules=['core','fees','leaves'])); db.add(Plan(name='Basic', modules=['core']));"
+        "db.get(Meta,'schema_version').value='9'; db.commit(); db.close();"
+        "migrate(); migrate(); db=SessionLocal();"
+        "print({p.name: p.modules.count('payroll') for p in db.query(Plan)})")
+    out = subprocess.run([sys.executable, "-c", code], capture_output=True, text=True,
+                         env={**os.environ, "DATABASE_URL": f"sqlite:///{db}", "SEED_DEMO": "0"}, cwd=os.path.dirname(os.path.dirname(__file__)))
+    assert out.stdout.strip() == "{'Premium': 1, 'Basic': 0}", out.stderr

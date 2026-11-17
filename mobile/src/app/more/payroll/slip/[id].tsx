@@ -134,8 +134,9 @@ function EditSheet({ p: s, onClose, onSaved }: { p: Payslip; onClose: () => void
   const basis = lopBasis({ lop_basis: s.lop_basis, days_in_month: s.days_in_month, working_days: s.working_days });
   const days = amount(lop);
   const fixed = s.basic + linesTotal(s.allowances);
-  const cut = basis && days ? Math.round((fixed * days) / basis) : 0;
-  const net = fixed + draftTotal(earn) - linesTotal(s.deductions) - draftTotal(ded) - cut;
+  const before = fixed + draftTotal(earn) - linesTotal(s.deductions) - draftTotal(ded);
+  const cut = basis && days ? Math.min(Math.round((fixed * days) / basis), Math.max(before, 0)) : 0;      // the cut never takes pay below zero
+  const net = before - cut;
   const bad = linesError(earn, 'extra payment') ?? linesError(ded, 'deduction')
     ?? (days === null ? 'Enter the unpaid days as a number' : days > basis ? `Unpaid days can't be more than ${basis}` : (days * 2) % 1 !== 0 ? 'Use whole or half days' : net < 0 ? "Deductions can't be more than the pay" : null);
   async function save() {

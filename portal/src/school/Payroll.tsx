@@ -2,7 +2,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { api } from '../api';
 import { Avatar, CountUp, Drawer, IconButton, num, printNode, Switch, Tabs, today, useAct, useConfirm, useFilter } from '../kit';
-import { Badge, Button, Empty, ErrorBox, fmtDate, fmtMoney, Loading, Modal, PageHead, Select, Text, useLoad } from '../ui';
+import { Badge, Button, Empty, ErrorBox, fmtDate, Loading, Modal, PageHead, Select, Text, useLoad } from '../ui';
 import { ReadOnlyNote, ROLE_LABEL, useSchool } from './ctx';
 
 type Line = { name: string; amount: number };
@@ -93,8 +93,8 @@ function Months({ canWrite, onOpen, onSalaries }: { canWrite: boolean; onOpen: (
               <tr key={r.id} className="click" onClick={() => onOpen(r.id)}>
                 <td className="primary-cell"><a href="#" onClick={(e) => { e.preventDefault(); e.stopPropagation(); onOpen(r.id); }}>{r.month_label}</a></td>
                 <td data-label="Status">{r.status === 'draft' ? <Badge status="trial">Being prepared</Badge> : r.unpaid_count ? <Badge status="grace">Locked · {r.unpaid_count} unpaid</Badge> : <Badge status="active">All paid</Badge>}</td>
-                <td data-label="People" className="right num">{r.people}</td><td data-label="Net pay" className="right num"><b>{fmtMoney(r.net)}</b></td>
-                <td data-label="Paid" className="right num">{fmtMoney(r.paid_amount)}</td><td data-label="Still to pay" className="right num">{r.status === 'final' ? fmtMoney(r.unpaid_amount) : '—'}</td>
+                <td data-label="People" className="right num">{r.people}</td><td data-label="Net pay" className="right num"><b>{money2(r.net)}</b></td>
+                <td data-label="Paid" className="right num">{money2(r.paid_amount)}</td><td data-label="Still to pay" className="right num">{r.status === 'final' ? money2(r.unpaid_amount) : '—'}</td>
               </tr>
             ))}</tbody></table></div>
         )}
@@ -123,7 +123,7 @@ function RunView({ id, canWrite, onBack }: { id: number; canWrite: boolean; onBa
     set(await act('lock', () => api<RunDetail>(`/payroll/runs/${id}/finalize`, { body: {} }), 'Payroll locked. Staff can now see their payslips.'));
   };
   const reopen = async () => {
-    if (!(await confirm({ title: 'Reopen this payroll?', confirm: 'Reopen', body: <p>Staff stop seeing these payslips until you lock it again. Payslip numbers are given afresh.</p> }))) return;
+    if (!(await confirm({ title: 'Reopen this payroll?', confirm: 'Reopen', body: <p>Staff stop seeing these payslips until you lock it again. Payslip numbers stay the same.</p> }))) return;
     set(await act('reopen', () => api<RunDetail>(`/payroll/runs/${id}/reopen`, { body: {} }), 'Payroll reopened'));
   };
   const remove = async () => {
@@ -140,13 +140,13 @@ function RunView({ id, canWrite, onBack }: { id: number; canWrite: boolean; onBa
       <ReadOnlyNote />
       <section className="card"><div className="kpi">
         <div><span>People</span><b><CountUp value={run.people} /></b></div>
-        <div><span>Total pay</span><b><CountUp value={run.gross} format={fmtMoney} /></b></div>
-        <div><span>Deductions</span><b><CountUp value={run.total_deductions} format={fmtMoney} /></b></div>
-        <div><span>Net pay</span><b><CountUp value={run.net} format={fmtMoney} /></b></div>
-        {!draft ? <div><span>Paid</span><b><CountUp value={run.paid_amount} format={fmtMoney} /></b></div> : null}
-        {!draft ? <div><span>Still to pay</span><b><CountUp value={run.unpaid_amount} format={fmtMoney} /></b></div> : null}
+        <div><span>Total pay</span><b><CountUp value={run.gross} format={money2} /></b></div>
+        <div><span>Deductions</span><b><CountUp value={run.total_deductions} format={money2} /></b></div>
+        <div><span>Net pay</span><b><CountUp value={run.net} format={money2} /></b></div>
+        {!draft ? <div><span>Paid</span><b><CountUp value={run.paid_amount} format={money2} /></b></div> : null}
+        {!draft ? <div><span>Still to pay</span><b><CountUp value={run.unpaid_amount} format={money2} /></b></div> : null}
       </div>
-        {run.lop_enabled ? <p className="muted small" style={{ marginTop: 10 }}>Pay is cut for absent days without approved leave, counted from staff attendance up to {fmtDate(run.counted_until)}{draft ? '. Use "Work out again" just before you lock.' : '.'}</p> : null}
+        {run.lop_enabled ? <p className="muted small" style={{ marginTop: 10 }}>Pay is cut for absent days without approved leave, {run.counted_until ? `counted from staff attendance up to ${fmtDate(run.counted_until)}` : 'but no day of this month has been counted yet'}{draft ? '. Today is counted only after it ends: use "Work out again" before you lock.' : '.'}</p> : null}
       </section>
       <div className="toolbar" style={{ marginTop: 14 }}><Text label="Find a person" value={q} onChange={setQ} type="search" placeholder="Name or employee code" /></div>
       <section className="card flush">
@@ -155,9 +155,9 @@ function RunView({ id, canWrite, onBack }: { id: number; canWrite: boolean; onBa
             <tbody>{rows.map((p) => (
               <tr key={p.id} className="click" onClick={() => setSlip(p.id)}>
                 <td className="primary-cell"><div className="person"><Avatar name={p.name} /><div><b>{p.name}</b><small>{ROLE_LABEL[p.role] ?? p.role} · {p.login_id}{p.slip_no ? ` · ${p.slip_no}` : ''}</small></div></div></td>
-                <td data-label="Pay" className="right num">{fmtMoney(p.gross)}</td><td data-label="Deductions" className="right num">{fmtMoney(p.total_deductions)}</td>
+                <td data-label="Pay" className="right num">{money2(p.gross)}</td><td data-label="Deductions" className="right num">{money2(p.total_deductions)}</td>
                 {run.lop_enabled || d.data!.payslips.some((x) => x.lop_days > 0) ? <td data-label="Unpaid days" className="right num">{p.lop_days || '—'}{p.lop_manual ? <small className="muted"> · set by you</small> : null}</td> : null}
-                <td data-label="Net pay" className="right num"><b>{fmtMoney(p.net)}</b></td>
+                <td data-label="Net pay" className="right num"><b>{money2(p.net)}</b></td>
                 <td data-label="Status">{draft ? <Badge status="trial">Draft</Badge> : p.status === 'paid' ? <Badge status="active">Paid {fmtDate(p.paid_on)}</Badge> : <Badge status="grace">Not paid</Badge>}</td>
                 <td className="right" onClick={(e) => e.stopPropagation()}>{canWrite && !draft && p.status !== 'paid' ? <Button kind="small" onClick={() => setPay(p)} aria-label={`Mark ${p.name} as paid`}>Mark paid</Button> : <IconButton icon={draft && canWrite ? 'edit' : 'print'} label={draft && canWrite ? `Edit ${p.name}'s payslip` : `Open ${p.name}'s payslip`} onClick={() => setSlip(p.id)} />}</td>
               </tr>
@@ -225,8 +225,9 @@ function SlipDrawer({ slip, run, canWrite, onClose, onChanged, onPay }: { slip: 
   const lopN = num(lop);
   const bad = linesError(earn, 'extra payment') ?? linesError(ded, 'deduction') ?? (lopN === null ? 'Enter the unpaid days as a number' : lopN > basis ? `Unpaid days can't be more than ${basis}` : (lopN * 2) % 1 !== 0 ? 'Use whole or half days' : null);
   const fixed = slip.basic + slip.allowances.reduce((a, x) => a + x.amount, 0);
-  const cut = basis && lopN ? Math.round((fixed * lopN) / basis) : 0;
-  const net = fixed + sum(earn) - slip.deductions.reduce((a, x) => a + x.amount, 0) - sum(ded) - cut;
+  const before = fixed + sum(earn) - slip.deductions.reduce((a, x) => a + x.amount, 0) - sum(ded);
+  const cut = basis && lopN ? Math.min(Math.round((fixed * lopN) / basis), Math.max(before, 0)) : 0;      // the cut never takes pay below zero
+  const net = before - cut;
   const save = async () => {
     if (bad || net < 0) return;
     if (await act('save', () => api(`/payroll/payslips/${slip.id}`, { method: 'PUT', body: { lop_days: lopN, extra_earnings: clean(earn), extra_deductions: clean(ded), note: note.trim() } }), 'Payslip saved')) { onChanged(); onClose(); }
@@ -295,7 +296,7 @@ function Salaries({ canWrite }: { canWrite: boolean }) {
     <>
       <section className="card"><div className="kpi">
         <div><span>Staff</span><b>{x.people}</b></div><div><span>With a salary</span><b>{x.with_salary}</b></div>
-        <div><span>Monthly pay</span><b>{fmtMoney(x.monthly_gross)}</b></div><div><span>Monthly net pay</span><b>{fmtMoney(x.monthly_net)}</b></div>
+        <div><span>Monthly pay</span><b>{money2(x.monthly_gross)}</b></div><div><span>Monthly net pay</span><b>{money2(x.monthly_net)}</b></div>
       </div></section>
       <div className="toolbar" style={{ marginTop: 14 }}><Text label="Find a person" value={q} onChange={setQ} type="search" placeholder="Name or employee code" /></div>
       <section className="card flush">
@@ -304,8 +305,8 @@ function Salaries({ canWrite }: { canWrite: boolean }) {
             <tbody>{rows.map((r) => (
               <tr key={r.user_id} className="click" onClick={() => setEdit(r)}>
                 <td className="primary-cell"><div className="person"><Avatar name={r.name} /><div><b>{r.name}</b><small>{ROLE_LABEL[r.role] ?? r.role} · {r.login_id}</small></div></div></td>
-                {r.salary && r.salary.gross > 0 ? <><td data-label="Basic pay" className="right num">{fmtMoney(r.salary.basic)}</td><td data-label="Allowances" className="right num">{fmtMoney(r.salary.gross - r.salary.basic)}</td>
-                  <td data-label="Deductions" className="right num">{fmtMoney(r.salary.total_deductions)}</td><td data-label="Net pay a month" className="right num"><b>{fmtMoney(r.salary.net)}</b></td></>
+                {r.salary && r.salary.gross > 0 ? <><td data-label="Basic pay" className="right num">{money2(r.salary.basic)}</td><td data-label="Allowances" className="right num">{money2(r.salary.gross - r.salary.basic)}</td>
+                  <td data-label="Deductions" className="right num">{money2(r.salary.total_deductions)}</td><td data-label="Net pay a month" className="right num"><b>{money2(r.salary.net)}</b></td></>
                   : <td colSpan={4} className="muted">No salary set. This person is left out of payroll.</td>}
                 <td className="right" onClick={(e) => e.stopPropagation()}><IconButton icon="edit" label={`${r.salary ? 'Edit' : 'Set'} salary for ${r.name}`} onClick={() => setEdit(r)} /></td>
               </tr>

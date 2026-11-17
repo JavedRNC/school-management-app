@@ -202,8 +202,8 @@ def _sweep(t):
     status, pay = call("GET", "/payroll/runs", t)                 # one payroll a month: a month left by an earlier run would block the next
     for run in (pay.get("runs", []) if status == 200 else []):
         if run["status"] == "final":
-            status, detail = call("GET", f"/payroll/runs/{run['id']}", t)
-            for slip in (detail.get("payslips", []) if status == 200 else []):
+            got, detail = call("GET", f"/payroll/runs/{run['id']}", t)
+            for slip in (detail.get("payslips", []) if got == 200 else []):
                 if slip["status"] == "paid":
                     call("POST", f"/payroll/payslips/{slip['id']}/undo-payment", t, {"reason": "browser test clean-up"})
             call("POST", f"/payroll/runs/{run['id']}/reopen", t, {})
