@@ -210,6 +210,10 @@ def _sweep(t):
         call("DELETE", f"/payroll/runs/{run['id']}", t)
     if status == 200:
         call("PUT", "/payroll/config", t, {"lop_enabled": False, "lop_basis": "calendar", "slip_prefix": "SAL"})
+        got, staff = call("GET", "/payroll/staff", t)               # a removed teacher with a salary would still be paid this month
+        for r in (staff.get("rows", []) if got == 200 else []):
+            if r.get("salary"):
+                call("PUT", f"/payroll/staff/{r['user_id']}", t, {"basic": 0})
     status, tr = call("GET", "/transport/overview", t)
     if status == 200:
         riders = [r["student_id"] for r in rows("/transport/students")]
