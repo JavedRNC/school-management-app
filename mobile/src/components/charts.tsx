@@ -1,10 +1,10 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { Animated, Easing, LayoutChangeEvent, PanResponder, Pressable, View } from 'react-native';
 import { Text } from 'react-native-paper';
 import Svg, { Circle, Defs, G, Line, LinearGradient, Path, Rect, Stop, Text as SvgText } from 'react-native-svg';
 
 import { haptic } from '@/lib/feedback';
-import { pctTone, radius, space, toneColors, useAppTheme } from '@/lib/theme';
+import { FONT_DISPLAY, pctTone, radius, space, toneColors, useAppTheme } from '@/lib/theme';
 
 const AnimatedCircle = Animated.createAnimatedComponent(Circle);
 const AnimatedRect = Animated.createAnimatedComponent(Rect);
@@ -39,7 +39,7 @@ export function Ring({ value, size = 104, label, low = 75, stroke = 11 }: { valu
         <AnimatedCircle cx={size / 2} cy={size / 2} r={r} stroke={col} strokeWidth={stroke} fill="none" strokeDasharray={`${c} ${c}`}
           strokeDashoffset={offset} strokeLinecap="round" rotation={-90} origin={`${size / 2}, ${size / 2}`} />
       </Svg>
-      <Text style={{ fontSize: size * 0.22, fontWeight: '700', color: col }}>{Math.round(value)}%</Text>
+      <Text style={{ fontFamily: FONT_DISPLAY, fontSize: size * 0.22, lineHeight: size * 0.3, fontWeight: '700', color: col }}>{Math.round(value)}%</Text>
       {label ? <Text variant="labelSmall" style={{ color: t.colors.onSurfaceVariant, marginTop: -2 }}>{label}</Text> : null}
     </View>
   );
@@ -229,6 +229,30 @@ export function DayDots({ days }: { days: { date: string; present: boolean }[] }
           {new Date(days[sel].date + 'T00:00:00').toLocaleDateString('en-IN', { weekday: 'long', day: 'numeric', month: 'long' })} — {days[sel].present ? 'Present' : 'Absent'}
         </Text>
       ) : null}
+    </View>
+  );
+}
+
+// ------------------------------------------------------------------ Live ring
+/** A ring that glides from its last value to the new one (no regrow from zero), for counts that change as you tap. */
+export function LiveRing({ value, size = 76, stroke = 9, color, track, children }: {
+  value: number; size?: number; stroke?: number; color: string; track: string; children?: React.ReactNode;
+}) {
+  const r = (size - stroke) / 2;
+  const c = 2 * Math.PI * r;
+  const v = useRef(new Animated.Value(value)).current;
+  useEffect(() => {
+    Animated.timing(v, { toValue: value, duration: 320, easing: Easing.out(Easing.cubic), useNativeDriver: false }).start();
+  }, [v, value]);
+  const offset = v.interpolate({ inputRange: [0, 1], outputRange: [c, 0], extrapolate: 'clamp' });
+  return (
+    <View style={{ width: size, height: size, alignItems: 'center', justifyContent: 'center' }}>
+      <Svg width={size} height={size} style={{ position: 'absolute' }}>
+        <Circle cx={size / 2} cy={size / 2} r={r} stroke={track} strokeWidth={stroke} fill="none" />
+        <AnimatedCircle cx={size / 2} cy={size / 2} r={r} stroke={color} strokeWidth={stroke} fill="none" strokeDasharray={`${c} ${c}`}
+          strokeDashoffset={offset} strokeLinecap="round" rotation={-90} origin={`${size / 2}, ${size / 2}`} />
+      </Svg>
+      {children}
     </View>
   );
 }

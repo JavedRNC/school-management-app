@@ -16,7 +16,7 @@ export function LeaveCard({ lr, index = 0, showPerson, onApprove, onReject, onCa
   const accent = { pending: t.custom.warning, approved: t.custom.success, rejected: t.custom.danger, cancelled: t.colors.outline }[lr.status];
   return (
     <FadeIn index={index}>
-      <Card mode="elevated" elevation={1} style={{ marginBottom: space.md, borderRadius: radius.xl, backgroundColor: t.colors.elevation.level1, borderWidth: 1, borderColor: t.custom.cardBorder }}>
+      <Card mode="elevated" elevation={0} style={{ marginBottom: space.md, borderRadius: radius.xl, backgroundColor: t.colors.elevation.level1, borderWidth: 1, borderColor: t.custom.cardBorder }}>
         <View style={{ flexDirection: 'row' }}>
           <View style={{ position: 'absolute', left: 0, top: 18, bottom: 18, width: 4, backgroundColor: accent, borderTopRightRadius: 4, borderBottomRightRadius: 4 }} />
           <View style={{ flex: 1, padding: space.lg }}>

@@ -9,7 +9,7 @@ import { OpsGrid } from '@/components/OpsGrid';
 import { PendingPollsCard } from '@/components/PollsCard';
 import { StatusBanner } from '@/components/StatusBanner';
 import { subjectIcon, TimetableView } from '@/components/TimetableView';
-import { ErrorState, FadeIn, Hero, Icon, LoadingCards, Panel, PressScale, Screen, SectionTitle, UserAvatar } from '@/components/ui';
+import { ErrorState, FadeIn, Hero, Icon, LoadingCards, PressScale, Screen, SectionTitle, UserAvatar } from '@/components/ui';
 import { api } from '@/lib/api';
 import { useAuth } from '@/lib/auth';
 import { greeting, radius, space, useAppTheme } from '@/lib/theme';
@@ -36,23 +36,24 @@ export default function TeacherHome() {
           right={user ? <UserAvatar name={user.name} light size={48} /> : null}>
           {myClass ? (
             <FadeIn>
-              <Panel style={{ marginBottom: 0 }}>
+              <View style={{ backgroundColor: t.dark ? t.colors.primaryContainer : t.colors.primary, borderRadius: radius.xxl, padding: space.lg + 4, gap: space.md }}>
                 <View style={{ flexDirection: 'row', alignItems: 'center', gap: space.md }}>
-                  <View style={{ width: 56, height: 56, borderRadius: 18, backgroundColor: t.colors.secondaryContainer, alignItems: 'center', justifyContent: 'center' }}>
-                    <Text variant="titleLarge" style={{ fontWeight: '700', color: t.colors.onSecondaryContainer }}>{myClass.name}</Text>
-                  </View>
                   <View style={{ flex: 1 }}>
-                    <Text variant="labelLarge" style={{ color: t.colors.onSurfaceVariant }}>Your class</Text>
-                    <Text variant="titleMedium" style={{ fontWeight: '700', color: t.colors.onSurface }}>{myClass.student_count} students</Text>
+                    <Text variant="bodyLarge" style={{ color: 'rgba(255,255,255,0.78)' }}>Your class</Text>
+                    <Text variant="displaySmall" style={{ color: '#FFFFFF' }}>{myClass.name}</Text>
                   </View>
-                  <Button mode="contained" icon="clipboard-check-outline" onPress={() => router.push('/teacher/attendance')}>Attendance</Button>
+                  <Text variant="bodyLarge" style={{ color: 'rgba(255,255,255,0.86)' }}>{myClass.student_count} students</Text>
                 </View>
-              </Panel>
+                <Button mode="contained" icon="clipboard-check-outline" onPress={() => router.push('/teacher/attendance')}
+                  buttonColor={t.custom.amber} textColor={t.custom.onAmber} style={{ borderRadius: 14 }} contentStyle={{ height: 50 }}
+                  labelStyle={{ fontSize: 16, lineHeight: 22, fontWeight: '700' }}>
+                  Mark attendance
+                </Button>
+              </View>
             </FadeIn>
-          ) : <View style={{ height: 40 }} />}
+          ) : null}
         </Hero>
       }>
-      <View style={{ height: space.lg }} />
       <StatusBanner closed />
       <BannerCarousel style={{ marginBottom: space.md }} />
       <CheckInCard />

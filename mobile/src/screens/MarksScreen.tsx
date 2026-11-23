@@ -1,16 +1,16 @@
 import { useLocalSearchParams } from 'expo-router';
 import { ReactNode, useEffect, useMemo, useRef, useState } from 'react';
 import { View } from 'react-native';
-import { Text } from 'react-native-paper';
+import { Button, Text } from 'react-native-paper';
 import { TextInput } from '@/components/Field';
 
 import { subjectIcon } from '@/components/TimetableView';
-import { Fab, EmptyState, ErrorState, Hero, LoadingCards, Panel, Screen, ToneChip, UserAvatar } from '@/components/ui';
+import { EmptyState, ErrorState, Hero, LoadingCards, Panel, Screen, ToneChip, UserAvatar } from '@/components/ui';
 import { SelectField } from '@/components/SelectField';
 import { api } from '@/lib/api';
 import { useAuth, usePerm } from '@/lib/auth';
 import { haptic, useToast } from '@/lib/feedback';
-import { cardEdge, shadow, gradeOf, pctTone, radius, space, toneColors, useAppTheme } from '@/lib/theme';
+import { cardEdge, gradeOf, pctTone, radius, space, toneColors, useAppTheme } from '@/lib/theme';
 import type { Assignment, Exam, MarkRow } from '@/lib/types';
 import { useLoad } from '@/lib/useLoad';
 
@@ -102,7 +102,7 @@ function MarkSheet({ a, exam, pickers }: { a: Assignment; exam: Exam; pickers: R
   const header = (
     <>
       <Hero title="Marks" subtitle={`${exam.name} · ${a.subject_name} · Class ${a.class_name}`} compact>
-        <View style={{ backgroundColor: t.colors.elevation.level2, borderRadius: radius.xl, padding: space.md, flexDirection: 'row', ...shadow(t, 2), ...cardEdge(t) }}>
+        <View style={{ backgroundColor: t.colors.elevation.level2, borderRadius: radius.xl, paddingVertical: space.md, paddingHorizontal: space.sm, flexDirection: 'row', ...cardEdge(t) }}>
           {[
             { label: 'Entered', value: stats ? `${stats.n}/${data?.length ?? 0}` : `0/${data?.length ?? 0}` },
             { label: 'Average', value: stats ? stats.avg.toFixed(1) : '—' },
@@ -110,8 +110,8 @@ function MarkSheet({ a, exam, pickers }: { a: Assignment; exam: Exam; pickers: R
             { label: 'Passing', value: stats ? `${stats.pass}` : '—' },
           ].map((s, i) => (
             <View key={s.label} style={{ flex: 1, alignItems: 'center', borderLeftWidth: i ? 1 : 0, borderLeftColor: t.colors.outlineVariant }}>
-              <Text variant="titleLarge" style={{ fontWeight: '700', color: t.colors.onSurface }}>{s.value}</Text>
-              <Text variant="labelSmall" style={{ color: t.colors.onSurfaceVariant }}>{s.label}</Text>
+              <Text variant="headlineSmall" style={{ color: i === 0 ? t.colors.primary : t.colors.onSurface }}>{s.value}</Text>
+              <Text variant="bodySmall" style={{ color: t.colors.onSurfaceVariant }}>{s.label}</Text>
             </View>
           ))}
         </View>
@@ -122,7 +122,7 @@ function MarkSheet({ a, exam, pickers }: { a: Assignment; exam: Exam; pickers: R
 
   return (
     <>
-      <Screen header={header} footerSpace={140}>
+      <Screen header={header} footerSpace={110}>
         {error ? <ErrorState message={error} onRetry={reload} /> : null}
         {!data ? <LoadingCards count={5} /> : !data.length ? <EmptyState title="No students in this class" /> : (
           <Panel title={`Out of ${exam.max_marks}`} subtitle={canEdit ? 'Grade updates as you type' : 'View only'} icon="pencil-box-multiple-outline">
@@ -133,12 +133,12 @@ function MarkSheet({ a, exam, pickers }: { a: Assignment; exam: Exam; pickers: R
               const pct = n != null && !bad ? (100 * n) / exam.max_marks : null;
               const tone = pct == null ? 'neutral' : pctTone(pct, 50);
               return (
-                <View key={r.student_id} style={{ flexDirection: 'row', alignItems: 'center', gap: space.md, paddingVertical: 6,
+                <View key={r.student_id} style={{ flexDirection: 'row', alignItems: 'center', gap: space.md, paddingVertical: 8, minHeight: 60,
                   borderBottomWidth: i < data.length - 1 ? 0.5 : 0, borderBottomColor: t.colors.outlineVariant }}>
-                  <UserAvatar name={r.name} size={36} />
+                  <UserAvatar name={r.name} size={40} />
                   <View style={{ flex: 1 }}>
                     <Text variant="bodyLarge" style={{ color: t.colors.onSurface, fontWeight: '500' }} numberOfLines={1}>{r.name}</Text>
-                    <Text variant="labelSmall" style={{ color: t.colors.onSurfaceVariant }}>Roll {r.roll_no ?? '-'}</Text>
+                    <Text variant="bodySmall" style={{ color: t.colors.onSurfaceVariant }}>Roll {r.roll_no ?? '-'}</Text>
                   </View>
                   {pct != null ? <ToneChip text={gradeOf(pct)} tone={tone} /> : null}
                   <TextInput mode="outlined" dense value={raw} editable={canEdit} placeholder="—" keyboardType="decimal-pad" returnKeyType={i < data.length - 1 ? 'next' : 'done'}
@@ -154,8 +154,13 @@ function MarkSheet({ a, exam, pickers }: { a: Assignment; exam: Exam; pickers: R
         )}
       </Screen>
       {data?.length && dirty && canEdit ? (
-        <Fab icon="content-save-outline" label={busy ? 'Saving…' : 'Save marks'} extended onPress={save} disabled={busy}
-          style={{ position: 'absolute', right: space.lg, bottom: space.lg }} />
+        <View style={{ position: 'absolute', left: 0, right: 0, bottom: 0, paddingHorizontal: space.lg, paddingVertical: space.md,
+          backgroundColor: t.colors.background, borderTopWidth: 1, borderTopColor: t.custom.cardBorder }}>
+          <Button mode="contained" icon="content-save-outline" onPress={save} loading={busy} disabled={busy}
+            style={{ borderRadius: 16 }} contentStyle={{ height: 54 }} labelStyle={{ fontSize: 17, lineHeight: 24, fontWeight: '700' }}>
+            {busy ? 'Saving…' : 'Save marks'}
+          </Button>
+        </View>
       ) : null}
     </>
   );

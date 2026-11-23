@@ -1,14 +1,16 @@
 import { useLocalSearchParams } from 'expo-router';
 import { ReactNode, useEffect, useRef, useState } from 'react';
-import { Animated, Pressable, View } from 'react-native';
-import { Button, ProgressBar, Switch, Text } from 'react-native-paper';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import { Animated, Pressable, useWindowDimensions, View } from 'react-native';
+import { Button, Switch, Text } from 'react-native-paper';
 
-import { Fab, EmptyState, ErrorState, FilterChips, Hero, Icon, LoadingCards, Panel, Screen, ToneChip, UserAvatar } from '@/components/ui';
+import { LiveRing } from '@/components/charts';
+import { EmptyState, ErrorState, Hero, Icon, IconName, LoadingCards, Panel, Screen, ToneChip } from '@/components/ui';
 import { SelectField } from '@/components/SelectField';
 import { api } from '@/lib/api';
 import { useAuth } from '@/lib/auth';
-import { haptic, useToast } from '@/lib/feedback';
-import { cardEdge, shadow, radius, space, useAppTheme } from '@/lib/theme';
+import { haptic, prefersReducedMotion, useToast } from '@/lib/feedback';
+import { cardEdge, initials, radius, space, useAppTheme } from '@/lib/theme';
 import type { AttendanceRow, AttendanceSheet as Sheet, Holiday, SchoolClass } from '@/lib/types';
 import { useLoad } from '@/lib/useLoad';
 
@@ -45,9 +47,7 @@ export default function AttendanceScreen() {
 
   const dayOpts = [0, 1, 2, 3, 4, 5, 6].map((o) => {
     const iso = isoDay(o);
-    const base = o === 0 ? 'Today' : o === 1 ? 'Yesterday' : new Date(iso + 'T00:00:00').toLocaleDateString('en-IN', { weekday: 'short', day: 'numeric' });
-    const off = offReason(iso);
-    return { label: off ? `${base} · Off` : base, value: o, icon: off ? ('beach' as const) : undefined };
+    return { label: o === 0 ? 'Today' : o === 1 ? 'Yesterday' : new Date(iso + 'T00:00:00').toLocaleDateString('en-IN', { weekday: 'long' }), value: o };
   });
 
   return (
@@ -59,15 +59,12 @@ export default function AttendanceScreen() {
           <AttendanceSheet key={`${classId}-${day}`} classId={classId} day={day}
             classTeacherId={classes.data.find((c) => c.id === classId)?.class_teacher_id ?? null}
             header={(summary) => (
-              <>
-                <Hero title="Attendance" subtitle={new Date(day + 'T00:00:00').toLocaleDateString('en-IN', { weekday: 'long', day: 'numeric', month: 'long' })} compact>
-                  {summary}
-                </Hero>
-                <View style={{ paddingHorizontal: space.lg, marginTop: space.lg }}>
-                  <SelectField label="Class" options={classes.data!.map((c) => ({ label: c.name, value: c.id, icon: 'google-classroom' as const }))} value={classId} onChange={setClassId} />
-                  <FilterChips options={dayOpts} value={offset} onChange={setOffset} />
-                </View>
-              </>
+              <Hero title="Attendance" compact>
+                <DayStepper offset={offset} setOffset={setOffset} label={dayOpts[offset].label} date={day} off={offReason(day)} />
+                <SelectField label="Class" options={classes.data!.map((c) => ({ label: c.name, value: c.id, icon: 'google-classroom' as const, sub: c.student_count != null ? `${c.student_count} students` : undefined }))}
+                  value={classId} onChange={setClassId} />
+                {summary}
+              </Hero>
             )} />
         ) : null}
     </View>
@@ -100,6 +97,10 @@ function AttendanceSheet({ classId, day, header, classTeacherId }: {
   const offDay = !!sheet && !sheet.is_school_day;
   const canEdit = !!sheet && sheet.can_edit && !readOnlySchool && (!offDay || (manager && override));
   const isClassTeacher = !!user && classTeacherId === user.id;
+  const [view, setView] = useViewPref();
+  const { width: screenW } = useWindowDimensions();
+  const tileW = Math.floor((Math.min(screenW, 640) - space.lg * 2 - GRID_GAP * 2) / 3);
+  const toggle = (id: number) => setMarks((m) => ({ ...m, [id]: !(m[id] ?? true) }));
 
   function setAll(v: boolean) {
     haptic.light();
@@ -123,24 +124,31 @@ function AttendanceSheet({ classId, day, header, classTeacherId }: {
     }
   }
 
+  const absent = total - present;
   const summary = sheet ? (
-    <View style={{ backgroundColor: t.colors.elevation.level2, borderRadius: radius.xl, padding: space.lg, ...shadow(t, 2), ...cardEdge(t) }}>
-      <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: space.sm }}>
+    <View style={[{ backgroundColor: t.colors.elevation.level1, borderRadius: radius.xl, padding: space.lg, flexDirection: 'row', alignItems: 'center', gap: space.lg }, cardEdge(t)]}
+      accessible accessibilityLabel={`${present} present, ${absent} absent out of ${total}. ${already ? (changed ? 'Edited, not saved yet' : 'Saved') : 'Not saved yet'}`}>
+      <LiveRing value={total ? present / total : 0} color={t.colors.primary} track={t.custom.dangerContainer}>
+        <Text variant="headlineSmall" style={{ color: t.colors.onSurface, lineHeight: 26 }}>{present}</Text>
+        <Text variant="labelSmall" style={{ color: t.colors.onSurfaceVariant, marginTop: -2 }}>of {total}</Text>
+      </LiveRing>
+      <View style={{ flex: 1, gap: 2 }}>
         <View style={{ flexDirection: 'row', alignItems: 'baseline', gap: 6 }}>
-          <Text variant="headlineMedium" style={{ fontWeight: '700', color: t.custom.success }}>{present}</Text>
-          <Text variant="bodyMedium" style={{ color: t.colors.onSurfaceVariant }}>present</Text>
-          <Text variant="headlineMedium" style={{ fontWeight: '700', color: t.custom.danger, marginLeft: space.md }}>{total - present}</Text>
-          <Text variant="bodyMedium" style={{ color: t.colors.onSurfaceVariant }}>absent</Text>
+          <Text variant="headlineMedium" style={{ color: t.colors.primary }}>{present}</Text>
+          <Text variant="bodyLarge" style={{ color: t.colors.onSurfaceVariant }}>present</Text>
         </View>
-        {already ? <ToneChip text={changed ? 'Edited' : 'Saved'} tone={changed ? 'warning' : 'success'} icon={changed ? 'pencil' : 'check'} /> : <ToneChip text="Not saved" tone="warning" />}
+        <View style={{ flexDirection: 'row', alignItems: 'baseline', gap: 6 }}>
+          <Text variant="headlineSmall" style={{ color: absent ? t.custom.danger : t.colors.outline }}>{absent}</Text>
+          <Text variant="bodyLarge" style={{ color: t.colors.onSurfaceVariant }}>absent</Text>
+        </View>
       </View>
-      <ProgressBar progress={total ? present / total : 0} color={t.custom.success} style={{ height: 8, borderRadius: 4, backgroundColor: t.custom.dangerContainer }} />
+      {already ? <ToneChip text={changed ? 'Edited' : 'Saved'} tone={changed ? 'warning' : 'success'} icon={changed ? 'pencil' : 'check'} /> : <ToneChip text="Not saved" tone="warning" />}
     </View>
   ) : <View style={{ height: 40 }} />;
 
   return (
     <>
-      <Screen header={header(summary)} onRefresh={refresh} refreshing={refreshing} footerSpace={140}>
+      <Screen header={header(summary)} onRefresh={refresh} refreshing={refreshing} footerSpace={canEdit && rows.length ? 110 : 40}>
         {error ? <ErrorState message={error} onRetry={reload} /> : null}
         {sheet && offDay ? (
           <Panel tone="primary" icon="beach" title={`No school: ${sheet.reason || 'holiday'}`}
@@ -163,60 +171,178 @@ function AttendanceSheet({ classId, day, header, classTeacherId }: {
           </View>
         ) : null}
         {sheet?.marked_by ? (
-          <Text variant="labelMedium" style={{ color: t.colors.onSurfaceVariant, marginBottom: space.sm }}>Marked by {sheet.marked_by}</Text>
+          <Text variant="bodyMedium" style={{ color: t.colors.onSurfaceVariant, marginBottom: space.sm }}>Marked by {sheet.marked_by}</Text>
         ) : null}
         {!sheet ? <LoadingCards count={5} /> : !rows.length ? <EmptyState icon="account-off-outline" title="No students in this class" /> : (
           <>
+            <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: space.md, gap: space.sm }}>
+              <ViewToggle value={view} onChange={setView} />
+              <View style={{ flex: 1 }} />
+              {canEdit ? (
+                <>
+                  <Button compact icon="check-all" onPress={() => setAll(true)} labelStyle={{ fontWeight: '700' }}>All present</Button>
+                  <Button compact textColor={t.custom.danger} onPress={() => setAll(false)}>All absent</Button>
+                </>
+              ) : null}
+            </View>
             {canEdit ? (
-              <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: space.sm }}>
-                <Text variant="labelLarge" style={{ color: t.colors.onSurfaceVariant, flex: 1 }}>Tap to toggle</Text>
-                <Button compact icon="check-all" onPress={() => setAll(true)}>All present</Button>
-                <Button compact icon="close" textColor={t.custom.danger} onPress={() => setAll(false)}>All absent</Button>
-              </View>
+              <Text variant="bodyMedium" style={{ color: t.colors.onSurfaceVariant, marginBottom: space.sm }}>
+                {view === 'grid' ? 'Everyone starts present. Tap a student to mark absent.' : 'Tap a student to switch between present and absent.'}
+              </Text>
             ) : null}
-            {rows.map((r) => (
-              <StudentToggle key={r.student_id} row={r} present={marks[r.student_id] ?? true} disabled={!canEdit}
-                onToggle={() => setMarks((m) => ({ ...m, [r.student_id]: !(m[r.student_id] ?? true) }))} />
+            {view === 'grid' ? (
+              <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: GRID_GAP }}>
+                {rows.map((r) => (
+                  <StudentTile key={r.student_id} row={r} width={tileW} present={marks[r.student_id] ?? true} disabled={!canEdit} onToggle={() => toggle(r.student_id)} />
+                ))}
+              </View>
+            ) : rows.map((r) => (
+              <StudentRow key={r.student_id} row={r} present={marks[r.student_id] ?? true} disabled={!canEdit} onToggle={() => toggle(r.student_id)} />
             ))}
           </>
         )}
       </Screen>
       {rows.length && canEdit ? (
-        <Fab icon={already ? 'content-save-edit-outline' : 'content-save-check-outline'} label={busy ? 'Saving…' : already ? 'Update attendance' : 'Save attendance'}
-          extended onPress={save} disabled={busy} style={{ position: 'absolute', right: space.lg, bottom: space.lg }} />
+        <View style={{ position: 'absolute', left: 0, right: 0, bottom: 0, paddingHorizontal: space.lg, paddingTop: space.md, paddingBottom: space.md,
+          backgroundColor: t.colors.background, borderTopWidth: 1, borderTopColor: t.custom.cardBorder }}>
+          <Button mode="contained" onPress={save} loading={busy} disabled={busy} icon={already ? 'content-save-edit-outline' : 'content-save-check-outline'}
+            style={{ borderRadius: 16 }} contentStyle={{ height: 54 }} labelStyle={{ fontSize: 17, lineHeight: 24, fontWeight: '700' }}>
+            {busy ? 'Saving…' : already ? 'Update attendance' : 'Save attendance'}
+          </Button>
+        </View>
       ) : null}
     </>
   );
 }
 
-function StudentToggle({ row, present, onToggle, disabled }: { row: AttendanceRow; present: boolean; onToggle: () => void; disabled?: boolean }) {
+const GRID_GAP = 10;
+const VIEW_KEY = 'attendance_view';
+type View_ = 'list' | 'grid';
+
+/** Remembers List / Grid on this phone. */
+function useViewPref(): [View_, (v: View_) => void] {
+  const [v, setV] = useState<View_>('list');
+  useEffect(() => { AsyncStorage.getItem(VIEW_KEY).then((x) => { if (x === 'grid' || x === 'list') setV(x); }).catch(() => {}); }, []);
+  return [v, (x) => { setV(x); AsyncStorage.setItem(VIEW_KEY, x).catch(() => {}); }];
+}
+
+function ViewToggle({ value, onChange }: { value: View_; onChange: (v: View_) => void }) {
   const t = useAppTheme();
-  const anim = useRef(new Animated.Value(present ? 1 : 0)).current;
-  const scale = useRef(new Animated.Value(1)).current;
-  useEffect(() => {
-    Animated.spring(anim, { toValue: present ? 1 : 0, useNativeDriver: false, speed: 20, bounciness: 8 }).start();
-  }, [present, anim]);
-  const bg = anim.interpolate({ inputRange: [0, 1], outputRange: [t.custom.dangerContainer, t.custom.successContainer] });
-  const onCol = t.dark ? '#2FA866' : t.custom.success;
-  const offCol = t.dark ? '#E5484D' : t.custom.danger;
-  const knob = anim.interpolate({ inputRange: [0, 1], outputRange: [2, 30] });
+  const opts: { v: View_; icon: IconName; label: string }[] = [{ v: 'list', icon: 'format-list-bulleted', label: 'List' }, { v: 'grid', icon: 'view-grid-outline', label: 'Grid' }];
   return (
-    <Pressable disabled={disabled} onPress={() => { haptic.light(); onToggle(); }}
-      onPressIn={() => Animated.spring(scale, { toValue: 0.97, useNativeDriver: false, speed: 40 }).start()}
-      onPressOut={() => Animated.spring(scale, { toValue: 1, useNativeDriver: false, speed: 40 }).start()}>
-      <Animated.View style={{ flexDirection: 'row', alignItems: 'center', gap: space.md, padding: space.md, marginBottom: space.sm, borderRadius: radius.lg,
-        backgroundColor: bg, transform: [{ scale }], opacity: disabled ? 0.75 : 1 }}>
-        <UserAvatar name={row.name} size={40} />
+    <View accessibilityRole="radiogroup" accessibilityLabel="Show students as" style={{ flexDirection: 'row', padding: 3, borderRadius: radius.pill,
+      backgroundColor: t.colors.surfaceVariant }}>
+      {opts.map((o) => {
+        const on = value === o.v;
+        return (
+          <Pressable key={o.v} accessibilityRole="radio" accessibilityState={{ checked: on }} accessibilityLabel={o.label}
+            onPress={() => { if (!on) { haptic.tap(); onChange(o.v); } }}
+            style={{ height: 38, paddingHorizontal: 12, borderRadius: radius.pill, flexDirection: 'row', alignItems: 'center', gap: 4,
+              backgroundColor: on ? t.colors.elevation.level1 : 'transparent' }}>
+            <Icon name={o.icon} size={18} color={on ? t.colors.primary : t.colors.onSurfaceVariant} />
+            <Text variant="labelLarge" style={{ color: on ? t.colors.primary : t.colors.onSurfaceVariant }}>{o.label}</Text>
+          </Pressable>
+        );
+      })}
+    </View>
+  );
+}
+
+/** Previous / next day, up to a week back. */
+function DayStepper({ offset, setOffset, label, date, off }: { offset: number; setOffset: (n: number) => void; label: string; date: string; off: string | null }) {
+  const t = useAppTheme();
+  const btn = (dir: 1 | -1, icon: IconName, a11y: string) => {
+    const disabled = dir === 1 ? offset >= 6 : offset <= 0;
+    return (
+      <Pressable accessibilityRole="button" accessibilityLabel={a11y} disabled={disabled} hitSlop={4}
+        onPress={() => { haptic.tap(); setOffset(offset + dir); }}
+        style={{ width: 44, height: 44, borderRadius: 22, alignItems: 'center', justifyContent: 'center', opacity: disabled ? 0.35 : 1,
+          borderWidth: 1.5, borderColor: t.colors.outlineVariant, backgroundColor: disabled ? 'transparent' : t.colors.elevation.level1 }}>
+        <Icon name={icon} size={22} color={t.colors.onSurface} />
+      </Pressable>
+    );
+  };
+  const nice = new Date(date + 'T00:00:00').toLocaleDateString('en-IN', { weekday: 'long', day: 'numeric', month: 'long' });
+  return (
+    <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: space.md }}>
+      {btn(1, 'chevron-left', 'Previous day')}
+      <View style={{ flex: 1, alignItems: 'center' }} accessible accessibilityLiveRegion="polite" accessibilityLabel={`${label}, ${nice}${off ? `, no school: ${off}` : ''}`}>
+        <Text variant="headlineSmall" style={{ color: t.colors.onBackground }}>{label}</Text>
+        <Text variant="bodyMedium" style={{ color: off ? t.custom.warning : t.colors.onSurfaceVariant }} numberOfLines={1}>
+          {off ? `${nice} · ${off}` : nice}
+        </Text>
+      </View>
+      {btn(-1, 'chevron-right', 'Next day')}
+    </View>
+  );
+}
+
+function usePress() {
+  const scale = useRef(new Animated.Value(1)).current;
+  const to = (x: number) => Animated.spring(scale, { toValue: x, useNativeDriver: true, speed: 40, bounciness: x === 1 ? 6 : 0 }).start();
+  return { scale, onPressIn: () => to(0.97), onPressOut: () => to(1) };
+}
+
+function StudentRow({ row, present, onToggle, disabled }: { row: AttendanceRow; present: boolean; onToggle: () => void; disabled?: boolean }) {
+  const t = useAppTheme();
+  const { scale, onPressIn, onPressOut } = usePress();
+  return (
+    <Pressable disabled={disabled} onPress={() => { haptic.light(); onToggle(); }} onPressIn={onPressIn} onPressOut={onPressOut}
+      accessibilityRole="switch" accessibilityState={{ checked: present, disabled }}
+      accessibilityLabel={`${row.name}, roll ${row.roll_no ?? 'none'}, ${present ? 'present' : 'absent'}`}
+      accessibilityHint={disabled ? undefined : present ? 'Double tap to mark absent' : 'Double tap to mark present'}>
+      <Animated.View style={{ flexDirection: 'row', alignItems: 'center', gap: space.md, minHeight: 64, paddingVertical: space.sm, paddingLeft: space.sm, paddingRight: space.md,
+        marginBottom: space.sm, borderRadius: radius.lg, borderWidth: 1.5, transform: [{ scale }], opacity: disabled ? 0.8 : 1,
+        backgroundColor: present ? t.colors.elevation.level1 : t.custom.absentWash, borderColor: present ? t.custom.cardBorder : t.custom.absentEdge }}>
+        <Initials name={row.name} present={present} size={44} />
         <View style={{ flex: 1 }}>
-          <Text variant="bodyLarge" style={{ fontWeight: '600', color: t.colors.onSurface }}>{row.name}</Text>
-          <Text variant="labelMedium" style={{ color: t.colors.onSurfaceVariant }}>Roll no. {row.roll_no ?? '-'}</Text>
+          <Text variant="titleMedium" style={{ color: t.colors.onSurface, fontSize: 17 }} numberOfLines={1}>{row.name}</Text>
+          <Text variant="bodyMedium" style={{ color: t.colors.onSurfaceVariant }}>Roll {row.roll_no ?? '–'}{row.on_leave ? ' · On leave' : ''}</Text>
         </View>
-        <View style={{ width: 60, height: 32, borderRadius: 16, backgroundColor: present ? onCol : offCol, justifyContent: 'center' }}>
-          <Animated.View style={{ position: 'absolute', left: knob, width: 28, height: 28, borderRadius: 14, backgroundColor: '#fff', alignItems: 'center', justifyContent: 'center' }}>
-            <Icon name={present ? 'check' : 'close'} size={16} color={present ? onCol : offCol} />
-          </Animated.View>
+        <View style={{ minWidth: 84, height: 34, borderRadius: 17, paddingHorizontal: 12, alignItems: 'center', justifyContent: 'center',
+          backgroundColor: present ? t.colors.primary : t.custom.danger }}>
+          <Text variant="labelLarge" style={{ color: t.dark ? t.colors.background : '#FFFFFF', fontWeight: '700' }}>{present ? 'Present' : 'Absent'}</Text>
         </View>
       </Animated.View>
     </Pressable>
+  );
+}
+
+function StudentTile({ row, present, onToggle, disabled, width }: { row: AttendanceRow; present: boolean; onToggle: () => void; disabled?: boolean; width: number }) {
+  const t = useAppTheme();
+  const { scale, onPressIn, onPressOut } = usePress();
+  const sink = useRef(new Animated.Value(present ? 1 : 0.96)).current;
+  useEffect(() => {
+    if (prefersReducedMotion()) sink.setValue(present ? 1 : 0.96);
+    else Animated.spring(sink, { toValue: present ? 1 : 0.96, useNativeDriver: true, speed: 24, bounciness: 8 }).start();
+  }, [sink, present]);
+  const first = row.name.split(/\s+/)[0];
+  return (
+    <Pressable disabled={disabled} onPress={() => { haptic.light(); onToggle(); }} onPressIn={onPressIn} onPressOut={onPressOut}
+      accessibilityRole="switch" accessibilityState={{ checked: present, disabled }}
+      accessibilityLabel={`${row.name}, roll ${row.roll_no ?? 'none'}, ${present ? 'present' : 'absent'}`}
+      accessibilityHint={disabled ? undefined : present ? 'Double tap to mark absent' : 'Double tap to mark present'}>
+      <Animated.View style={{ width, minHeight: 118, borderRadius: radius.xl, borderWidth: 1.5, paddingVertical: space.md, paddingHorizontal: 6,
+        alignItems: 'center', justifyContent: 'center', gap: 4, opacity: disabled ? 0.8 : 1, transform: [{ scale: Animated.multiply(scale, sink) }],
+        backgroundColor: present ? t.colors.elevation.level1 : t.custom.absentWash, borderColor: present ? t.custom.cardBorder : t.custom.danger }}>
+        {row.roll_no != null ? (
+          <Text variant="labelSmall" style={{ position: 'absolute', top: 6, left: 10, color: t.colors.onSurfaceVariant }}>{row.roll_no}</Text>
+        ) : null}
+        <Initials name={row.name} present={present} size={46} />
+        <Text variant="titleSmall" numberOfLines={1} style={{ color: t.colors.onSurface, maxWidth: '100%' }}>{first}</Text>
+        <Text variant="labelMedium" style={{ color: present ? t.colors.primary : t.custom.danger }}>{present ? 'Present' : 'Absent'}</Text>
+      </Animated.View>
+    </Pressable>
+  );
+}
+
+function Initials({ name, present, size }: { name: string; present: boolean; size: number }) {
+  const t = useAppTheme();
+  return (
+    <View style={{ width: size, height: size, borderRadius: size / 2, alignItems: 'center', justifyContent: 'center',
+      backgroundColor: present ? t.colors.primaryContainer : t.custom.danger }}>
+      <Text variant="labelLarge" style={{ fontSize: size * 0.34, lineHeight: size * 0.48, fontWeight: '700',
+        color: present ? (t.dark ? t.colors.onPrimaryContainer : t.colors.primary) : (t.dark ? t.colors.background : '#FFFFFF') }}>{initials(name)}</Text>
+    </View>
   );
 }

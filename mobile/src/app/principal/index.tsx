@@ -1,6 +1,6 @@
 import { Redirect, router } from 'expo-router';
 import { useState } from 'react';
-import { LayoutAnimation, View } from 'react-native';
+import { LayoutAnimation, Pressable, View } from 'react-native';
 import { Button, SegmentedButtons, Text } from 'react-native-paper';
 
 import { ColumnChart, ProgressRows, Ring, TrendChart } from '@/components/charts';
@@ -19,7 +19,7 @@ import {
 import { api } from '@/lib/api';
 import { useAuth, useCan } from '@/lib/auth';
 import { haptic } from '@/lib/feedback';
-import { greeting, pctTone, space, useAppTheme } from '@/lib/theme';
+import { greeting, pctTone, radius, space, useAppTheme } from '@/lib/theme';
 import type { Dashboard, StudentStat } from '@/lib/types';
 import { useLoad } from '@/lib/useLoad';
 import { Screen } from '@/components/ui';
@@ -52,7 +52,6 @@ function Insights() {
           {data ? <TodayCard d={data} /> : <View style={{ height: 40 }} />}
         </Hero>
       }>
-      <View style={{ height: space.lg }} />
       <StatusBanner closed />
       <BannerCarousel style={{ marginBottom: space.md }} />
       <CheckInCard />
@@ -67,33 +66,55 @@ function Insights() {
   );
 }
 
+/** The one bold card on the home screen: today's attendance in the school's green, classes as marigold bars. */
 function TodayCard({ d }: { d: Dashboard }) {
   const t = useAppTheme();
   const o = d.overview;
+  const pct = o.attendance_today_percent;
+  const marked = d.attendance_today.filter((c) => c.percent != null);
+  const present = marked.reduce((n, c) => n + c.present, 0);
+  const total = marked.reduce((n, c) => n + c.total, 0);
+  const shown = d.attendance_today.slice(0, 5);
+  const ink = '#FFFFFF';
+  const soft = 'rgba(255,255,255,0.78)';
   return (
     <FadeIn>
-      <Panel style={{ marginBottom: 0 }}>
-        <View style={{ flexDirection: 'row', alignItems: 'center', gap: space.lg }}>
-          {o.attendance_today_percent != null ? <Ring value={o.attendance_today_percent} label="present" low={d.thresholds.low_attendance} />
-            : <IconBadge icon="clipboard-text-clock-outline" size={72} tone="warning" />}
-          <View style={{ flex: 1 }}>
-            <Text variant="titleMedium" style={{ fontWeight: '700', color: t.colors.onSurface }}>
-              {d.today_is_school_day ? "Today's attendance" : `Last school day · ${fmtDate(d.date)}`}
-            </Text>
-            <Text variant="bodySmall" style={{ color: t.colors.onSurfaceVariant, marginBottom: space.sm }}>
-              {d.today_is_school_day ? '' : `Today: ${d.closed_reason || 'no school'} · `}{o.classes_marked} of {o.classes_total} classes marked
-            </Text>
-            {d.unmarked_classes.length ? (
-              <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 6 }}>
-                {d.unmarked_classes.map((c) => (
-                  <ToneChip key={c.class_id} tone="warning" icon="clock-alert-outline"
-                    text={`${c.class_name} · ${c.class_teacher ?? 'no class teacher'}`} />
-                ))}
-              </View>
-            ) : <ToneChip text="All classes marked" tone="success" icon="check-circle" />}
-          </View>
+      <Pressable onPress={() => { haptic.tap(); router.push('/principal/classes'); }} accessibilityRole="button"
+        accessibilityLabel={pct != null ? `Attendance ${Math.round(pct)} percent, ${present} of ${total} students. ${o.classes_marked} of ${o.classes_total} classes marked.` : 'Attendance not marked yet'}
+        style={{ backgroundColor: t.dark ? t.colors.primaryContainer : t.colors.primary, borderRadius: radius.xxl, padding: space.lg + 4, gap: space.md }}>
+        <Text variant="bodyLarge" style={{ color: soft }}>
+          {d.today_is_school_day ? 'Attendance today' : `Last school day · ${fmtDate(d.date)}`}
+        </Text>
+        <View style={{ flexDirection: 'row', alignItems: 'flex-end', gap: space.sm, flexWrap: 'wrap' }}>
+          <Text variant="displayMedium" style={{ color: ink, fontSize: 52, lineHeight: 58 }}>{pct != null ? `${Math.round(pct)}%` : '—'}</Text>
+          <Text variant="bodyLarge" style={{ color: soft, paddingBottom: 8 }}>
+            {pct != null ? `${present} of ${total} students` : 'Not marked yet'}
+          </Text>
         </View>
-      </Panel>
+        {shown.length ? (
+          <View style={{ gap: 8 }}>
+            {shown.map((c) => (
+              <View key={c.class_id} style={{ flexDirection: 'row', alignItems: 'center', gap: space.sm }}>
+                <Text variant="labelLarge" numberOfLines={1} style={{ color: ink, width: 52 }}>{c.class_name}</Text>
+                <View style={{ flex: 1, height: 8, borderRadius: 4, backgroundColor: 'rgba(255,255,255,0.16)', overflow: 'hidden' }}>
+                  {c.percent != null ? <View style={{ width: `${Math.max(2, Math.min(100, c.percent))}%`, height: 8, borderRadius: 4, backgroundColor: t.custom.amber }} /> : null}
+                </View>
+                <Text variant="labelLarge" style={{ color: c.percent != null ? ink : t.custom.amber, minWidth: 44, textAlign: 'right' }}>
+                  {c.percent != null ? `${c.present}/${c.total}` : 'Not yet'}
+                </Text>
+              </View>
+            ))}
+            {d.attendance_today.length > shown.length ? (
+              <Text variant="bodyMedium" style={{ color: soft }}>+{d.attendance_today.length - shown.length} more classes below</Text>
+            ) : null}
+          </View>
+        ) : null}
+        <Text variant="bodyMedium" style={{ color: soft }}>
+          {d.unmarked_classes.length
+            ? `Not marked: ${d.unmarked_classes.map((c) => `${c.class_name}${c.class_teacher ? ` (${c.class_teacher})` : ''}`).join(', ')}`
+            : `All ${o.classes_total} classes marked`}
+        </Text>
+      </Pressable>
     </FadeIn>
   );
 }

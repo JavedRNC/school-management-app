@@ -35,7 +35,7 @@ export default function Schools() {
         scrollEventThrottle={32} contentContainerStyle={{ paddingBottom: 120 }} keyboardShouldPersistTaps="handled"
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={refresh} colors={[t.colors.primary]} />}>
         <Hero title="Schools" subtitle={data ? `${data.length} on the platform` : ' '} compact>
-          <Searchbar placeholder="Search by name or code" value={q} onChangeText={setQ} elevation={2} style={{ borderRadius: 28 }} />
+          <Searchbar placeholder="Search by name or code" value={q} onChangeText={setQ} elevation={0} style={{ borderRadius: 16, backgroundColor: t.colors.elevation.level1, borderWidth: 1.5, borderColor: t.colors.outlineVariant }} />
         </Hero>
         <View style={{ paddingHorizontal: space.lg, marginTop: space.lg }}>
           <FilterChips value={filter} onChange={setFilter}

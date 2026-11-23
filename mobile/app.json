@@ -41,8 +41,71 @@
         "expo-notifications",
         {
           "icon": "./assets/android-icon-monochrome.png",
-          "color": "#16307A",
+          "color": "#1E4D3F",
           "defaultChannel": "default"
+        }
+      ],
+      [
+        "expo-font",
+        {
+          "android": {
+            "fonts": [
+              {
+                "fontFamily": "Mukta",
+                "fontDefinitions": [
+                  {
+                    "path": "./assets/fonts/Mukta_400Regular.ttf",
+                    "weight": 400
+                  },
+                  {
+                    "path": "./assets/fonts/Mukta_500Medium.ttf",
+                    "weight": 500
+                  },
+                  {
+                    "path": "./assets/fonts/Mukta_600SemiBold.ttf",
+                    "weight": 600
+                  },
+                  {
+                    "path": "./assets/fonts/Mukta_700Bold.ttf",
+                    "weight": 700
+                  },
+                  {
+                    "path": "./assets/fonts/Mukta_800ExtraBold.ttf",
+                    "weight": 800
+                  }
+                ]
+              },
+              {
+                "fontFamily": "Bricolage",
+                "fontDefinitions": [
+                  {
+                    "path": "./assets/fonts/BricolageGrotesque_600SemiBold.ttf",
+                    "weight": 600
+                  },
+                  {
+                    "path": "./assets/fonts/BricolageGrotesque_700Bold.ttf",
+                    "weight": 700
+                  },
+                  {
+                    "path": "./assets/fonts/BricolageGrotesque_800ExtraBold.ttf",
+                    "weight": 800
+                  }
+                ]
+              }
+            ]
+          },
+          "ios": {
+            "fonts": [
+              "./assets/fonts/Mukta_400Regular.ttf",
+              "./assets/fonts/Mukta_500Medium.ttf",
+              "./assets/fonts/Mukta_600SemiBold.ttf",
+              "./assets/fonts/Mukta_700Bold.ttf",
+              "./assets/fonts/Mukta_800ExtraBold.ttf",
+              "./assets/fonts/BricolageGrotesque_600SemiBold.ttf",
+              "./assets/fonts/BricolageGrotesque_700Bold.ttf",
+              "./assets/fonts/BricolageGrotesque_800ExtraBold.ttf"
+            ]
+          }
         }
       ]
     ],

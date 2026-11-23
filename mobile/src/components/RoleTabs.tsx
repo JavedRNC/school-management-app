@@ -5,7 +5,7 @@ import { Text } from 'react-native-paper';
 
 import { haptic } from '@/lib/feedback';
 import { prefersReducedMotion } from '@/lib/feedback';
-import { shadow, useAppTheme } from '@/lib/theme';
+import { useAppTheme } from '@/lib/theme';
 import type { Role } from '@/lib/types';
 
 import { RoleGuard } from './RoleGuard';
@@ -14,18 +14,18 @@ import { Icon, IconName } from './ui';
 /** `visible: false` keeps the route but hides it from the bar (e.g. no permission / module). */
 export type TabDef = { name: string; title: string; icon: IconName; iconActive: IconName; visible?: boolean };
 
-/** Bar shell: white (or raised dark) surface with a soft upward shadow instead of a tinted slab. */
+/** Bar shell: flat white (or raised dark) surface with a hairline top edge. */
 function TabBar({ children, bottom }: { children: ReactNode; bottom: number }) {
   const t = useAppTheme();
   return (
     <View accessibilityRole="tablist" style={[{ flexDirection: 'row', backgroundColor: t.colors.elevation.level2, paddingBottom: bottom, paddingHorizontal: 4,
-      borderTopWidth: 1, borderTopColor: t.custom.cardBorder }, shadow(t, 3)]}>
+      borderTopWidth: 1, borderTopColor: t.custom.cardBorder }]}>
       {children}
     </View>
   );
 }
 
-/** One tab: amber pill grows behind the icon, icon pops, label goes bold. 64dp tall = comfortable thumb target. */
+/** One tab: a soft green pill grows behind the icon, label turns green and bold. 64dp tall = comfortable thumb target. */
 function TabItem({ def, label, focused, onPress }: { def?: TabDef; label: string; focused: boolean; onPress: () => void }) {
   const t = useAppTheme();
   const v = useRef(new Animated.Value(focused ? 1 : 0)).current;
@@ -38,14 +38,14 @@ function TabItem({ def, label, focused, onPress }: { def?: TabDef; label: string
       android_ripple={{ color: t.colors.surfaceVariant, borderless: true, radius: 40 }}
       style={{ flex: 1, height: 64, alignItems: 'center', justifyContent: 'center' }}>
       <View style={{ width: 56, height: 30, alignItems: 'center', justifyContent: 'center' }}>
-        <Animated.View style={{ position: 'absolute', width: 56, height: 30, borderRadius: 15, backgroundColor: t.colors.secondaryContainer,
+        <Animated.View style={{ position: 'absolute', width: 56, height: 30, borderRadius: 15, backgroundColor: t.colors.primaryContainer,
           opacity: v, transform: [{ scaleX: v.interpolate({ inputRange: [0, 1], outputRange: [0.45, 1] }) }] }} />
         <Animated.View style={{ transform: [{ scale: v.interpolate({ inputRange: [0, 1], outputRange: [1, 1.08] }) }] }}>
-          {def ? <Icon name={focused ? def.iconActive : def.icon} size={22} color={focused ? t.colors.onSecondaryContainer : t.colors.onSurfaceVariant} /> : null}
+          {def ? <Icon name={focused ? def.iconActive : def.icon} size={22} color={focused ? (t.dark ? t.colors.onPrimaryContainer : t.colors.primary) : t.colors.onSurfaceVariant} /> : null}
         </Animated.View>
       </View>
       <Text variant="labelMedium" numberOfLines={1} maxFontSizeMultiplier={1.15}
-        style={{ marginTop: 3, color: focused ? t.colors.onSurface : t.colors.onSurfaceVariant, fontWeight: focused ? '700' : '500' }}>{label}</Text>
+        style={{ marginTop: 3, color: focused ? t.colors.primary : t.colors.onSurfaceVariant, fontWeight: focused ? '700' : '500' }}>{label}</Text>
     </Pressable>
   );
 }

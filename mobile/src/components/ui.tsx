@@ -1,16 +1,15 @@
 import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
-import { LinearGradient } from 'expo-linear-gradient';
 import { router } from 'expo-router';
 import { ComponentProps, createContext, ReactNode, useContext, useEffect, useRef, useState } from 'react';
 import {
   Animated, Easing, KeyboardAvoidingView, Modal, Platform, Pressable, RefreshControl, ScrollView, StyleSheet,
   View, ViewStyle,
 } from 'react-native';
-import { AnimatedFAB, Avatar, Button, IconButton, Text, TouchableRipple } from 'react-native-paper';
+import { AnimatedFAB, Avatar, Button, Text, TouchableRipple } from 'react-native-paper';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { haptic, prefersReducedMotion } from '@/lib/feedback';
-import { cardEdge, glow, initials, radius, shadow, space, Tone, toneColors, useAppTheme } from '@/lib/theme';
+import { cardEdge, FONT_TEXT, glow, initials, radius, shadow, space, Tone, toneColors, useAppTheme } from '@/lib/theme';
 
 export type IconName = ComponentProps<typeof MaterialCommunityIcons>['name'];
 export const Icon = MaterialCommunityIcons;
@@ -93,7 +92,7 @@ export function Screen({ children, onRefresh, refreshing = false, header, padded
 /** When true, Hero shows a back arrow (screens opened on top of the tabs). */
 export const StackedContext = createContext(false);
 
-/** Gradient hero header; children float over its bottom edge. */
+/** Page header: a big quiet title on the page ground (no gradient). Children sit just below it. */
 export function Hero({ title, subtitle, eyebrow, right, children, compact }: {
   title: string; subtitle?: string; eyebrow?: string; right?: ReactNode; children?: ReactNode; compact?: boolean;
 }) {
@@ -101,36 +100,37 @@ export function Hero({ title, subtitle, eyebrow, right, children, compact }: {
   const insets = useSafeAreaInsets();
   const stacked = useContext(StackedContext);
   return (
-    <View style={{ marginBottom: children ? 0 : space.lg }}>
-      <LinearGradient colors={[t.custom.heroStart, t.custom.heroEnd]} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }}
-        style={{ paddingTop: insets.top + space.md, paddingHorizontal: space.lg, paddingBottom: children ? 56 : compact ? space.lg : space.xl,
-          borderBottomLeftRadius: radius.xxl, borderBottomRightRadius: radius.xxl, overflow: 'hidden' }}>
-        <View style={[styles.circle, { width: 220, height: 220, right: -70, top: -90, backgroundColor: 'rgba(255,255,255,0.07)' }]} />
-        <View style={[styles.circle, { width: 110, height: 110, right: 60, top: 46, backgroundColor: 'rgba(245,166,35,0.14)' }]} />
-        <View style={[styles.circle, { width: 150, height: 150, left: -60, bottom: -90, backgroundColor: 'rgba(255,255,255,0.05)' }]} />
-        <View style={{ flexDirection: 'row', alignItems: 'center', minHeight: 48 }}>
+    <View style={{ marginBottom: space.lg }}>
+      <View style={{ paddingTop: insets.top + space.lg, paddingHorizontal: space.lg, paddingBottom: children ? space.md : 0 }}>
+        <View style={{ flexDirection: 'row', alignItems: 'center', minHeight: 48, gap: space.md }}>
           {stacked ? (
-            <IconButton icon="arrow-left" iconColor="#fff" size={22} accessibilityLabel="Back"
-              style={{ marginLeft: -space.sm, marginRight: space.xs, backgroundColor: 'rgba(255,255,255,0.12)' }}
-              onPress={() => { haptic.tap(); if (router.canGoBack()) router.back(); else router.replace('/'); }} />
+            <Pressable accessibilityRole="button" accessibilityLabel="Back" hitSlop={4}
+              onPress={() => { haptic.tap(); if (router.canGoBack()) router.back(); else router.replace('/'); }}
+              android_ripple={{ color: t.colors.surfaceVariant, borderless: true, radius: 24 }}
+              style={{ width: 44, height: 44, borderRadius: 22, alignItems: 'center', justifyContent: 'center',
+                borderWidth: 1.5, borderColor: t.colors.outlineVariant, backgroundColor: t.colors.elevation.level1 }}>
+              <Icon name="arrow-left" size={22} color={t.colors.onSurface} />
+            </Pressable>
           ) : null}
           <View style={{ flex: 1 }}>
-            {eyebrow ? <Text variant="labelLarge" style={{ color: 'rgba(255,255,255,0.78)', fontWeight: '500' }}>{eyebrow}</Text> : null}
-            <Text variant={compact || stacked ? 'headlineSmall' : 'headlineMedium'} numberOfLines={2} style={{ color: '#fff', fontWeight: '700' }}>{title}</Text>
-            {subtitle ? <Text variant="bodyMedium" style={{ color: 'rgba(255,255,255,0.84)', marginTop: 1 }}>{subtitle}</Text> : null}
+            {eyebrow ? <Text variant="bodyMedium" style={{ color: t.colors.onSurfaceVariant }}>{eyebrow}</Text> : null}
+            <Text variant={compact || stacked ? 'headlineSmall' : 'headlineMedium'} numberOfLines={2} accessibilityRole="header"
+              style={{ color: t.colors.onBackground }}>{title}</Text>
+            {subtitle ? <Text variant="bodyMedium" style={{ color: t.colors.onSurfaceVariant, marginTop: 1 }}>{subtitle}</Text> : null}
           </View>
           {right}
         </View>
-      </LinearGradient>
-      {children ? <View style={{ marginTop: -40, paddingHorizontal: space.lg }}>{children}</View> : null}
+      </View>
+      {children ? <View style={{ paddingHorizontal: space.lg }}>{children}</View> : null}
     </View>
   );
 }
 
-// Six soft hues so a list of people is easier to scan than a column of identical blue discs.
-const AVATAR_LIGHT = [['#D6E3FF', '#0B3A75'], ['#FFE3B5', '#5C3B00'], ['#C8F0D4', '#0B5229'], ['#FFD9E2', '#7A1F3D'], ['#E5DEFF', '#3B2A8C'], ['#B7EAFF', '#004D61']];
-const AVATAR_DARK = [['#00468C', '#D6E3FF'], ['#5A3A00', '#FFE3B5'], ['#005229', '#C8F0D4'], ['#6B1F38', '#FFD9E2'], ['#3A2E7A', '#E5DEFF'], ['#004D61', '#B7EAFF']];
+// Six soft, earthy hues so a list of people is easier to scan than a column of identical discs.
+const AVATAR_LIGHT = [['#DCEBE4', '#1E4D3F'], ['#FBE7BC', '#6B4500'], ['#F5DED3', '#7A3413'], ['#DCE8F0', '#204A66'], ['#E9E0EF', '#57366E'], ['#E6E9DA', '#4A5320']];
+const AVATAR_DARK = [['#1F4D3F', '#CDEBDD'], ['#5A4200', '#FFE6B3'], ['#5E2A14', '#FFDBCC'], ['#1F4660', '#D3E9F8'], ['#47305A', '#EEDCF8'], ['#3B4320', '#E3EBC2']];
 
+/** `light` is kept for older callers that sat on the dark hero; headers are light now, so it draws the brand disc. */
 export function UserAvatar({ name, size = 44, light }: { name: string; size?: number; light?: boolean }) {
   const t = useAppTheme();
   let h = 0;
@@ -138,8 +138,8 @@ export function UserAvatar({ name, size = 44, light }: { name: string; size?: nu
   const [bg, fg] = (t.dark ? AVATAR_DARK : AVATAR_LIGHT)[h % 6];
   return (
     <Avatar.Text size={size} label={initials(name)}
-      style={light ? { backgroundColor: 'rgba(255,255,255,0.18)', borderWidth: 1, borderColor: 'rgba(255,255,255,0.28)' } : { backgroundColor: bg }}
-      color={light ? '#fff' : fg} labelStyle={{ fontWeight: '700', fontSize: size * 0.36, letterSpacing: 0.2 }} />
+      style={{ backgroundColor: light ? t.colors.primary : bg }}
+      color={light ? t.colors.onPrimary : fg} labelStyle={{ fontFamily: FONT_TEXT, fontWeight: '700', fontSize: size * 0.36, lineHeight: size * 0.5, letterSpacing: 0.2 }} />
   );
 }
 
@@ -147,10 +147,8 @@ export function SectionTitle({ title, action, onAction, style }: { title: string
   const t = useAppTheme();
   return (
     <View style={[{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginTop: space.lg, marginBottom: space.sm, minHeight: 32 }, style]}>
-      <View style={{ flexDirection: 'row', alignItems: 'center', gap: space.sm, flexShrink: 1 }}>
-        <View style={{ width: 4, height: 16, borderRadius: 2, backgroundColor: t.custom.amber }} />
-        <Text variant="titleMedium" numberOfLines={1} style={{ fontSize: 16, fontWeight: '700', color: t.colors.onBackground, flexShrink: 1 }}>{title}</Text>
-      </View>
+      <Text variant="headlineSmall" numberOfLines={1} accessibilityRole="header"
+        style={{ fontSize: 19, lineHeight: 26, color: t.colors.onBackground, flexShrink: 1 }}>{title}</Text>
       {action ? <Button compact onPress={onAction}>{action}</Button> : null}
     </View>
   );
@@ -179,7 +177,7 @@ export function Panel({ children, title, subtitle, icon, right, style, onPress, 
   );
   return (
     <View style={[{ marginBottom: space.md, borderRadius: radius.xl, backgroundColor: tc ? tc.bg : t.colors.elevation.level1 },
-      tc ? null : cardEdge(t), tc ? null : shadow(t, 1), style]}>
+      tc ? null : cardEdge(t), style]}>
       {onPress ? (
         <TouchableRipple borderless onPress={() => { haptic.tap(); onPress(); }} style={{ borderRadius: radius.xl }} accessibilityRole="button">
           {inner}
@@ -207,14 +205,14 @@ export function StatTile({ icon, label, value, suffix, decimals, tone = 'primary
   const t = useAppTheme();
   return (
     <PressScale onPress={onPress} style={{ flex: 1 }}>
-      <View style={[{ backgroundColor: t.colors.elevation.level2, borderRadius: radius.xl, padding: space.md, minHeight: 104 }, cardEdge(t), shadow(t, 1)]}>
+      <View style={[{ backgroundColor: t.colors.elevation.level2, borderRadius: radius.xl, padding: space.md, minHeight: 104 }, cardEdge(t)]}>
         <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
           <IconBadge icon={icon} tone={tone} size={34} />
           {onPress ? <Icon name="arrow-top-right" size={16} color={t.colors.outline} /> : null}
         </View>
-        {value == null ? <Text variant="headlineMedium" style={{ fontWeight: '700', marginTop: space.sm, color: t.colors.onSurface }}>—</Text>
+        {value == null ? <Text variant="headlineMedium" style={{ marginTop: space.sm, color: t.colors.onSurface }}>—</Text>
           : <CountUp value={value} suffix={suffix} decimals={decimals} format={format} style={{ marginTop: space.sm, color: t.colors.onSurface }} />}
-        <Text variant="labelMedium" style={{ color: t.colors.onSurfaceVariant, fontWeight: '500' }} numberOfLines={1}>{label}</Text>
+        <Text variant="bodyMedium" style={{ color: t.colors.onSurfaceVariant }} numberOfLines={1}>{label}</Text>
         {hint ? <Text variant="labelSmall" style={{ color: t.colors.outline }} numberOfLines={1}>{hint}</Text> : null}
       </View>
     </PressScale>
@@ -241,14 +239,14 @@ function FilterChip({ label, icon, on, onPress }: { label: string; icon?: IconNa
     v.setValue(0.92);
     Animated.spring(v, { toValue: 1, useNativeDriver: true, speed: 30, bounciness: 12 }).start();
   }, [v, on]);
-  const fg = on ? t.colors.onSecondaryContainer : t.colors.onSurfaceVariant;
+  const fg = on ? t.colors.onPrimary : t.colors.onSurface;
   return (
     <Animated.View style={{ transform: [{ scale: v }], maxWidth: '100%' }}>
       <Pressable onPress={onPress} hitSlop={{ top: 5, bottom: 5 }} accessibilityRole="radio" accessibilityState={{ checked: on, selected: on }} accessibilityLabel={label}
         android_ripple={{ color: t.colors.surfaceVariant, borderless: false }}
-        style={{ height: 36, maxWidth: '100%', flexShrink: 1, paddingHorizontal: 14, borderRadius: radius.pill, flexDirection: 'row', alignItems: 'center', gap: 6, overflow: 'hidden',
-          backgroundColor: on ? t.colors.secondaryContainer : t.colors.elevation.level1, borderWidth: 1,
-          borderColor: on ? (t.dark ? 'transparent' : 'rgba(138,90,0,0.22)') : t.colors.outlineVariant }}>
+        style={{ height: 38, maxWidth: '100%', flexShrink: 1, paddingHorizontal: 15, borderRadius: radius.pill, flexDirection: 'row', alignItems: 'center', gap: 6, overflow: 'hidden',
+          backgroundColor: on ? t.colors.primary : t.colors.elevation.level1, borderWidth: 1.5,
+          borderColor: on ? t.colors.primary : t.colors.outlineVariant }}>
         {icon ? <Icon name={icon} size={16} color={on ? fg : t.colors.primary} /> : null}
         <Text variant="labelLarge" numberOfLines={1} style={{ color: fg, fontWeight: on ? '700' : '500', flexShrink: 1 }}>{label}</Text>
       </Pressable>
@@ -346,7 +344,7 @@ export function EmptyState({ icon = 'inbox-outline', title, text, action, onActi
   const t = useAppTheme();
   return (
     <FadeIn style={{ alignItems: 'center', paddingVertical: space.xl, paddingHorizontal: space.lg }}>
-      <View style={{ width: 84, height: 84, borderRadius: 42, backgroundColor: t.dark ? 'rgba(255,185,81,0.10)' : 'rgba(245,166,35,0.14)', alignItems: 'center', justifyContent: 'center', marginBottom: space.md }}>
+      <View style={{ width: 84, height: 84, borderRadius: 42, backgroundColor: t.dark ? 'rgba(242,177,58,0.10)' : 'rgba(232,163,23,0.14)', alignItems: 'center', justifyContent: 'center', marginBottom: space.md }}>
         <View style={{ width: 60, height: 60, borderRadius: 30, backgroundColor: t.colors.secondaryContainer, alignItems: 'center', justifyContent: 'center' }}>
           <Icon name={icon} size={30} color={t.colors.onSecondaryContainer} />
         </View>
@@ -375,7 +373,7 @@ export function Sheet({ visible, onDismiss, title, children }: { visible: boolea
   return (
     <Modal visible={visible} transparent animationType="slide" onRequestClose={onDismiss} statusBarTranslucent>
       <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} style={{ flex: 1 }}>
-        <Pressable style={{ flex: 1, backgroundColor: t.dark ? 'rgba(0,0,0,0.6)' : 'rgba(10,22,44,0.45)' }} onPress={onDismiss} accessibilityLabel="Close" />
+        <Pressable style={{ flex: 1, backgroundColor: t.colors.backdrop }} onPress={onDismiss} accessibilityLabel="Close" />
         <View style={{ backgroundColor: t.colors.elevation.level1, borderTopLeftRadius: radius.xxl, borderTopRightRadius: radius.xxl,
           paddingHorizontal: space.lg, paddingBottom: insets.bottom + space.lg, maxHeight: '88%',
           borderTopWidth: 1, borderColor: t.custom.cardBorder }}>

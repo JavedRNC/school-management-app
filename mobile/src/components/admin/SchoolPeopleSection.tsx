@@ -59,7 +59,7 @@ export function SchoolPeopleSection({ d }: { d: AdminSchoolDetail }) {
             : "Phone numbers, addresses and birth dates are masked. The school can share them in its privacy settings, or grant temporary support access. Every view you make is logged and visible to the principal."} />
       </FadeIn>
       <FilterChips value={tab} onChange={(v) => { setTab(v); setQ(''); }} options={TABS} />
-      <Searchbar placeholder="Search name or login ID" value={q} onChangeText={setQ} style={{ marginBottom: space.md, borderRadius: 28 }} elevation={1} />
+      <Searchbar placeholder="Search name or login ID" value={q} onChangeText={setQ} style={{ marginBottom: space.md, borderRadius: 16, backgroundColor: t.colors.elevation.level1, borderWidth: 1.5, borderColor: t.colors.outlineVariant }} elevation={0} />
       {users.error ? <ErrorState message={users.error} onRetry={users.reload} /> : null}
       {users.loading && !users.data ? <LoadingCards /> : null}
       {users.data ? (

@@ -27,7 +27,7 @@ function kindColor(t: AppTheme, k: Kind): string {
     case 'festival': return t.custom.amber;
     case 'vacation': return t.colors.tertiary;
     case 'exam': return t.custom.danger;
-    case 'event': return t.custom.success;
+    case 'event': return t.dark ? '#D3B4EE' : '#7A4E9C';   // plum: keeps events apart from the green national days
     default: return t.colors.outline;
   }
 }

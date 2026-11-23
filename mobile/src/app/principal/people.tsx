@@ -124,7 +124,7 @@ export default function People() {
       <ScrollView onScroll={onScroll} scrollEventThrottle={32} contentContainerStyle={{ paddingBottom: 120 }} keyboardShouldPersistTaps="handled"
         refreshControl={<RefreshControl refreshing={all.refreshing || removed.refreshing} onRefresh={() => { all.refresh(); if (tab === 'removed') removed.refresh(); }} colors={[t.colors.primary]} />}>
         <Hero title="People" subtitle={canEdit ? 'Accounts, profiles and sign-in details' : 'View only'} compact>
-          <Searchbar placeholder="Search name, login ID or phone" value={q} onChangeText={setQ} elevation={2} style={{ borderRadius: 28 }} />
+          <Searchbar placeholder="Search name, login ID or phone" value={q} onChangeText={setQ} elevation={0} style={{ borderRadius: 16, backgroundColor: t.colors.elevation.level1, borderWidth: 1.5, borderColor: t.colors.outlineVariant }} />
         </Hero>
         <View style={{ paddingHorizontal: space.lg, marginTop: space.lg }}>
           <FilterChips value={tab} onChange={(v) => { setTab(v); setClassId(0); }} options={tabOptions} />
