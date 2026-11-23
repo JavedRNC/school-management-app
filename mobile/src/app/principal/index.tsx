@@ -13,7 +13,7 @@ import { OpsGrid } from '@/components/OpsGrid';
 import { PendingPollsCard } from '@/components/PollsCard';
 import { StatusBanner } from '@/components/StatusBanner';
 import {
-  EmptyState, ErrorState, FadeIn, FilterChips, Hero, IconBadge, LoadingCards, Panel, Row, SectionTitle, Sheet, StatTile,
+  EmptyState, ErrorState, FadeIn, Hero, IconBadge, LoadingCards, Panel, Row, SectionTitle, Sheet, StatTile,
   ToneChip, UserAvatar,
 } from '@/components/ui';
 import { api } from '@/lib/api';
@@ -23,6 +23,7 @@ import { greeting, pctTone, space, useAppTheme } from '@/lib/theme';
 import type { Dashboard, StudentStat } from '@/lib/types';
 import { useLoad } from '@/lib/useLoad';
 import { Screen } from '@/components/ui';
+import { SelectField } from '@/components/SelectField';
 
 export default function PrincipalDashboard() {
   const canInsights = useCan('insights', 'view');
@@ -165,7 +166,7 @@ function Body({ d, examId, setExamId }: { d: Dashboard; examId: number | null; s
       {ac ? (
         <>
           {ac.exams.length > 1 ? (
-            <FilterChips options={ac.exams.map((e) => ({ label: e.name, value: e.id, icon: 'file-document-outline' as const }))}
+            <SelectField label="Exam" options={ac.exams.map((e) => ({ label: e.name, value: e.id, icon: 'file-document-outline' as const }))}
               value={examId ?? ac.exam.id} onChange={setExamId} />
           ) : null}
           <FadeIn index={6}>

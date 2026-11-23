@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { View } from 'react-native';
 import { Button, HelperText, SegmentedButtons } from 'react-native-paper';
 import { TextInput } from '@/components/Field';
+import { SelectField } from '@/components/SelectField';
 
 import { api } from '@/lib/api';
 import { haptic, useToast } from '@/lib/feedback';
@@ -76,9 +77,9 @@ export function PostComposer({ visible, onDismiss, classes, subjects, allowSchoo
       <SegmentedButtons value={kind} style={{ marginBottom: space.md }}
         onValueChange={(v) => { haptic.tap(); const k = v as 'notice' | 'homework'; setKind(k); if (k === 'homework' && !classId) setClassId(classes[0]?.id ?? 0); }}
         buttons={[{ value: 'notice', label: 'Notice', icon: 'bullhorn-outline' }, { value: 'homework', label: 'Homework', icon: 'book-open-outline' }]} />
-      <FilterChips label="Audience" options={classOpts} value={classId} onChange={setClassId} />
+      <SelectField label="Audience" options={classOpts} value={classId} onChange={setClassId} />
       {kind === 'homework' && subjects?.length ? (
-        <FilterChips label="Subject" options={subjects.map((s) => ({ label: s.name, value: s.id }))} value={subjectId} onChange={setSubjectId} />
+        <SelectField label="Subject" options={subjects.map((s) => ({ label: s.name, value: s.id }))} value={subjectId} onChange={setSubjectId} />
       ) : null}
       <TextInput mode="outlined" label="Title" value={title} onChangeText={setTitle} error={touched && !title.trim()}
         placeholder={kind === 'homework' ? 'e.g. Chapter 4 exercises' : 'e.g. School closed tomorrow'} />

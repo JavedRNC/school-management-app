@@ -2,13 +2,14 @@ import { useEffect, useState } from 'react';
 import { View } from 'react-native';
 import { Button, HelperText, IconButton, Text } from 'react-native-paper';
 import { TextInput } from '@/components/Field';
+import { SelectField } from '@/components/SelectField';
 
 import { api } from '@/lib/api';
 import { haptic, useToast } from '@/lib/feedback';
 import { radius, space, useAppTheme } from '@/lib/theme';
 import type { TransportRoute, Vehicle } from '@/lib/types';
 
-import { FilterChips, Sheet } from '../ui';
+import { Sheet } from '../ui';
 import { TIME_RE } from './common';
 
 type DraftStop = { key: string; id?: number; name: string; pickup_time: string; drop_time: string };
@@ -79,7 +80,7 @@ export function RouteSheet({ visible, route, vehicles, onDismiss, onSaved }: {
       <TextInput mode="outlined" label="Route name" value={name} onChangeText={setName} placeholder="Route 3 · Bariatu – Lalpur"
         left={<TextInput.Icon icon="map-marker-path" />} />
       <HelperText type="error" visible={!name.trim()}>Name is required</HelperText>
-      <FilterChips label="Vehicle" value={vehicleId} onChange={setVehicleId}
+      <SelectField label="Vehicle" value={vehicleId} onChange={setVehicleId}
         options={[{ label: 'None yet', value: 0 }, ...vehicles.map((v) => ({ label: `${v.number} · ${v.capacity} seats`, value: v.id }))]} />
 
       <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: space.sm }}>

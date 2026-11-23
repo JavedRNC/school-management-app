@@ -5,7 +5,8 @@ import { Text } from 'react-native-paper';
 import { ProgressRows, Ring } from '@/components/charts';
 import { fmtDate } from '@/components/PostList';
 import { subjectIcon } from '@/components/TimetableView';
-import { EmptyState, ErrorState, FadeIn, FilterChips, Hero, Icon, LoadingCards, Panel, Screen, SectionTitle, ToneChip } from '@/components/ui';
+import { EmptyState, ErrorState, FadeIn, Hero, Icon, LoadingCards, Panel, Screen, SectionTitle, ToneChip } from '@/components/ui';
+import { SelectField } from '@/components/SelectField';
 import { api } from '@/lib/api';
 import { useAuth } from '@/lib/auth';
 import { childParams, useChild } from '@/lib/child';
@@ -60,7 +61,7 @@ export default function ResultsScreen() {
       {error ? <ErrorState message={error} onRetry={reload} /> : null}
       {blocked ? null : !data ? <LoadingCards /> : !data.length ? <EmptyState icon="trophy-outline" title="No results yet" text="Marks will appear here once teachers publish them." /> : card ? (
         <>
-          {data.length > 1 ? <FilterChips options={data.map((c) => ({ label: c.exam, value: c.exam_id, icon: 'file-document-outline' as const }))} value={card.exam_id} onChange={setExamId} /> : null}
+          {data.length > 1 ? <SelectField label="Exam" options={data.map((c) => ({ label: c.exam, value: c.exam_id, icon: 'file-document-outline' as const }))} value={card.exam_id} onChange={setExamId} /> : null}
           {best && weak && best.subject !== weak.subject ? (
             <FadeIn index={1}>
               <View style={{ flexDirection: 'row', gap: space.sm, marginBottom: space.md }}>

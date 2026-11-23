@@ -517,3 +517,6 @@ Principal sets each staff member's monthly salary (basic pay, allowances, deduct
 - Payment gateway (Razorpay etc.) — only for option C of F11, much later.
 
 _Nothing in this file is built until Javed says **"implement"**._
+
+### F37 · Dropdowns instead of sideways-scrolling chips (app) ✅ `S` — requested 23 Nov
+Long, growing lists (classes, exams, class & subject, subjects, routes, stops, vehicles, plans, schools) are now a dropdown field that opens a list from the bottom, with a search box past 8 items. Short fixed choices stay as chips but wrap onto new lines instead of scrolling. Component: mobile/src/components/SelectField.tsx.

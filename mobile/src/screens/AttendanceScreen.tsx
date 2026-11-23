@@ -4,6 +4,7 @@ import { Animated, Pressable, View } from 'react-native';
 import { Button, ProgressBar, Switch, Text } from 'react-native-paper';
 
 import { Fab, EmptyState, ErrorState, FilterChips, Hero, Icon, LoadingCards, Panel, Screen, ToneChip, UserAvatar } from '@/components/ui';
+import { SelectField } from '@/components/SelectField';
 import { api } from '@/lib/api';
 import { useAuth } from '@/lib/auth';
 import { haptic, useToast } from '@/lib/feedback';
@@ -63,7 +64,7 @@ export default function AttendanceScreen() {
                   {summary}
                 </Hero>
                 <View style={{ paddingHorizontal: space.lg, marginTop: space.lg }}>
-                  <FilterChips options={classes.data!.map((c) => ({ label: c.name, value: c.id, icon: 'google-classroom' as const }))} value={classId} onChange={setClassId} />
+                  <SelectField label="Class" options={classes.data!.map((c) => ({ label: c.name, value: c.id, icon: 'google-classroom' as const }))} value={classId} onChange={setClassId} />
                   <FilterChips options={dayOpts} value={offset} onChange={setOffset} />
                 </View>
               </>

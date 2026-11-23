@@ -256,7 +256,8 @@ function FilterChip({ label, icon, on, onPress }: { label: string; icon?: IconNa
   );
 }
 
-/** Horizontal, scrollable single-select filter chips. */
+/** Single-select chips for short, fixed choices. They wrap onto a new line instead of scrolling sideways,
+ *  so every option is always visible. For lists that grow (classes, exams…) use SelectField instead. */
 export function FilterChips<T extends string | number>({ options, value, onChange, label, style }: {
   options: { label: string; value: T; icon?: IconName }[]; value: T | null | undefined; onChange: (v: T) => void; label?: string; style?: ViewStyle;
 }) {
@@ -264,13 +265,12 @@ export function FilterChips<T extends string | number>({ options, value, onChang
   return (
     <View style={[{ marginBottom: space.md }, style]}>
       {label ? <Text variant="labelMedium" style={{ color: t.colors.onSurfaceVariant, marginBottom: 6 }}>{label}</Text> : null}
-      <ScrollView horizontal showsHorizontalScrollIndicator={false}
-        contentContainerStyle={{ gap: space.sm, paddingRight: space.lg, paddingVertical: 2 }}>
+      <View accessibilityRole="radiogroup" accessibilityLabel={label} style={{ flexDirection: 'row', flexWrap: 'wrap', gap: space.sm, paddingVertical: 2 }}>
         {options.map((o) => (
           <FilterChip key={String(o.value)} label={o.label} icon={o.icon} on={o.value === value}
             onPress={() => { haptic.tap(); onChange(o.value); }} />
         ))}
-      </ScrollView>
+      </View>
     </View>
   );
 }

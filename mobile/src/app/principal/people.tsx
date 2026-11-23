@@ -6,6 +6,7 @@ import { Button, Searchbar, Text } from 'react-native-paper';
 import { PersonRole } from '@/components/people/constants';
 import { CredentialsDialog, Credentials } from '@/components/people/CredentialsDialog';
 import { PersonSheet } from '@/components/people/PersonSheet';
+import { SelectField } from '@/components/SelectField';
 import { Fab,
   EmptyState, ErrorState, FadeIn, FilterChips, Hero, Icon, IconName, LoadingCards, Panel, Row, ToneChip, UserAvatar,
 } from '@/components/ui';
@@ -134,7 +135,7 @@ export default function People() {
             </Button>
           ) : null}
           {tab === 'student' && classes.data ? (
-            <FilterChips options={[{ label: 'All classes', value: 0 }, ...classes.data.map((c) => ({ label: `${c.name} · ${c.student_count}`, value: c.id }))]}
+            <SelectField label="Class" options={[{ label: 'All classes', value: 0 }, ...classes.data.map((c) => ({ label: c.name, sub: `${c.student_count} student${c.student_count === 1 ? '' : 's'}`, value: c.id }))]}
               value={classId} onChange={setClassId} />
           ) : null}
 

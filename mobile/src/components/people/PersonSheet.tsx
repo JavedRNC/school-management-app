@@ -4,6 +4,7 @@ import { Button, Dialog, HelperText, Text } from 'react-native-paper';
 import { TextInput } from '@/components/Field';
 
 import { FilterChips, Sheet, ToneChip, UserAvatar, TopLayer } from '@/components/ui';
+import { SelectField } from '@/components/SelectField';
 import { api } from '@/lib/api';
 import { ROLE_LABEL, useAuth } from '@/lib/auth';
 import { haptic, useToast } from '@/lib/feedback';
@@ -161,7 +162,7 @@ export function PersonSheet({
 
         {role === 'student' ? (
           <>
-            <FilterChips label="Class" options={classes.map((c) => ({ label: c.name, value: c.id }))} value={classId} onChange={readOnly ? () => {} : setClassId} />
+            <SelectField label="Class" options={classes.map((c) => ({ label: c.name, value: c.id }))} value={classId} onChange={setClassId} disabled={readOnly} />
             <TextInput mode="outlined" label="Roll no." value={roll} onChangeText={(v) => setRoll(v.replace(/\D/g, ''))} keyboardType="number-pad"
               disabled={readOnly} left={<TextInput.Icon icon="pound" />} style={{ marginBottom: space.md }} />
           </>

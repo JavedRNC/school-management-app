@@ -7,7 +7,8 @@ import { haptic, useToast } from '@/lib/feedback';
 import { space, useAppTheme } from '@/lib/theme';
 import type { Rider, SchoolClass, TransportRoute, User } from '@/lib/types';
 
-import { FilterChips, Sheet, ToneChip } from '../ui';
+import { Sheet, ToneChip } from '../ui';
+import { SelectField } from '@/components/SelectField';
 
 /** Assign (or move) students to a route + stop. `preselect` = students to move. */
 export function AssignSheet({ visible, routes, riders, students, classes, preselect, onDismiss, onSaved }: {
@@ -75,16 +76,16 @@ export function AssignSheet({ visible, routes, riders, students, classes, presel
         <Text variant="bodyMedium" style={{ color: t.colors.onSurfaceVariant }}>Create a route first.</Text>
       ) : (
         <>
-          <FilterChips label="Route" value={routeId} onChange={(v) => { setRouteId(v); setStopId(routes.find((x) => x.id === v)?.stops[0]?.id ?? 0); }}
+          <SelectField label="Route" value={routeId} onChange={(v) => { setRouteId(v); setStopId(routes.find((x) => x.id === v)?.stops[0]?.id ?? 0); }}
             options={routes.map((r) => ({ label: r.name, value: r.id, icon: 'map-marker-path' as const }))} />
-          <FilterChips label="Stop" value={stopId} onChange={setStopId}
+          <SelectField label="Stop" value={stopId} onChange={setStopId}
             options={[...(route?.stops ?? []).map((s) => ({ label: `${s.name}${s.pickup_time ? ` · ${s.pickup_time}` : ''}`, value: s.id })), { label: 'No stop yet', value: 0 }]} />
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: space.sm, marginBottom: space.sm }}>
             <ToneChip text={cap !== null ? `${after} / ${cap} seats after saving` : 'No vehicle on this route'}
               tone={cap === null ? 'neutral' : over ? 'danger' : after > cap * 0.85 ? 'warning' : 'success'} icon="seat-passenger" compact={false} />
           </View>
           <Searchbar placeholder="Search students" value={q} onChangeText={setQ} style={{ marginBottom: space.sm, backgroundColor: t.custom.inset }} elevation={0} />
-          <FilterChips value={classId} onChange={setClassId} options={[{ label: 'All classes', value: 0 }, ...classes.map((c) => ({ label: c.name, value: c.id }))]} />
+          <SelectField label="Class" value={classId} onChange={setClassId} options={[{ label: 'All classes', value: 0 }, ...classes.map((c) => ({ label: c.name, value: c.id }))]} />
           <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
             <Text variant="labelLarge" style={{ color: t.colors.onSurfaceVariant }}>{sel.size} selected</Text>
             <Button compact onPress={() => setSel((s) => new Set([...s, ...list.map((x) => x.id)]))}>Select all shown</Button>

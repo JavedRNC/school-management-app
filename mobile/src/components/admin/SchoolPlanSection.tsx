@@ -3,7 +3,8 @@ import { View } from 'react-native';
 import { Button, SegmentedButtons, Switch, Text } from 'react-native-paper';
 import { TextInput } from '@/components/Field';
 
-import { FadeIn, FilterChips, Panel, ToneChip } from '@/components/ui';
+import { FadeIn, Panel, ToneChip } from '@/components/ui';
+import { SelectField } from '@/components/SelectField';
 import { api } from '@/lib/api';
 import { haptic, useToast } from '@/lib/feedback';
 import { space, useAppTheme } from '@/lib/theme';
@@ -103,8 +104,8 @@ export function SchoolPlanSection({ d, onSaved }: { d: AdminSchoolDetail; onSave
       <FadeIn index={1}>
         <Panel title="Plan & modules" icon="puzzle-outline">
           {plans.data ? (
-            <FilterChips value={planId} onChange={setPlanId}
-              options={[{ label: 'No plan', value: 0 }, ...plans.data.map((p) => ({ label: `${p.name} · ${rupees(p.price_per_student)}`, value: p.id }))]} />
+            <SelectField label="Plan" value={planId} onChange={setPlanId}
+              options={[{ label: 'No plan', value: 0 }, ...plans.data.map((p) => ({ label: p.name, sub: `${rupees(p.price_per_student)} per student a month`, value: p.id }))]} />
           ) : null}
           <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: space.sm }}>
             <View style={{ flex: 1 }}>

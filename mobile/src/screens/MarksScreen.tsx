@@ -5,7 +5,8 @@ import { Text } from 'react-native-paper';
 import { TextInput } from '@/components/Field';
 
 import { subjectIcon } from '@/components/TimetableView';
-import { Fab, EmptyState, ErrorState, FilterChips, Hero, LoadingCards, Panel, Screen, ToneChip, UserAvatar } from '@/components/ui';
+import { Fab, EmptyState, ErrorState, Hero, LoadingCards, Panel, Screen, ToneChip, UserAvatar } from '@/components/ui';
+import { SelectField } from '@/components/SelectField';
 import { api } from '@/lib/api';
 import { useAuth, usePerm } from '@/lib/auth';
 import { haptic, useToast } from '@/lib/feedback';
@@ -28,8 +29,8 @@ export default function MarksScreen() {
 
   const pickers = base.data ? (
     <View style={{ paddingHorizontal: space.lg, marginTop: space.lg }}>
-      <FilterChips label="Exam" options={base.data.exams.map((e) => ({ label: e.name, value: e.id, icon: 'file-document-outline' as const }))} value={exam?.id} onChange={setExamId} />
-      <FilterChips label="Class & subject" value={a?.id} onChange={setAid}
+      <SelectField label="Exam" options={base.data.exams.map((e) => ({ label: e.name, value: e.id, icon: 'file-document-outline' as const }))} value={exam?.id} onChange={setExamId} />
+      <SelectField label="Class & subject" value={a?.id} onChange={setAid}
         options={base.data.assignments.map((x) => ({ label: `${x.class_name} · ${x.subject_name}`, value: x.id, icon: subjectIcon(x.subject_name) }))} />
     </View>
   ) : null;

@@ -5,6 +5,7 @@ import { IconButton, Searchbar, Text } from 'react-native-paper';
 
 import { useFeeGate } from '@/components/fees/staff/common';
 import { EmptyState, ErrorState, FadeIn, FilterChips, Hero, LoadingCards, Panel, PressScale, Screen, ToneChip, UserAvatar } from '@/components/ui';
+import { SelectField } from '@/components/SelectField';
 import { api } from '@/lib/api';
 import { useAuth } from '@/lib/auth';
 import { fmtDate, inr, inrShort, statusColor } from '@/lib/fees';
@@ -73,7 +74,7 @@ function List() {
         { label: 'Clear', value: 'clear', icon: 'check-circle-outline' },
       ]} />
       {classes.data?.length ? (
-        <FilterChips value={classId} onChange={setClassId}
+        <SelectField label="Class" value={classId} onChange={setClassId}
           options={[{ label: 'All classes', value: 0 }, ...classes.data.map((c) => ({ label: c.name, value: c.id }))]} />
       ) : null}
       {rows.error ? <ErrorState message={rows.error} onRetry={rows.reload} /> : null}

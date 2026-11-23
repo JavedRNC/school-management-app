@@ -4,6 +4,7 @@ import { Button, Checkbox, Dialog, HelperText, Searchbar, Text } from 'react-nat
 import { TextInput } from '@/components/Field';
 
 import { EmptyState, ErrorState, FadeIn, FilterChips, Icon, LoadingCards, Panel, Row, Sheet, ToneChip, UserAvatar, TopLayer } from '@/components/ui';
+import { SelectField } from '@/components/SelectField';
 import { api } from '@/lib/api';
 import { ROLE_LABEL } from '@/lib/auth';
 import { haptic, useToast } from '@/lib/feedback';
@@ -195,7 +196,7 @@ function PersonSheet({ target, d, full, classes, defaultRole, onClose, onSaved, 
         )}
         {role === 'student' ? (
           <>
-            <FilterChips label="Class" value={classId} onChange={setClassId} options={classes.map((c) => ({ label: c.name, value: c.id }))} />
+            <SelectField label="Class" value={classId} onChange={setClassId} options={classes.map((c) => ({ label: c.name, value: c.id }))} />
             <TextInput mode="outlined" label="Roll no." value={roll} onChangeText={(v) => setRoll(v.replace(/\D/g, ''))} keyboardType="number-pad" style={{ marginBottom: space.md }} />
           </>
         ) : null}

@@ -6,8 +6,9 @@ import { TextInput } from '@/components/Field';
 
 import { bellSummary, useBell } from '@/components/BellTimes';
 import { subjectIcon, TimetableView } from '@/components/TimetableView';
+import { SelectField } from '@/components/SelectField';
 import {
-  EmptyState, ErrorState, FadeIn, FilterChips, Hero, Icon, IconBadge, IconName, LoadingCards, Panel, PressScale, Row, Screen, Sheet, ToneChip,
+  EmptyState, ErrorState, FadeIn, Hero, Icon, IconBadge, IconName, LoadingCards, Panel, PressScale, Row, Screen, Sheet, ToneChip,
   UserAvatar, TopLayer } from '@/components/ui';
 import { api } from '@/lib/api';
 import { useCan } from '@/lib/auth';
@@ -53,7 +54,7 @@ export default function Classes() {
         <>
           {tab !== 'setup' ? (
             d.classes.length
-              ? <FilterChips options={d.classes.map((c) => ({ label: `${c.name}`, value: c.id, icon: 'google-classroom' as const }))} value={cid} onChange={setClassId} />
+              ? <SelectField label="Class" options={d.classes.map((c) => ({ label: `${c.name}`, value: c.id, icon: 'google-classroom' as const }))} value={cid} onChange={setClassId} />
               : <EmptyState icon="google-classroom" title="No classes yet" text="Create your first class in Setup." action="Go to Setup" onAction={() => setTab('setup')} />
           ) : null}
           {tab !== 'setup' && cid && (canAtt || canExams) ? (

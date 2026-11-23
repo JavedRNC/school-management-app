@@ -6,6 +6,7 @@ import { TextInput } from '@/components/Field';
 
 import { SchoolRow } from '@/components/admin/common';
 import { Fab, EmptyState, ErrorState, FadeIn, FilterChips, Hero, LoadingCards, Panel, Sheet } from '@/components/ui';
+import { SelectField } from '@/components/SelectField';
 import { api } from '@/lib/api';
 import { haptic, useToast } from '@/lib/feedback';
 import { space, useAppTheme } from '@/lib/theme';
@@ -114,7 +115,7 @@ function AddSchool({ visible, onDismiss, onAdded }: { visible: boolean; onDismis
         <TextInput mode="outlined" label="Board" value={board} onChangeText={setBoard} placeholder="CBSE" style={{ flex: 1 }} />
       </View>
       {plans.data ? (
-        <FilterChips label="Plan" value={planId} onChange={setPlanId}
+        <SelectField label="Plan" value={planId} onChange={setPlanId}
           options={[{ label: 'No plan', value: 0 }, ...plans.data.map((p) => ({ label: p.name, value: p.id }))]} />
       ) : null}
       <Panel title="Principal account" icon="account-tie" style={{ marginTop: space.sm }}>

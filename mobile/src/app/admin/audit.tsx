@@ -1,7 +1,8 @@
 import { useState } from 'react';
 
 import { AuditList } from '@/components/admin/AuditList';
-import { ErrorState, FadeIn, FilterChips, Hero, LoadingCards, Panel, Screen } from '@/components/ui';
+import { ErrorState, FadeIn, Hero, LoadingCards, Panel, Screen } from '@/components/ui';
+import { SelectField } from '@/components/SelectField';
 import { api } from '@/lib/api';
 import type { AdminSchoolRow, AuditEntry } from '@/lib/types';
 import { useLoad } from '@/lib/useLoad';
@@ -16,8 +17,8 @@ export default function Audit() {
     <Screen onRefresh={log.refresh} refreshing={log.refreshing}
       header={<Hero title="Audit log" subtitle="Every admin access and important change" compact />}>
       {schools.data ? (
-        <FilterChips value={sid} onChange={setSid}
-          options={[{ label: 'All schools', value: 0 }, ...schools.data.map((s) => ({ label: s.code, value: s.id }))]} />
+        <SelectField label="School" value={sid} onChange={setSid}
+          options={[{ label: 'All schools', value: 0 }, ...schools.data.map((s) => ({ label: s.code, sub: s.name, value: s.id }))]} />
       ) : null}
       {log.error ? <ErrorState message={log.error} onRetry={log.reload} /> : null}
       {log.loading && !log.data ? <LoadingCards /> : null}
