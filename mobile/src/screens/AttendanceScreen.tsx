@@ -229,7 +229,8 @@ function useViewPref(fallback: View_): [View_ | null, (v: View_) => void] {
   const [v, setV] = useState<View_ | null>(null);
   const [loaded, setLoaded] = useState(false);
   useEffect(() => {
-    AsyncStorage.getItem(VIEW_KEY).then((x) => { if (x === 'grid' || x === 'list') setV(x); }).catch(() => {}).finally(() => setLoaded(true));
+    // a tap made before the read finishes wins over the stored value
+    AsyncStorage.getItem(VIEW_KEY).then((x) => { if (x === 'grid' || x === 'list') setV((cur) => cur ?? x); }).catch(() => {}).finally(() => setLoaded(true));
   }, []);
   // null until the saved choice is read, so a saved List never flashes as the theme's Grid (or the other way round)
   return [loaded ? v ?? fallback : null, (x) => { setV(x); AsyncStorage.setItem(VIEW_KEY, x).catch(() => {}); }];

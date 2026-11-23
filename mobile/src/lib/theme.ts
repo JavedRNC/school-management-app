@@ -1,5 +1,5 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { createContext, createElement, ReactNode, useContext, useEffect, useMemo, useState } from 'react';
+import { createContext, createElement, ReactNode, useContext, useEffect, useMemo, useRef, useState } from 'react';
 import { Platform, useColorScheme, ViewStyle } from 'react-native';
 import { configureFonts, MD3DarkTheme, MD3LightTheme, useTheme } from 'react-native-paper';
 
@@ -197,16 +197,17 @@ const PrefContext = createContext<Pref>({ kind: 'chalk', setKind: () => {}, read
 export function ThemePrefProvider({ children }: { children: ReactNode }) {
   const [kind, setK] = useState<ThemeKind>('chalk');
   const [ready, setReady] = useState(false);
+  const picked = useRef(false);   // the user chose in this session: a late storage read must not undo it
   useEffect(() => {
-    let done = false;
+    let done = false;   // a late read still applies the saved theme; only the 'show the app' step is one-shot
     const finish = () => { if (!done) { done = true; setReady(true); } };
     const giveUp = setTimeout(finish, 600);      // never keep the app hidden if storage is slow
-    AsyncStorage.getItem(THEME_KEY).then((x) => { if (!done && isKind(x)) setK(x); }).catch(() => {}).finally(finish);
+    AsyncStorage.getItem(THEME_KEY).then((x) => { if (isKind(x)) setK((cur) => (picked.current ? cur : x)); }).catch(() => {}).finally(finish);
     return () => clearTimeout(giveUp);
   }, []);
   const value = useMemo<Pref>(() => ({
     kind, ready,
-    setKind: (k) => { setK(k); AsyncStorage.setItem(THEME_KEY, k).catch(() => {}); },
+    setKind: (k) => { picked.current = true; setK(k); AsyncStorage.setItem(THEME_KEY, k).catch(() => {}); },
   }), [kind, ready]);
   return createElement(PrefContext.Provider, { value }, children);
 }
