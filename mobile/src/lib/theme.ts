@@ -26,7 +26,7 @@ const lightColors = {
   onSurface: '#14201B',
   surfaceVariant: '#E7EBE6',
   onSurfaceVariant: '#4C5852',
-  outline: '#6E7A73',
+  outline: '#5F6B64',
   outlineVariant: '#D5DAD4',
   error: '#B4410F',
   onError: '#FFFFFF',
@@ -119,7 +119,8 @@ const D = (fontSize: number, lineHeight: number, letterSpacing = -0.3) =>
   ({ fontFamily: FONT_DISPLAY, fontSize, lineHeight, letterSpacing, fontWeight: '700' as const });
 const fonts = configureFonts({
   config: {
-    default: T(16, 23),
+    // No size here: Paper applies `default` to every Text without a variant, and a fixed line-height would clip big custom sizes.
+    default: { fontFamily: FONT_TEXT, letterSpacing: 0, fontWeight: '400' } as never,
     displayLarge: D(46, 58, -0.8),
     displayMedium: D(38, 48, -0.6),
     displaySmall: D(32, 41, -0.5),

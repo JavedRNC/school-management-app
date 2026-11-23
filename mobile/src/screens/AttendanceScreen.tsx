@@ -3,6 +3,7 @@ import { ReactNode, useEffect, useRef, useState } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Animated, Pressable, useWindowDimensions, View } from 'react-native';
 import { Button, Switch, Text } from 'react-native-paper';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { LiveRing } from '@/components/charts';
 import { EmptyState, ErrorState, Hero, Icon, IconName, LoadingCards, Panel, Screen, ToneChip } from '@/components/ui';
@@ -98,6 +99,7 @@ function AttendanceSheet({ classId, day, header, classTeacherId }: {
   const canEdit = !!sheet && sheet.can_edit && !readOnlySchool && (!offDay || (manager && override));
   const isClassTeacher = !!user && classTeacherId === user.id;
   const [view, setView] = useViewPref();
+  const insets = useSafeAreaInsets();
   const { width: screenW } = useWindowDimensions();
   const tileW = Math.floor((Math.min(screenW, 640) - space.lg * 2 - GRID_GAP * 2) / 3);
   const toggle = (id: number) => setMarks((m) => ({ ...m, [id]: !(m[id] ?? true) }));
@@ -148,7 +150,7 @@ function AttendanceSheet({ classId, day, header, classTeacherId }: {
 
   return (
     <>
-      <Screen header={header(summary)} onRefresh={refresh} refreshing={refreshing} footerSpace={canEdit && rows.length ? 110 : 40}>
+      <Screen header={header(summary)} onRefresh={refresh} refreshing={refreshing} footerSpace={canEdit && rows.length ? 110 + insets.bottom : 40}>
         {error ? <ErrorState message={error} onRetry={reload} /> : null}
         {sheet && offDay ? (
           <Panel tone="primary" icon="beach" title={`No school: ${sheet.reason || 'holiday'}`}
@@ -203,7 +205,7 @@ function AttendanceSheet({ classId, day, header, classTeacherId }: {
         )}
       </Screen>
       {rows.length && canEdit ? (
-        <View style={{ position: 'absolute', left: 0, right: 0, bottom: 0, paddingHorizontal: space.lg, paddingTop: space.md, paddingBottom: space.md,
+        <View style={{ position: 'absolute', left: 0, right: 0, bottom: 0, paddingHorizontal: space.lg, paddingTop: space.md, paddingBottom: space.md + insets.bottom,
           backgroundColor: t.colors.background, borderTopWidth: 1, borderTopColor: t.custom.cardBorder }}>
           <Button mode="contained" onPress={save} loading={busy} disabled={busy} icon={already ? 'content-save-edit-outline' : 'content-save-check-outline'}
             style={{ borderRadius: 16 }} contentStyle={{ height: 54 }} labelStyle={{ fontSize: 17, lineHeight: 24, fontWeight: '700' }}>
@@ -237,7 +239,7 @@ function ViewToggle({ value, onChange }: { value: View_; onChange: (v: View_) =>
         return (
           <Pressable key={o.v} accessibilityRole="radio" accessibilityState={{ checked: on }} accessibilityLabel={o.label}
             onPress={() => { if (!on) { haptic.tap(); onChange(o.v); } }}
-            style={{ height: 38, paddingHorizontal: 12, borderRadius: radius.pill, flexDirection: 'row', alignItems: 'center', gap: 4,
+            style={{ height: 44, paddingHorizontal: 12, borderRadius: radius.pill, flexDirection: 'row', alignItems: 'center', gap: 4,
               backgroundColor: on ? t.colors.elevation.level1 : 'transparent' }}>
             <Icon name={o.icon} size={18} color={on ? t.colors.primary : t.colors.onSurfaceVariant} />
             <Text variant="labelLarge" style={{ color: on ? t.colors.primary : t.colors.onSurfaceVariant }}>{o.label}</Text>

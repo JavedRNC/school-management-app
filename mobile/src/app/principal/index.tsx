@@ -1,6 +1,6 @@
 import { Redirect, router } from 'expo-router';
 import { useState } from 'react';
-import { LayoutAnimation, Pressable, View } from 'react-native';
+import { LayoutAnimation, View } from 'react-native';
 import { Button, SegmentedButtons, Text } from 'react-native-paper';
 
 import { ColumnChart, ProgressRows, Ring, TrendChart } from '@/components/charts';
@@ -49,7 +49,7 @@ function Insights() {
         <Hero eyebrow={greeting()} title={user?.name ?? 'Principal'}
           subtitle={data ? `School snapshot · ${new Date(data.date + 'T00:00:00').toLocaleDateString('en-IN', { weekday: 'long', day: 'numeric', month: 'short' })}` : 'Loading insights…'}
           right={user ? <UserAvatar name={user.name} light size={48} /> : null}>
-          {data ? <TodayCard d={data} /> : <View style={{ height: 40 }} />}
+          {data ? <TodayCard d={data} /> : null}
         </Hero>
       }>
       <StatusBanner closed />
@@ -76,17 +76,24 @@ function TodayCard({ d }: { d: Dashboard }) {
   const total = marked.reduce((n, c) => n + c.total, 0);
   const shown = d.attendance_today.slice(0, 5);
   const ink = '#FFFFFF';
-  const soft = 'rgba(255,255,255,0.78)';
+  const soft = 'rgba(255,255,255,0.82)';
+  const low = d.thresholds.low_attendance;
+  /** Bars stay marigold when healthy and turn coral below the school's low-attendance mark. */
+  const coral = '#FF9A73';
+  const barCol = (p: number) => (p < low ? coral : t.custom.amber);
+  const unmarkedText = d.unmarked_classes.length
+    ? `Not marked: ${d.unmarked_classes.map((c) => `${c.class_name}${c.class_teacher ? ` (${c.class_teacher})` : ''}`).join(', ')}`
+    : `All ${o.classes_total} classes marked`;
   return (
     <FadeIn>
-      <Pressable onPress={() => { haptic.tap(); router.push('/principal/classes'); }} accessibilityRole="button"
-        accessibilityLabel={pct != null ? `Attendance ${Math.round(pct)} percent, ${present} of ${total} students. ${o.classes_marked} of ${o.classes_total} classes marked.` : 'Attendance not marked yet'}
+      <View accessible
+        accessibilityLabel={`${pct != null ? `Attendance ${Math.round(pct)} percent, ${present} of ${total} students${pct < low ? `, below the ${low} percent target` : ''}.` : 'Attendance not marked yet.'} ${unmarkedText}.`}
         style={{ backgroundColor: t.dark ? t.colors.primaryContainer : t.colors.primary, borderRadius: radius.xxl, padding: space.lg + 4, gap: space.md }}>
         <Text variant="bodyLarge" style={{ color: soft }}>
           {d.today_is_school_day ? 'Attendance today' : `Last school day · ${fmtDate(d.date)}`}
         </Text>
         <View style={{ flexDirection: 'row', alignItems: 'flex-end', gap: space.sm, flexWrap: 'wrap' }}>
-          <Text variant="displayMedium" style={{ color: ink, fontSize: 52, lineHeight: 58 }}>{pct != null ? `${Math.round(pct)}%` : '—'}</Text>
+          <Text variant="displayMedium" style={{ color: pct != null && pct < low ? coral : ink, fontSize: 52, lineHeight: 60 }}>{pct != null ? `${Math.round(pct)}%` : '—'}</Text>
           <Text variant="bodyLarge" style={{ color: soft, paddingBottom: 8 }}>
             {pct != null ? `${present} of ${total} students` : 'Not marked yet'}
           </Text>
@@ -97,9 +104,9 @@ function TodayCard({ d }: { d: Dashboard }) {
               <View key={c.class_id} style={{ flexDirection: 'row', alignItems: 'center', gap: space.sm }}>
                 <Text variant="labelLarge" numberOfLines={1} style={{ color: ink, width: 52 }}>{c.class_name}</Text>
                 <View style={{ flex: 1, height: 8, borderRadius: 4, backgroundColor: 'rgba(255,255,255,0.16)', overflow: 'hidden' }}>
-                  {c.percent != null ? <View style={{ width: `${Math.max(2, Math.min(100, c.percent))}%`, height: 8, borderRadius: 4, backgroundColor: t.custom.amber }} /> : null}
+                  {c.percent != null ? <View style={{ width: `${Math.max(2, Math.min(100, c.percent))}%`, height: 8, borderRadius: 4, backgroundColor: barCol(c.percent) }} /> : null}
                 </View>
-                <Text variant="labelLarge" style={{ color: c.percent != null ? ink : t.custom.amber, minWidth: 44, textAlign: 'right' }}>
+                <Text variant="labelLarge" style={{ color: c.percent == null ? '#FFD27A' : c.percent < low ? coral : ink, minWidth: 44, textAlign: 'right' }}>
                   {c.percent != null ? `${c.present}/${c.total}` : 'Not yet'}
                 </Text>
               </View>
@@ -109,12 +116,8 @@ function TodayCard({ d }: { d: Dashboard }) {
             ) : null}
           </View>
         ) : null}
-        <Text variant="bodyMedium" style={{ color: soft }}>
-          {d.unmarked_classes.length
-            ? `Not marked: ${d.unmarked_classes.map((c) => `${c.class_name}${c.class_teacher ? ` (${c.class_teacher})` : ''}`).join(', ')}`
-            : `All ${o.classes_total} classes marked`}
-        </Text>
-      </Pressable>
+        <Text variant="bodyMedium" style={{ color: soft }}>{unmarkedText}</Text>
+      </View>
     </FadeIn>
   );
 }

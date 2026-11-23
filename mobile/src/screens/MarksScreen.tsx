@@ -1,7 +1,8 @@
 import { useLocalSearchParams } from 'expo-router';
 import { ReactNode, useEffect, useMemo, useRef, useState } from 'react';
-import { View } from 'react-native';
+import { Keyboard, View } from 'react-native';
 import { Button, Text } from 'react-native-paper';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { TextInput } from '@/components/Field';
 
 import { subjectIcon } from '@/components/TimetableView';
@@ -54,6 +55,14 @@ function MarkSheet({ a, exam, pickers }: { a: Assignment; exam: Exam; pickers: R
   const canEdit = (!manager || examsLevel === 'edit') && school?.can_write !== false;
   const t = useAppTheme();
   const toast = useToast();
+  const insets = useSafeAreaInsets();
+  // The save bar steps aside while typing so it never sits on top of the row being filled in.
+  const [typing, setTyping] = useState(false);
+  useEffect(() => {
+    const a = Keyboard.addListener('keyboardDidShow', () => setTyping(true));
+    const b = Keyboard.addListener('keyboardDidHide', () => setTyping(false));
+    return () => { a.remove(); b.remove(); };
+  }, []);
   const { data, error, reload } = useLoad(
     () => api<MarkRow[]>('/marks', { params: { exam_id: exam.id, class_id: a.class_id, subject_id: a.subject_id } }), [a.id, exam.id]);
   const [vals, setVals] = useState<Record<number, string>>({});
@@ -122,7 +131,7 @@ function MarkSheet({ a, exam, pickers }: { a: Assignment; exam: Exam; pickers: R
 
   return (
     <>
-      <Screen header={header} footerSpace={110}>
+      <Screen header={header} footerSpace={110 + insets.bottom}>
         {error ? <ErrorState message={error} onRetry={reload} /> : null}
         {!data ? <LoadingCards count={5} /> : !data.length ? <EmptyState title="No students in this class" /> : (
           <Panel title={`Out of ${exam.max_marks}`} subtitle={canEdit ? 'Grade updates as you type' : 'View only'} icon="pencil-box-multiple-outline">
@@ -153,8 +162,8 @@ function MarkSheet({ a, exam, pickers }: { a: Assignment; exam: Exam; pickers: R
           </Panel>
         )}
       </Screen>
-      {data?.length && dirty && canEdit ? (
-        <View style={{ position: 'absolute', left: 0, right: 0, bottom: 0, paddingHorizontal: space.lg, paddingVertical: space.md,
+      {data?.length && dirty && canEdit && !typing ? (
+        <View style={{ position: 'absolute', left: 0, right: 0, bottom: 0, paddingHorizontal: space.lg, paddingTop: space.md, paddingBottom: space.md + insets.bottom,
           backgroundColor: t.colors.background, borderTopWidth: 1, borderTopColor: t.custom.cardBorder }}>
           <Button mode="contained" icon="content-save-outline" onPress={save} loading={busy} disabled={busy}
             style={{ borderRadius: 16 }} contentStyle={{ height: 54 }} labelStyle={{ fontSize: 17, lineHeight: 24, fontWeight: '700' }}>

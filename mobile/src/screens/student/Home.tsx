@@ -76,15 +76,15 @@ export default function HomeScreen() {
                 </View>
               </Panel>
             </FadeIn>
-          ) : !isParent || blocked ? <View style={{ height: 40 }} /> : null}
+          ) : null}
         </Hero>
       }>
       {blocked ? gate : null}
       {error ? <ErrorState message={error} onRetry={reload} /> : null}
-      {blocked ? null : !data ? <View style={{ marginTop: space.lg }}><LoadingCards /></View> : (
+      {blocked ? null : !data ? <LoadingCards /> : (
         <>
           <FadeIn index={1}>
-            <View style={{ flexDirection: 'row', gap: space.sm, marginTop: space.lg }}>
+            <View style={{ flexDirection: 'row', gap: space.sm }}>
               <PressScale style={{ flex: 1 }} onPress={() => router.push(`${base}/homework` as never)}>
                 <View style={{ backgroundColor: t.colors.secondaryContainer, borderRadius: radius.xl, padding: space.lg }}>
                   <Icon name="book-clock-outline" size={26} color={t.colors.onSecondaryContainer} />

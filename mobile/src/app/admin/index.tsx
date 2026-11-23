@@ -39,13 +39,13 @@ export default function AdminOverviewScreen() {
                 </View>
               </Panel>
             </FadeIn>
-          ) : <View style={{ height: 40 }} />}
+          ) : null}
         </Hero>
       }>
-      {loading && !data ? <View style={{ marginTop: space.lg }}><LoadingCards /></View> : null}
+      {loading && !data ? <LoadingCards /> : null}
       {error ? <ErrorState message={error} onRetry={reload} /> : null}
       {data ? (
-        <View style={{ marginTop: space.lg }}>
+        <View>
           <FadeIn index={1}>
             <View style={{ flexDirection: 'row', gap: space.sm, marginBottom: space.sm }}>
               <StatTile icon="domain" label="Schools" value={data.schools} onPress={() => router.push('/admin/schools')} />
