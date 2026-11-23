@@ -9,7 +9,7 @@ import { AnimatedFAB, Avatar, Button, Text, TouchableRipple } from 'react-native
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { haptic, prefersReducedMotion } from '@/lib/feedback';
-import { cardEdge, FONT_TEXT, glow, initials, radius, shadow, space, Tone, toneColors, useAppTheme } from '@/lib/theme';
+import { cardEdge, glow, initials, radius, shadow, space, Tone, toneColors, useAppTheme } from '@/lib/theme';
 
 export type IconName = ComponentProps<typeof MaterialCommunityIcons>['name'];
 export const Icon = MaterialCommunityIcons;
@@ -120,6 +120,13 @@ export function Hero({ title, subtitle, eyebrow, right, children, compact }: {
           </View>
           {right}
         </View>
+        {t.shape.header === 'ruled' ? (
+          // Register: the heavy ruled line of a register page, with the red margin mark at its left end.
+          <View style={{ flexDirection: 'row', marginTop: space.md, marginBottom: children ? space.xs : 0 }}>
+            <View style={{ width: 18, height: 2, backgroundColor: t.custom.danger }} />
+            <View style={{ flex: 1, height: 2, backgroundColor: t.colors.onBackground }} />
+          </View>
+        ) : null}
       </View>
       {children ? <View style={{ paddingHorizontal: space.lg }}>{children}</View> : null}
     </View>
@@ -139,7 +146,7 @@ export function UserAvatar({ name, size = 44, light }: { name: string; size?: nu
   return (
     <Avatar.Text size={size} label={initials(name)}
       style={{ backgroundColor: light ? t.colors.primary : bg }}
-      color={light ? t.colors.onPrimary : fg} labelStyle={{ fontFamily: FONT_TEXT, fontWeight: '700', fontSize: size * 0.36, lineHeight: size * 0.5, letterSpacing: 0.2 }} />
+      color={light ? t.colors.onPrimary : fg} labelStyle={{ fontFamily: t.custom.fontText, fontWeight: '700', fontSize: size * 0.36, lineHeight: size * 0.5, letterSpacing: 0.2 }} />
   );
 }
 
@@ -176,10 +183,10 @@ export function Panel({ children, title, subtitle, icon, right, style, onPress, 
     </View>
   );
   return (
-    <View style={[{ marginBottom: space.md, borderRadius: radius.xl, backgroundColor: tc ? tc.bg : t.colors.elevation.level1 },
+    <View style={[{ marginBottom: space.md, borderRadius: t.shape.card, backgroundColor: tc ? tc.bg : t.colors.elevation.level1 },
       tc ? null : cardEdge(t), style]}>
       {onPress ? (
-        <TouchableRipple borderless onPress={() => { haptic.tap(); onPress(); }} style={{ borderRadius: radius.xl }} accessibilityRole="button">
+        <TouchableRipple borderless onPress={() => { haptic.tap(); onPress(); }} style={{ borderRadius: t.shape.card }} accessibilityRole="button">
           {inner}
         </TouchableRipple>
       ) : inner}
@@ -205,7 +212,7 @@ export function StatTile({ icon, label, value, suffix, decimals, tone = 'primary
   const t = useAppTheme();
   return (
     <PressScale onPress={onPress} style={{ flex: 1 }}>
-      <View style={[{ backgroundColor: t.colors.elevation.level2, borderRadius: radius.xl, padding: space.md, minHeight: 104 }, cardEdge(t)]}>
+      <View style={[{ backgroundColor: t.colors.elevation.level2, borderRadius: t.shape.card, padding: space.md, minHeight: 104 }, cardEdge(t)]}>
         <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
           <IconBadge icon={icon} tone={tone} size={34} />
           {onPress ? <Icon name="arrow-top-right" size={16} color={t.colors.outline} /> : null}
@@ -242,7 +249,7 @@ function FilterChip({ label, icon, on, onPress }: { label: string; icon?: IconNa
   const fg = on ? t.colors.onPrimary : t.colors.onSurface;
   return (
     <Animated.View style={{ transform: [{ scale: v }], maxWidth: '100%' }}>
-      <Pressable onPress={onPress} hitSlop={{ top: 5, bottom: 5 }} accessibilityRole="radio" accessibilityState={{ checked: on, selected: on }} accessibilityLabel={label}
+      <Pressable onPress={onPress} hitSlop={{ top: 5, bottom: 5 }} accessibilityRole="radio" accessibilityState={{ checked: on, selected: on }} aria-checked={on} accessibilityLabel={label}
         android_ripple={{ color: t.colors.surfaceVariant, borderless: false }}
         style={{ height: 38, maxWidth: '100%', flexShrink: 1, paddingHorizontal: 15, borderRadius: radius.pill, flexDirection: 'row', alignItems: 'center', gap: 6, overflow: 'hidden',
           backgroundColor: on ? t.colors.primary : t.colors.elevation.level1, borderWidth: 1.5,

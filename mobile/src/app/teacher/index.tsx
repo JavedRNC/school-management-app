@@ -36,13 +36,14 @@ export default function TeacherHome() {
           right={user ? <UserAvatar name={user.name} light size={48} /> : null}>
           {myClass ? (
             <FadeIn>
-              <View style={{ backgroundColor: t.dark ? t.colors.primaryContainer : t.colors.primary, borderRadius: radius.xxl, padding: space.lg + 4, gap: space.md }}>
+              <View style={{ backgroundColor: t.custom.feature, borderRadius: t.shape.feature, padding: space.lg + 4, gap: space.md,
+                borderWidth: t.kind === 'night' ? 1 : 0, borderColor: t.custom.cardBorder }}>
                 <View style={{ flexDirection: 'row', alignItems: 'center', gap: space.md }}>
                   <View style={{ flex: 1 }}>
-                    <Text variant="bodyLarge" style={{ color: 'rgba(255,255,255,0.78)' }}>Your class</Text>
-                    <Text variant="displaySmall" style={{ color: '#FFFFFF' }}>{myClass.name}</Text>
+                    <Text variant="bodyLarge" style={{ color: t.custom.onFeature, opacity: 0.82 }}>Your class</Text>
+                    <Text variant="displaySmall" style={{ color: t.custom.onFeature }}>{myClass.name}</Text>
                   </View>
-                  <Text variant="bodyLarge" style={{ color: 'rgba(255,255,255,0.86)' }}>{myClass.student_count} students</Text>
+                  <Text variant="bodyLarge" style={{ color: t.custom.onFeature, opacity: 0.86 }}>{myClass.student_count} students</Text>
                 </View>
                 <Button mode="contained" icon="clipboard-check-outline" onPress={() => router.push('/teacher/attendance')}
                   buttonColor={t.custom.amber} textColor={t.custom.onAmber} style={{ borderRadius: 14 }} contentStyle={{ height: 50 }}

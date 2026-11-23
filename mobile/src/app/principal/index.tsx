@@ -75,11 +75,11 @@ function TodayCard({ d }: { d: Dashboard }) {
   const present = marked.reduce((n, c) => n + c.present, 0);
   const total = marked.reduce((n, c) => n + c.total, 0);
   const shown = d.attendance_today.slice(0, 5);
-  const ink = '#FFFFFF';
-  const soft = 'rgba(255,255,255,0.82)';
+  const ink = t.custom.onFeature;
+  const soft = t.dark && t.kind === 'night' ? t.colors.onSurfaceVariant : 'rgba(255,255,255,0.82)';
   const low = d.thresholds.low_attendance;
   /** Bars stay marigold when healthy and turn coral below the school's low-attendance mark. */
-  const coral = '#FF9A73';
+  const coral = t.custom.featureLow;
   const barCol = (p: number) => (p < low ? coral : t.custom.amber);
   const unmarkedText = d.unmarked_classes.length
     ? `Not marked: ${d.unmarked_classes.map((c) => `${c.class_name}${c.class_teacher ? ` (${c.class_teacher})` : ''}`).join(', ')}`
@@ -88,7 +88,7 @@ function TodayCard({ d }: { d: Dashboard }) {
     <FadeIn>
       <View accessible
         accessibilityLabel={`${pct != null ? `Attendance ${Math.round(pct)} percent, ${present} of ${total} students${pct < low ? `, below the ${low} percent target` : ''}.` : 'Attendance not marked yet.'} ${unmarkedText}.`}
-        style={{ backgroundColor: t.dark ? t.colors.primaryContainer : t.colors.primary, borderRadius: radius.xxl, padding: space.lg + 4, gap: space.md }}>
+        style={{ backgroundColor: t.custom.feature, borderRadius: t.shape.feature, padding: space.lg + 4, gap: space.md }}>
         <Text variant="bodyLarge" style={{ color: soft }}>
           {d.today_is_school_day ? 'Attendance today' : `Last school day · ${fmtDate(d.date)}`}
         </Text>
@@ -103,10 +103,10 @@ function TodayCard({ d }: { d: Dashboard }) {
             {shown.map((c) => (
               <View key={c.class_id} style={{ flexDirection: 'row', alignItems: 'center', gap: space.sm }}>
                 <Text variant="labelLarge" numberOfLines={1} style={{ color: ink, width: 52 }}>{c.class_name}</Text>
-                <View style={{ flex: 1, height: 8, borderRadius: 4, backgroundColor: 'rgba(255,255,255,0.16)', overflow: 'hidden' }}>
+                <View style={{ flex: 1, height: 8, borderRadius: 4, backgroundColor: t.custom.featureTrack, overflow: 'hidden' }}>
                   {c.percent != null ? <View style={{ width: `${Math.max(2, Math.min(100, c.percent))}%`, height: 8, borderRadius: 4, backgroundColor: barCol(c.percent) }} /> : null}
                 </View>
-                <Text variant="labelLarge" style={{ color: c.percent == null ? '#FFD27A' : c.percent < low ? coral : ink, minWidth: 44, textAlign: 'right' }}>
+                <Text variant="labelLarge" style={{ color: c.percent == null ? t.custom.featureWait : c.percent < low ? coral : ink, minWidth: 44, textAlign: 'right' }}>
                   {c.percent != null ? `${c.present}/${c.total}` : 'Not yet'}
                 </Text>
               </View>

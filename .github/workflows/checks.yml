@@ -1,11 +1,12 @@
-# Runs on every push to dev, test or main and on pull requests: API tests, portal type-check + build, browser tests.
+# Runs on every push to dev, test or main and on pull requests: API tests, portal type-check + build, browser tests,
+# and the app's type-check + browser tests of its default look (Chalk) on a phone-sized web build.
 # A red result here means the change must not be released to the next environment.
 name: Checks
 
 on:
   push:
     branches: [dev, test, main]
-    paths: ["backend/**", "portal/**", ".github/workflows/checks.yml"]
+    paths: ["backend/**", "portal/**", "mobile/**", ".github/workflows/checks.yml"]
   pull_request:
 
 permissions:
@@ -52,4 +53,31 @@ jobs:
       - name: Browser tests (also type-checks and builds the portal)
         working-directory: portal
         # a browser test that fails once is retried once, so a slow runner does not block a release
+        run: python -m pytest e2e -q || python -m pytest e2e -q --last-failed
+
+  app:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: mobile/package-lock.json
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: pip install -r backend/requirements.txt pytest playwright
+      - run: python -m playwright install --with-deps chromium
+      - name: Install app packages (+ web-only packages for the test build; never shipped in the APK)
+        working-directory: mobile
+        run: |
+          npm ci
+          npm i --no-save --legacy-peer-deps react-native-web@0.21.4 @expo/metro-runtime@58.0.17
+      - name: Type-check
+        working-directory: mobile
+        run: npx tsc --noEmit
+      - name: App browser tests (default appearance)
+        working-directory: mobile
         run: python -m pytest e2e -q || python -m pytest e2e -q --last-failed

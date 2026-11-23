@@ -4,7 +4,7 @@ import { Text } from 'react-native-paper';
 import Svg, { Circle, Defs, G, Line, LinearGradient, Path, Rect, Stop, Text as SvgText } from 'react-native-svg';
 
 import { haptic } from '@/lib/feedback';
-import { FONT_DISPLAY, pctTone, radius, space, toneColors, useAppTheme } from '@/lib/theme';
+import { pctTone, radius, space, toneColors, useAppTheme } from '@/lib/theme';
 
 const AnimatedCircle = Animated.createAnimatedComponent(Circle);
 const AnimatedRect = Animated.createAnimatedComponent(Rect);
@@ -39,7 +39,7 @@ export function Ring({ value, size = 104, label, low = 75, stroke = 11 }: { valu
         <AnimatedCircle cx={size / 2} cy={size / 2} r={r} stroke={col} strokeWidth={stroke} fill="none" strokeDasharray={`${c} ${c}`}
           strokeDashoffset={offset} strokeLinecap="round" rotation={-90} origin={`${size / 2}, ${size / 2}`} />
       </Svg>
-      <Text style={{ fontFamily: FONT_DISPLAY, fontSize: size * 0.22, lineHeight: size * 0.3, fontWeight: '700', color: col }}>{Math.round(value)}%</Text>
+      <Text style={{ fontFamily: t.custom.fontDisplay, fontSize: size * 0.22, lineHeight: size * 0.3, fontWeight: '700', color: col }}>{Math.round(value)}%</Text>
       {label ? <Text variant="labelSmall" style={{ color: t.colors.onSurfaceVariant, marginTop: -2 }}>{label}</Text> : null}
     </View>
   );

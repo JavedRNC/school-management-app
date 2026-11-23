@@ -8,9 +8,10 @@ import { api, cleanUrl, DEFAULT_URL, getBaseUrl, isCustomServer, tryServer, setT
 import { ROLE_LABEL, useAuth, useCan } from '@/lib/auth';
 import { registerPush } from '@/lib/push';
 import { haptic, useToast } from '@/lib/feedback';
-import { space, Tone, useAppTheme } from '@/lib/theme';
+import { space, Tone, useAppTheme, useThemePref } from '@/lib/theme';
 import type { User } from '@/lib/types';
 
+import { AppearanceSheet, themeName } from './AppearanceSheet';
 import { useOps } from './OpsGrid';
 import { APP_NAME_LABEL } from './UpdateGate';
 import { StatusBanner } from './StatusBanner';
@@ -42,6 +43,8 @@ export function ProfileView({ extra }: { extra?: string }) {
   const [show, setShow] = useState(false);
   const [busy, setBusy] = useState(false);
   const [srvOpen, setSrvOpen] = useState(false);
+  const [lookOpen, setLookOpen] = useState(false);
+  const { kind } = useThemePref();
   const [srv, setSrv] = useState('');
   if (!user) return null;
   const isAdmin = user.role === 'admin';
@@ -147,7 +150,8 @@ export function ProfileView({ extra }: { extra?: string }) {
               <Row title="Server" subtitle={`${getBaseUrl()}${isCustomServer() ? ' · not the normal server' : ''}`}
                 left={<IconBadge icon="server-network" tone="neutral" size={38} />} onPress={() => { setSrv(getBaseUrl()); setSrvOpen(true); }} />
             ) : null}
-            <Row title="Theme" subtitle="Follows your phone's light / dark setting" divider={false} left={<IconBadge icon="theme-light-dark" tone="neutral" size={38} />} />
+            <Row title="Appearance" subtitle={`${themeName(kind)}${kind === 'chalk' ? ' · follows your phone’s dark mode' : ''}`} divider={false}
+              left={<IconBadge icon="palette-outline" tone="neutral" size={38} />} onPress={() => setLookOpen(true)} />
           </View>
         </Panel>
       </FadeIn>
@@ -157,6 +161,7 @@ export function ProfileView({ extra }: { extra?: string }) {
       </FadeIn>
       <Text variant="labelSmall" style={{ textAlign: 'center', color: t.colors.outline, marginTop: space.lg }}>{APP_NAME_LABEL}</Text>
 
+      <AppearanceSheet visible={lookOpen} onDismiss={() => setLookOpen(false)} />
       <Sheet visible={pwOpen} onDismiss={() => setPwOpen(false)} title="Change password">
         <TextInput mode="outlined" label="Current password" value={oldPw} onChangeText={setOld} secureTextEntry={!show} style={{ marginBottom: space.md }} />
         <TextInput mode="outlined" label="New password" value={newPw} onChangeText={setNew} secureTextEntry={!show}

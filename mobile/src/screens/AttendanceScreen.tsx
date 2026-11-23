@@ -98,7 +98,7 @@ function AttendanceSheet({ classId, day, header, classTeacherId }: {
   const offDay = !!sheet && !sheet.is_school_day;
   const canEdit = !!sheet && sheet.can_edit && !readOnlySchool && (!offDay || (manager && override));
   const isClassTeacher = !!user && classTeacherId === user.id;
-  const [view, setView] = useViewPref();
+  const [view, setView] = useViewPref(t.shape.defaultView);
   const insets = useSafeAreaInsets();
   const { width: screenW } = useWindowDimensions();
   const tileW = Math.floor((Math.min(screenW, 640) - space.lg * 2 - GRID_GAP * 2) / 3);
@@ -128,15 +128,15 @@ function AttendanceSheet({ classId, day, header, classTeacherId }: {
 
   const absent = total - present;
   const summary = sheet ? (
-    <View style={[{ backgroundColor: t.colors.elevation.level1, borderRadius: radius.xl, padding: space.lg, flexDirection: 'row', alignItems: 'center', gap: space.lg }, cardEdge(t)]}
+    <View style={[{ backgroundColor: t.colors.elevation.level1, borderRadius: t.shape.card, padding: space.lg, flexDirection: 'row', alignItems: 'center', gap: space.lg }, cardEdge(t)]}
       accessible accessibilityLabel={`${present} present, ${absent} absent out of ${total}. ${already ? (changed ? 'Edited, not saved yet' : 'Saved') : 'Not saved yet'}`}>
-      <LiveRing value={total ? present / total : 0} color={t.colors.primary} track={t.custom.dangerContainer}>
+      <LiveRing value={total ? present / total : 0} color={t.custom.present} track={t.custom.dangerContainer}>
         <Text variant="headlineSmall" style={{ color: t.colors.onSurface, lineHeight: 26 }}>{present}</Text>
         <Text variant="labelSmall" style={{ color: t.colors.onSurfaceVariant, marginTop: -2 }}>of {total}</Text>
       </LiveRing>
       <View style={{ flex: 1, gap: 2 }}>
         <View style={{ flexDirection: 'row', alignItems: 'baseline', gap: 6 }}>
-          <Text variant="headlineMedium" style={{ color: t.colors.primary }}>{present}</Text>
+          <Text variant="headlineMedium" style={{ color: t.custom.present }}>{present}</Text>
           <Text variant="bodyLarge" style={{ color: t.colors.onSurfaceVariant }}>present</Text>
         </View>
         <View style={{ flexDirection: 'row', alignItems: 'baseline', gap: 6 }}>
@@ -189,7 +189,7 @@ function AttendanceSheet({ classId, day, header, classTeacherId }: {
             </View>
             {canEdit ? (
               <Text variant="bodyMedium" style={{ color: t.colors.onSurfaceVariant, marginBottom: space.sm }}>
-                {view === 'grid' ? 'Everyone starts present. Tap a student to mark absent.' : 'Tap a student to switch between present and absent.'}
+                {view === 'grid' ? 'Everyone starts present. Tap a student to mark absent.' : t.shape.attendanceRow === 'register' ? 'Tap P or A for each student.' : 'Tap a student to switch between present and absent.'}
               </Text>
             ) : null}
             {view === 'grid' ? (
@@ -199,7 +199,10 @@ function AttendanceSheet({ classId, day, header, classTeacherId }: {
                 ))}
               </View>
             ) : rows.map((r) => (
-              <StudentRow key={r.student_id} row={r} present={marks[r.student_id] ?? true} disabled={!canEdit} onToggle={() => toggle(r.student_id)} />
+              t.shape.attendanceRow === 'register'
+                ? <RegisterRow key={r.student_id} row={r} present={marks[r.student_id] ?? true} disabled={!canEdit}
+                    onSet={(v) => setMarks((m) => ({ ...m, [r.student_id]: v }))} />
+                : <StudentRow key={r.student_id} row={r} present={marks[r.student_id] ?? true} disabled={!canEdit} onToggle={() => toggle(r.student_id)} />
             ))}
           </>
         )}
@@ -221,11 +224,11 @@ const GRID_GAP = 10;
 const VIEW_KEY = 'attendance_view';
 type View_ = 'list' | 'grid';
 
-/** Remembers List / Grid on this phone. */
-function useViewPref(): [View_, (v: View_) => void] {
-  const [v, setV] = useState<View_>('list');
+/** Remembers List / Grid on this phone. Until the teacher picks one, the theme decides (Night opens on the grid). */
+function useViewPref(fallback: View_): [View_, (v: View_) => void] {
+  const [v, setV] = useState<View_ | null>(null);
   useEffect(() => { AsyncStorage.getItem(VIEW_KEY).then((x) => { if (x === 'grid' || x === 'list') setV(x); }).catch(() => {}); }, []);
-  return [v, (x) => { setV(x); AsyncStorage.setItem(VIEW_KEY, x).catch(() => {}); }];
+  return [v ?? fallback, (x) => { setV(x); AsyncStorage.setItem(VIEW_KEY, x).catch(() => {}); }];
 }
 
 function ViewToggle({ value, onChange }: { value: View_; onChange: (v: View_) => void }) {
@@ -237,7 +240,7 @@ function ViewToggle({ value, onChange }: { value: View_; onChange: (v: View_) =>
       {opts.map((o) => {
         const on = value === o.v;
         return (
-          <Pressable key={o.v} accessibilityRole="radio" accessibilityState={{ checked: on }} accessibilityLabel={o.label}
+          <Pressable key={o.v} accessibilityRole="radio" accessibilityState={{ checked: on }} aria-checked={on} accessibilityLabel={o.label}
             onPress={() => { if (!on) { haptic.tap(); onChange(o.v); } }}
             style={{ height: 44, paddingHorizontal: 12, borderRadius: radius.pill, flexDirection: 'row', alignItems: 'center', gap: 4,
               backgroundColor: on ? t.colors.elevation.level1 : 'transparent' }}>
@@ -290,11 +293,11 @@ function StudentRow({ row, present, onToggle, disabled }: { row: AttendanceRow; 
   const { scale, onPressIn, onPressOut } = usePress();
   return (
     <Pressable disabled={disabled} onPress={() => { haptic.light(); onToggle(); }} onPressIn={onPressIn} onPressOut={onPressOut}
-      accessibilityRole="switch" accessibilityState={{ checked: present, disabled }}
+      accessibilityRole="switch" accessibilityState={{ checked: present, disabled }} aria-checked={present}
       accessibilityLabel={`${row.name}, roll ${row.roll_no ?? 'none'}, ${present ? 'present' : 'absent'}`}
       accessibilityHint={disabled ? undefined : present ? 'Double tap to mark absent' : 'Double tap to mark present'}>
       <Animated.View style={{ flexDirection: 'row', alignItems: 'center', gap: space.md, minHeight: 64, paddingVertical: space.sm, paddingLeft: space.sm, paddingRight: space.md,
-        marginBottom: space.sm, borderRadius: radius.lg, borderWidth: 1.5, transform: [{ scale }], opacity: disabled ? 0.8 : 1,
+        marginBottom: space.sm, borderRadius: Math.min(t.shape.card, 18), borderWidth: 1.5, transform: [{ scale }], opacity: disabled ? 0.8 : 1,
         backgroundColor: present ? t.colors.elevation.level1 : t.custom.absentWash, borderColor: present ? t.custom.cardBorder : t.custom.absentEdge }}>
         <Initials name={row.name} present={present} size={44} />
         <View style={{ flex: 1 }}>
@@ -302,11 +305,45 @@ function StudentRow({ row, present, onToggle, disabled }: { row: AttendanceRow; 
           <Text variant="bodyMedium" style={{ color: t.colors.onSurfaceVariant }}>Roll {row.roll_no ?? '–'}{row.on_leave ? ' · On leave' : ''}</Text>
         </View>
         <View style={{ minWidth: 84, height: 34, borderRadius: 17, paddingHorizontal: 12, alignItems: 'center', justifyContent: 'center',
-          backgroundColor: present ? t.colors.primary : t.custom.danger }}>
+          backgroundColor: present ? t.custom.present : t.custom.danger }}>
           <Text variant="labelLarge" style={{ color: t.dark ? t.colors.background : '#FFFFFF', fontWeight: '700' }}>{present ? 'Present' : 'Absent'}</Text>
         </View>
       </Animated.View>
     </Pressable>
+  );
+}
+
+/** Register theme: roll number in the margin, then the name, then a P and an A box, like the paper register. */
+function RegisterRow({ row, present, onSet, disabled }: { row: AttendanceRow; present: boolean; onSet: (v: boolean) => void; disabled?: boolean }) {
+  const t = useAppTheme();
+  const box = (v: boolean) => {
+    const on = present === v;
+    const col = v ? t.custom.present : t.custom.danger;
+    return (
+      <Pressable disabled={disabled} hitSlop={4} onPress={() => { if (!on) { haptic.light(); onSet(v); } }}
+        accessibilityRole="radio" accessibilityState={{ checked: on, disabled }} aria-checked={on}
+        accessibilityLabel={`${row.name}, roll ${row.roll_no ?? 'none'}: ${v ? 'present' : 'absent'}`}
+        style={{ width: 44, height: 44, borderRadius: 22, alignItems: 'center', justifyContent: 'center', borderWidth: 1.5,
+          borderColor: on ? col : t.colors.outlineVariant, backgroundColor: on ? col : t.colors.elevation.level1 }}>
+        <Text variant="titleMedium" style={{ color: on ? '#FFFFFF' : t.colors.outline, fontWeight: '700' }}>{v ? 'P' : 'A'}</Text>
+      </Pressable>
+    );
+  };
+  return (
+    <View accessibilityRole="radiogroup" accessibilityLabel={row.name}
+      style={{ flexDirection: 'row', alignItems: 'center', minHeight: 60, gap: space.sm, opacity: disabled ? 0.8 : 1,
+        borderBottomWidth: 1, borderBottomColor: t.custom.cardBorder, backgroundColor: present ? 'transparent' : t.custom.absentWash,
+        marginHorizontal: -space.lg, paddingRight: space.lg }}>
+      <View style={{ width: 52, alignSelf: 'stretch', alignItems: 'center', justifyContent: 'center', borderRightWidth: 2, borderRightColor: t.custom.absentEdge }}>
+        <Text variant="titleSmall" style={{ color: t.colors.onSurfaceVariant }}>{row.roll_no ?? '–'}</Text>
+      </View>
+      <View style={{ flex: 1, paddingLeft: 6 }}>
+        <Text variant="bodyLarge" numberOfLines={1} style={{ color: present ? t.colors.onSurface : t.custom.danger, fontWeight: '500' }}>{row.name}</Text>
+        {row.on_leave ? <Text variant="bodySmall" style={{ color: t.colors.onSurfaceVariant }}>On leave</Text> : null}
+      </View>
+      {box(true)}
+      {box(false)}
+    </View>
   );
 }
 
@@ -321,10 +358,10 @@ function StudentTile({ row, present, onToggle, disabled, width }: { row: Attenda
   const first = row.name.split(/\s+/)[0];
   return (
     <Pressable disabled={disabled} onPress={() => { haptic.light(); onToggle(); }} onPressIn={onPressIn} onPressOut={onPressOut}
-      accessibilityRole="switch" accessibilityState={{ checked: present, disabled }}
+      accessibilityRole="switch" accessibilityState={{ checked: present, disabled }} aria-checked={present}
       accessibilityLabel={`${row.name}, roll ${row.roll_no ?? 'none'}, ${present ? 'present' : 'absent'}`}
       accessibilityHint={disabled ? undefined : present ? 'Double tap to mark absent' : 'Double tap to mark present'}>
-      <Animated.View style={{ width, minHeight: 118, borderRadius: radius.xl, borderWidth: 1.5, paddingVertical: space.md, paddingHorizontal: 6,
+      <Animated.View style={{ width, minHeight: 118, borderRadius: t.shape.card, borderWidth: 1.5, paddingVertical: space.md, paddingHorizontal: 6,
         alignItems: 'center', justifyContent: 'center', gap: 4, opacity: disabled ? 0.8 : 1, transform: [{ scale: Animated.multiply(scale, sink) }],
         backgroundColor: present ? t.colors.elevation.level1 : t.custom.absentWash, borderColor: present ? t.custom.cardBorder : t.custom.danger }}>
         {row.roll_no != null ? (
@@ -332,7 +369,7 @@ function StudentTile({ row, present, onToggle, disabled, width }: { row: Attenda
         ) : null}
         <Initials name={row.name} present={present} size={46} />
         <Text variant="titleSmall" numberOfLines={1} style={{ color: t.colors.onSurface, maxWidth: '100%' }}>{first}</Text>
-        <Text variant="labelMedium" style={{ color: present ? t.colors.primary : t.custom.danger }}>{present ? 'Present' : 'Absent'}</Text>
+        <Text variant="labelMedium" style={{ color: present ? t.custom.present : t.custom.danger }}>{present ? 'Present' : 'Absent'}</Text>
       </Animated.View>
     </Pressable>
   );
@@ -342,9 +379,9 @@ function Initials({ name, present, size }: { name: string; present: boolean; siz
   const t = useAppTheme();
   return (
     <View style={{ width: size, height: size, borderRadius: size / 2, alignItems: 'center', justifyContent: 'center',
-      backgroundColor: present ? t.colors.primaryContainer : t.custom.danger }}>
+      backgroundColor: present ? t.custom.presentContainer : t.custom.danger }}>
       <Text variant="labelLarge" style={{ fontSize: size * 0.34, lineHeight: size * 0.48, fontWeight: '700',
-        color: present ? (t.dark ? t.colors.onPrimaryContainer : t.colors.primary) : (t.dark ? t.colors.background : '#FFFFFF') }}>{initials(name)}</Text>
+        color: present ? t.custom.onPresentContainer : (t.dark ? t.colors.background : '#FFFFFF') }}>{initials(name)}</Text>
     </View>
   );
 }
