@@ -4,7 +4,8 @@ import { Button, Dialog, IconButton, SegmentedButtons, Text } from 'react-native
 import { TextInput } from '@/components/Field';
 
 import { bellSummary, fromMin, setBellCache, toMin, useBell } from '@/components/BellTimes';
-import { EmptyState, ErrorState, FadeIn, FilterChips, Hero, Icon, LoadingCards, Panel, Screen, TopLayer } from '@/components/ui';
+import { EmptyState, ErrorState, FadeIn, Hero, Icon, LoadingCards, Panel, Screen, TopLayer } from '@/components/ui';
+import { SelectField } from '@/components/SelectField';
 import { api } from '@/lib/api';
 import { useAuth, useCan } from '@/lib/auth';
 import { haptic, useToast } from '@/lib/feedback';
@@ -181,7 +182,7 @@ export default function PeriodsScreen() {
         <>
           <FadeIn>
             <View style={{ flexDirection: 'row', alignItems: 'center', gap: space.sm }}>
-              <View style={{ flex: 1 }}><FilterChips options={dayOptions} value={day} onChange={pickDay} /></View>
+              <SelectField label="Timings for" options={dayOptions} value={day} onChange={pickDay} style={{ flex: 1 }} />
               {canAddDay ? <Button compact icon="plus" onPress={() => { if (dirty) return toast('Save or undo your changes first', { error: true }); setAdding(true); }}>Different day</Button> : null}
             </View>
           </FadeIn>

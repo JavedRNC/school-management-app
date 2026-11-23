@@ -243,14 +243,14 @@ function FilterChip({ label, icon, on, onPress }: { label: string; icon?: IconNa
   }, [v, on]);
   const fg = on ? t.colors.onSecondaryContainer : t.colors.onSurfaceVariant;
   return (
-    <Animated.View style={{ transform: [{ scale: v }] }}>
-      <Pressable onPress={onPress} hitSlop={{ top: 5, bottom: 5 }} accessibilityRole="button" accessibilityState={{ selected: on }}
+    <Animated.View style={{ transform: [{ scale: v }], maxWidth: '100%' }}>
+      <Pressable onPress={onPress} hitSlop={{ top: 5, bottom: 5 }} accessibilityRole="radio" accessibilityState={{ checked: on, selected: on }} accessibilityLabel={label}
         android_ripple={{ color: t.colors.surfaceVariant, borderless: false }}
-        style={{ height: 36, paddingHorizontal: 14, borderRadius: radius.pill, flexDirection: 'row', alignItems: 'center', gap: 6, overflow: 'hidden',
+        style={{ height: 36, maxWidth: '100%', flexShrink: 1, paddingHorizontal: 14, borderRadius: radius.pill, flexDirection: 'row', alignItems: 'center', gap: 6, overflow: 'hidden',
           backgroundColor: on ? t.colors.secondaryContainer : t.colors.elevation.level1, borderWidth: 1,
           borderColor: on ? (t.dark ? 'transparent' : 'rgba(138,90,0,0.22)') : t.colors.outlineVariant }}>
         {icon ? <Icon name={icon} size={16} color={on ? fg : t.colors.primary} /> : null}
-        <Text variant="labelLarge" style={{ color: fg, fontWeight: on ? '700' : '500' }}>{label}</Text>
+        <Text variant="labelLarge" numberOfLines={1} style={{ color: fg, fontWeight: on ? '700' : '500', flexShrink: 1 }}>{label}</Text>
       </Pressable>
     </Animated.View>
   );

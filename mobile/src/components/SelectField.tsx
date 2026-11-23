@@ -64,7 +64,7 @@ export function SelectField<T extends string | number>({ label, options, value, 
         {shown.map((o, i) => {
           const on = o.value === value;
           return (
-            <TouchableRipple key={String(o.value)} onPress={() => pick(o.value)} accessibilityRole="radio" accessibilityState={{ selected: on }}
+            <TouchableRipple key={String(o.value)} onPress={() => pick(o.value)} accessibilityRole="radio" accessibilityState={{ checked: on, selected: on }}
               accessibilityLabel={o.sub ? `${o.label}, ${o.sub}` : o.label}
               style={{ marginHorizontal: -space.lg, paddingHorizontal: space.lg, backgroundColor: on ? t.colors.secondaryContainer : undefined }}>
               <View style={{ flexDirection: 'row', alignItems: 'center', gap: space.md, minHeight: 52, paddingVertical: 8,

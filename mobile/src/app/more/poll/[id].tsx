@@ -6,6 +6,7 @@ import { Button, Dialog, Text } from 'react-native-paper';
 import { Ring } from '@/components/charts';
 import { deadlineText, rupees, shortDate } from '@/components/comms/util';
 import { EmptyState, ErrorState, FadeIn, FilterChips, Hero, LoadingCards, Panel, Row, Screen, ToneChip, UserAvatar, TopLayer } from '@/components/ui';
+import { SelectField } from '@/components/SelectField';
 import { api } from '@/lib/api';
 import { useAuth, useCan } from '@/lib/auth';
 import { useToast } from '@/lib/feedback';
@@ -133,8 +134,8 @@ export default function PollResultsScreen() {
         { label: `Answered · ${data.answered.length}`, value: 'answered', icon: 'check-circle-outline' },
         { label: `Not yet · ${data.pending.length}`, value: 'pending', icon: 'clock-outline' }]} />
       {listTab === 'answered' && data.answered.length ? (
-        <FilterChips value={optFilter} onChange={setOptFilter}
-          options={[{ label: 'All', value: -1 }, ...data.options.map((o, i) => ({ label: o, value: i }))]} />
+        <SelectField label="Answer" value={optFilter} onChange={setOptFilter}
+          options={[{ label: 'All answers', value: -1 }, ...data.options.map((o, i) => ({ label: o, value: i }))]} />
       ) : null}
 
       <FadeIn index={3}>
