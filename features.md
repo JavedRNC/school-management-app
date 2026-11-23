@@ -520,3 +520,6 @@ _Nothing in this file is built until Javed says **"implement"**._
 
 ### F37 · Dropdowns instead of sideways-scrolling chips (app) ✅ `S` — requested 23 Nov
 Long, growing lists (classes, exams, class & subject, subjects, routes, stops, vehicles, plans, schools) are now a dropdown field that opens a list from the bottom, with a search box past 8 items. Short fixed choices stay as chips but wrap onto new lines instead of scrolling. Component: mobile/src/components/SelectField.tsx.
+
+### F38 · App redesign "Chalk" ✅ `M` — requested 23 Nov
+Javed picked direction A · Chalk (with C's grid attendance) from three designs. Calm chalkboard green (#1E4D3F) on a soft paper ground, marigold (#E8A317) from the logo as the one accent; Mukta for text (Hindi + English), Bricolage Grotesque for headlines and numbers — both bundled in the app (mobile/assets/fonts, expo-font plugin in app.json). Logo and name unchanged. Flat white cards with a hairline edge, plain page titles instead of the blue gradient header, green pill tab bar, solid green chips. New login; green "attendance today" card on the principal home and "Your class" card on the teacher home; attendance has a day stepper, a live ring, List / Grid views (remembered per phone) and a sticky save bar; marks has a sticky save bar. Dark mode has its own green palette.
