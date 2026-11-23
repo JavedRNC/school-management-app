@@ -178,7 +178,7 @@ function AttendanceSheet({ classId, day, header, classTeacherId }: {
         {!sheet ? <LoadingCards count={5} /> : !rows.length ? <EmptyState icon="account-off-outline" title="No students in this class" /> : (
           <>
             <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: space.md, gap: space.sm }}>
-              <ViewToggle value={view} onChange={setView} />
+              <ViewToggle value={view ?? t.shape.defaultView} onChange={setView} />
               <View style={{ flex: 1 }} />
               {canEdit ? (
                 <>
@@ -187,12 +187,12 @@ function AttendanceSheet({ classId, day, header, classTeacherId }: {
                 </>
               ) : null}
             </View>
-            {canEdit ? (
+            {canEdit && view ? (
               <Text variant="bodyMedium" style={{ color: t.colors.onSurfaceVariant, marginBottom: space.sm }}>
                 {view === 'grid' ? 'Everyone starts present. Tap a student to mark absent.' : t.shape.attendanceRow === 'register' ? 'Tap P or A for each student.' : 'Tap a student to switch between present and absent.'}
               </Text>
             ) : null}
-            {view === 'grid' ? (
+            {view == null ? null : view === 'grid' ? (
               <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: GRID_GAP }}>
                 {rows.map((r) => (
                   <StudentTile key={r.student_id} row={r} width={tileW} present={marks[r.student_id] ?? true} disabled={!canEdit} onToggle={() => toggle(r.student_id)} />
@@ -225,10 +225,14 @@ const VIEW_KEY = 'attendance_view';
 type View_ = 'list' | 'grid';
 
 /** Remembers List / Grid on this phone. Until the teacher picks one, the theme decides (Night opens on the grid). */
-function useViewPref(fallback: View_): [View_, (v: View_) => void] {
+function useViewPref(fallback: View_): [View_ | null, (v: View_) => void] {
   const [v, setV] = useState<View_ | null>(null);
-  useEffect(() => { AsyncStorage.getItem(VIEW_KEY).then((x) => { if (x === 'grid' || x === 'list') setV(x); }).catch(() => {}); }, []);
-  return [v ?? fallback, (x) => { setV(x); AsyncStorage.setItem(VIEW_KEY, x).catch(() => {}); }];
+  const [loaded, setLoaded] = useState(false);
+  useEffect(() => {
+    AsyncStorage.getItem(VIEW_KEY).then((x) => { if (x === 'grid' || x === 'list') setV(x); }).catch(() => {}).finally(() => setLoaded(true));
+  }, []);
+  // null until the saved choice is read, so a saved List never flashes as the theme's Grid (or the other way round)
+  return [loaded ? v ?? fallback : null, (x) => { setV(x); AsyncStorage.setItem(VIEW_KEY, x).catch(() => {}); }];
 }
 
 function ViewToggle({ value, onChange }: { value: View_; onChange: (v: View_) => void }) {

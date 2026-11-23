@@ -6,7 +6,7 @@ import { CheckInCard } from '@/components/CheckInCard';
 import { ErrorState, LoadingCards, Panel, StatTile } from '@/components/ui';
 import { api } from '@/lib/api';
 import { haptic } from '@/lib/feedback';
-import { radius, space, useAppTheme } from '@/lib/theme';
+import { radius, space, inkOn, useAppTheme } from '@/lib/theme';
 import type { MyStaffAttendance, StaffDayStatus } from '@/lib/types';
 import { useLoad } from '@/lib/useLoad';
 
@@ -89,7 +89,7 @@ export function MyAttendance() {
                         style={{ aspectRatio: 1, borderRadius: radius.md, alignItems: 'center', justifyContent: 'center',
                           backgroundColor: c ? (on ? c.fg : c.bg) : 'transparent', borderWidth: on ? 0 : c ? 0 : 1, borderColor: t.colors.outlineVariant,
                           opacity: rec ? 1 : 0.45 }}>
-                        <Text variant="labelLarge" style={{ fontWeight: '700', color: c ? (on ? '#fff' : c.fg) : t.colors.onSurfaceVariant }}>{d}</Text>
+                        <Text variant="labelLarge" style={{ fontWeight: '700', color: c ? (on ? inkOn(c.fg) : c.fg) : t.colors.onSurfaceVariant }}>{d}</Text>
                       </Pressable>
                     ) : null}
                   </View>

@@ -4,7 +4,7 @@ import { Text } from 'react-native-paper';
 import Svg, { Circle, Defs, G, Line, LinearGradient, Path, Rect, Stop, Text as SvgText } from 'react-native-svg';
 
 import { haptic } from '@/lib/feedback';
-import { pctTone, radius, space, toneColors, useAppTheme } from '@/lib/theme';
+import { pctTone, radius, space, toneColors, inkOn, useAppTheme } from '@/lib/theme';
 
 const AnimatedCircle = Animated.createAnimatedComponent(Circle);
 const AnimatedRect = Animated.createAnimatedComponent(Rect);
@@ -219,7 +219,7 @@ export function DayDots({ days }: { days: { date: string; present: boolean }[] }
           return (
             <Pressable key={d.date} onPress={() => { haptic.tap(); setSel(on ? null : i); }}
               style={{ width: 30, height: 30, borderRadius: 15, backgroundColor: on ? c.fg : c.bg, alignItems: 'center', justifyContent: 'center' }}>
-              <Text style={{ fontSize: 11, fontWeight: '700', color: on ? '#fff' : c.fg }}>{new Date(d.date + 'T00:00:00').getDate()}</Text>
+              <Text style={{ fontSize: 11, lineHeight: 14, fontWeight: '700', color: on ? inkOn(c.fg) : c.fg }}>{new Date(d.date + 'T00:00:00').getDate()}</Text>
             </Pressable>
           );
         })}

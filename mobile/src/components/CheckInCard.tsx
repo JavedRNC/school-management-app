@@ -8,7 +8,7 @@ import { FadeIn, Icon, IconBadge, IconName, ToneChip } from '@/components/ui';
 import { api, ApiError } from '@/lib/api';
 import { useAuth, useModule } from '@/lib/auth';
 import { haptic, useToast } from '@/lib/feedback';
-import { cardEdge, shadow as elev, radius, space, Tone, toneColors, useAppTheme } from '@/lib/theme';
+import { cardEdge, shadow as elev, radius, space, Tone, toneColors, inkOn, useAppTheme } from '@/lib/theme';
 import type { MyStaffAttendance, StaffRecord } from '@/lib/types';
 import { useLoad } from '@/lib/useLoad';
 
@@ -105,7 +105,7 @@ function CheckInBody({ onChange }: { onChange?: () => void }) {
           {justDone ? (
             <Animated.View style={{ width: 40, height: 40, borderRadius: 14, backgroundColor: t.custom.success, alignItems: 'center', justifyContent: 'center',
               transform: [{ scale: pop.interpolate({ inputRange: [0, 1], outputRange: [0.4, 1] }) }] }}>
-              <Icon name="check-bold" size={24} color="#fff" />
+              <Icon name="check-bold" size={24} color={inkOn(t.custom.success)} />
             </Animated.View>
           ) : <IconBadge icon={s.icon} tone={s.tone} />}
           <View style={{ flex: 1 }}>

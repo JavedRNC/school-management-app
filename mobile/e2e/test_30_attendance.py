@@ -20,7 +20,7 @@ def sheet():
         _, s = call("GET", "/attendance", tok, query={"class_id": cls["id"], "day": day.isoformat()})
         if s["is_school_day"] and s["can_edit"]:
             return {"tok": tok, "cls": cls, "day": day, "back": back, "sheet": s}
-    pytest.skip("no markable school day in the last week")
+    pytest.fail("the demo class has no markable school day in the last week — the attendance screen can't be tested")
 
 
 def _open(phone, sheet):
@@ -44,10 +44,15 @@ def _restore(sheet, state):
 
 
 def _count(phone, word):
-    """The big number next to 'present' / 'absent' in the summary card."""
+    """The number next to 'present' / 'absent' in the summary card (read from its screen-reader label)."""
     label = phone.get_by_label(re.compile(r"^\d+ present, \d+ absent out of \d+")).get_attribute("aria-label")
     present, absent, _total = map(int, re.findall(r"\d+", label)[:3])
     return present if word == "present" else absent
+
+
+def _expect_present(phone, n):
+    """Waits for the summary to redraw with n present."""
+    expect(phone.get_by_label(re.compile(rf"^{n} present, \d+ absent out of"))).to_be_visible()
 
 
 def test_attendance_screen_layout(phone, sheet):
@@ -86,14 +91,14 @@ def test_tapping_students_updates_the_count_and_bulk_buttons(phone, sheet):
     expect(sw).to_have_attribute("aria-checked", "true")
     sw.click()
     expect(sw).to_have_attribute("aria-checked", "false")
-    assert _count(phone, "present") == before - 1
+    _expect_present(phone, before - 1)
     expect(phone.get_by_text("Edited" if any(r["present"] is not None for r in rows) else "Not saved", exact=True)).to_be_visible()
     sw.click()
-    assert _count(phone, "present") == before
+    _expect_present(phone, before)
     phone.get_by_role("button", name="All absent").click()
-    assert _count(phone, "present") == 0
+    _expect_present(phone, 0)
     phone.get_by_role("button", name="All present").click()
-    assert _count(phone, "present") == len(rows)
+    _expect_present(phone, len(rows))
 
 
 def test_grid_view_is_remembered_on_the_phone(phone, sheet):

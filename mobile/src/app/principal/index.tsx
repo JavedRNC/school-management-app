@@ -88,7 +88,7 @@ function TodayCard({ d }: { d: Dashboard }) {
     <FadeIn>
       <View accessible
         accessibilityLabel={`${pct != null ? `Attendance ${Math.round(pct)} percent, ${present} of ${total} students${pct < low ? `, below the ${low} percent target` : ''}.` : 'Attendance not marked yet.'} ${unmarkedText}.`}
-        style={{ backgroundColor: t.custom.feature, borderRadius: t.shape.feature, padding: space.lg + 4, gap: space.md }}>
+        style={{ backgroundColor: t.custom.feature, borderRadius: t.shape.feature, borderWidth: t.kind === 'night' ? 1 : 0, borderColor: t.custom.cardBorder, padding: space.lg + 4, gap: space.md }}>
         <Text variant="bodyLarge" style={{ color: soft }}>
           {d.today_is_school_day ? 'Attendance today' : `Last school day · ${fmtDate(d.date)}`}
         </Text>

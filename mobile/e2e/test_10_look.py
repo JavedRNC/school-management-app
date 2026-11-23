@@ -35,7 +35,7 @@ def test_typed_sign_in_and_a_wrong_password(phone):
     boxes.nth(1).fill("T001")
     boxes.nth(2).fill("wrong-password")
     phone.get_by_role("button", name="Sign in", exact=True).click()
-    expect(phone.get_by_text(re.compile("password", re.I)).last).to_be_visible()
+    expect(phone.get_by_text("Wrong school code, login ID or password")).to_be_visible()
     assert "/teacher" not in phone.url
     boxes.nth(2).fill("demo123")
     phone.get_by_role("button", name="Sign in", exact=True).click()

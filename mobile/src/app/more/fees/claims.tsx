@@ -9,7 +9,7 @@ import { EmptyState, ErrorState, FadeIn, FilterChips, Hero, Icon, LoadingCards, 
 import { api } from '@/lib/api';
 import { fmtDate, inr, PAY_LABEL, PAY_TONE } from '@/lib/fees';
 import { useToast } from '@/lib/feedback';
-import { radius, space, useAppTheme } from '@/lib/theme';
+import { radius, space, inkOn, useAppTheme } from '@/lib/theme';
 import type { FeePayment, FeeReceipt } from '@/lib/types';
 import { useLoad } from '@/lib/useLoad';
 
@@ -116,7 +116,7 @@ function Inbox({ canEdit }: { canEdit: boolean }) {
             {p.status === 'pending' && canEdit ? (
               <View style={{ flexDirection: 'row', gap: space.sm, marginTop: space.md }}>
                 <Button mode="outlined" icon="close" textColor={t.custom.danger} style={{ flex: 1 }} onPress={() => { setReason(''); setReject(p); }}>Reject</Button>
-                <Button mode="contained" icon="check" style={{ flex: 1.4 }} buttonColor={t.custom.success} textColor="#fff"
+                <Button mode="contained" icon="check" style={{ flex: 1.4 }} buttonColor={t.custom.success} textColor={inkOn(t.custom.success)}
                   onPress={() => { setAmount(String(p.amount)); setConfirm(p); }}>Confirm</Button>
               </View>
             ) : p.status === 'confirmed' && p.receipt_no ? (
@@ -145,7 +145,7 @@ function Inbox({ canEdit }: { canEdit: boolean }) {
       <Sheet visible={!!reject} onDismiss={() => setReject(null)} title="Reject payment claim">
         <FilterChips value={reason} onChange={setReason} options={REASONS.map((r) => ({ label: r, value: r }))} />
         <TextInput mode="outlined" label="Reason for the parent" value={reason} onChangeText={setReason} multiline />
-        <Button mode="contained" icon="close" buttonColor={t.custom.danger} textColor="#fff" onPress={doReject} loading={busy} disabled={busy}
+        <Button mode="contained" icon="close" buttonColor={t.custom.danger} textColor={inkOn(t.custom.danger)} onPress={doReject} loading={busy} disabled={busy}
           style={{ marginTop: space.lg }} contentStyle={{ paddingVertical: 6 }}>Reject</Button>
       </Sheet>
     </Screen>

@@ -6,7 +6,7 @@ import { EmptyState, Hero, Icon, Row, Screen, ToneChip } from '@/components/ui';
 import { useAuth, useCan, useModule } from '@/lib/auth';
 import { fmtDate, inr, inrShort, MODE_ICON, MODE_LABEL, PAY_LABEL, PAY_TONE } from '@/lib/fees';
 import { haptic } from '@/lib/feedback';
-import { radius, space, useAppTheme } from '@/lib/theme';
+import { radius, space, inkOn, useAppTheme } from '@/lib/theme';
 import type { FeePayment, PayMode } from '@/lib/types';
 
 export function isoToday(offsetDays = 0) {
@@ -155,7 +155,7 @@ export function CountBadge({ n }: { n: number }) {
   return (
     <View style={{ position: 'absolute', top: 8, right: 10, minWidth: 22, height: 22, borderRadius: radius.pill, paddingHorizontal: 6,
       backgroundColor: t.custom.danger, alignItems: 'center', justifyContent: 'center', shadowColor: t.custom.danger, shadowOpacity: 0.5, shadowRadius: 6, elevation: 4 }}>
-      <Text style={{ color: '#fff', fontWeight: '700', fontSize: 12 }}>{n}</Text>
+      <Text style={{ color: inkOn(t.custom.danger), fontWeight: '700', fontSize: 12, lineHeight: 16 }}>{n}</Text>
     </View>
   );
 }

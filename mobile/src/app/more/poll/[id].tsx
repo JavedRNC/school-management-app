@@ -10,7 +10,7 @@ import { SelectField } from '@/components/SelectField';
 import { api } from '@/lib/api';
 import { useAuth, useCan } from '@/lib/auth';
 import { useToast } from '@/lib/feedback';
-import { radius, space, useAppTheme } from '@/lib/theme';
+import { radius, space, inkOn, useAppTheme } from '@/lib/theme';
 import type { PollResults } from '@/lib/types';
 import { useLoad } from '@/lib/useLoad';
 
@@ -149,7 +149,7 @@ export default function PollResultsScreen() {
                 left={<UserAvatar name={a.student_name ?? a.name} size={38} />}
                 right={
                   <View style={{ backgroundColor: optionColor(a.choices[0] ?? 0), borderRadius: radius.pill, paddingHorizontal: 10, paddingVertical: 3, maxWidth: 130 }}>
-                    <Text variant="labelMedium" numberOfLines={1} style={{ color: '#fff', fontWeight: '700' }}>{a.answer}</Text>
+                    <Text variant="labelMedium" numberOfLines={1} style={{ color: inkOn(optionColor(a.choices[0] ?? 0)), fontWeight: '700' }}>{a.answer}</Text>
                   </View>
                 } />
             )) : <EmptyState icon="inbox-outline" title="No answers yet" />

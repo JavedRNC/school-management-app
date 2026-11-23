@@ -54,8 +54,8 @@ function Root() {
           <ToastProvider>
             <AuthProvider>
               <StatusBar style={theme.dark ? 'light' : 'dark'} />
-              {/* Hidden for the few ms it takes to read the saved theme, so a Night user never sees a Chalk flash. */}
-              <View style={{ flex: 1, opacity: ready ? 1 : 0, backgroundColor: theme.colors.background }}>
+              {/* Hidden (at most 0.6 s) while the saved theme is read, so a Night user doesn't see Chalk screens flash first. */}
+              <View pointerEvents={ready ? 'auto' : 'none'} style={{ flex: 1, opacity: ready ? 1 : 0, backgroundColor: theme.colors.background }}>
                 <Stack screenOptions={{ headerShown: false, animation: 'fade' }} />
               </View>
               <UpdateGate />
