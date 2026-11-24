@@ -313,7 +313,7 @@ def test_support_access_is_given_and_taken_back_and_shows_in_activity(principal_
     heading(page, "Activity")
     page.locator("tr", has_text=re.compile("support", re.I)).first.wait_for()
     with page.expect_response(lambda r: "/school/audit" in r.url and "admin_only_=true" in r.url) as got:
-        page.get_by_role("button", name="Prangan support only").click()
+        page.get_by_label("Show").select_option(label="Prangan support only")
     page.locator(".skel").first.wait_for(state="detached")
     assert all(row["actor_role"] == "admin" for row in got.value.json()), "only the platform admin's actions are listed"
     assert page.locator("tbody tr").count() == len(got.value.json())
