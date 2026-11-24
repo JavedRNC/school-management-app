@@ -72,6 +72,23 @@ No existing table was changed. Import/export history is read from the existing `
 - The tests work in their own school (code `E2EQA1`, created on first use), put a run tag in every name they create and archive
   those items when the run ends. Steps that would leave a permanent school behind run only locally.
 
+- App (Playwright on a web build of the app, default Chalk look): `cd mobile && python -m pytest e2e -q` (needs
+  `npm i --no-save --legacy-peer-deps react-native-web@0.21.4 @expo/metro-runtime@58.0.17`). Runs in Checks job "app".
+
+What the tests cover (24 Nov):
+
+| Area | API (`backend/tests`) | Portal browser (`portal/e2e`) | App browser (`mobile/e2e`) |
+|---|---|---|---|
+| Sign-in, passwords, lock-out | test_api | test_10, test_90 | test_10 |
+| People, classes, timetable, exams, marks | test_api, test_data | test_20, test_30 | test_40 (marks) |
+| Attendance | test_api | test_30 | test_30 |
+| Fees, payroll | test_fees, test_payroll | test_40, test_45 | — |
+| Leaves, staff attendance, transport, polls, banners, settings | test_phase2 | test_50 | — |
+| Teachers editing student / parent details (F40) | test_student_access | test_55 | test_50 |
+| Activity log: old → new values, filters (F41) | test_student_access | test_50, test_55 | test_50 |
+| Admin, onboarding, public site | test_api, test_portal, test_public | test_60 | — |
+| Layout on phones, accessibility, failures | — | test_70 | test_10, test_20 |
+
 Release order: `dev` → checks green → `test` → QA browser tests green → `main`.
 
 ## Known limits
