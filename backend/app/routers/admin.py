@@ -10,6 +10,7 @@ from sqlalchemy.orm import Session
 from .. import ratelimit
 from ..auth import admin_only, audit, check_password_rules, hash_password
 from ..db import get_db
+from ..deps import login_free
 from ..models import (AuditLog, ParentLink, Plan, PushToken, Role, School, SchoolClass, SubscriptionPayment, User, utcnow)
 from ..perms import MODULES, clean_permissions
 from ..schemas import (AuditOut, PaymentIn, PaymentOut, PlanIn, PlanOut, SchoolAdminUpdate, SchoolCreate, UserCreate,
@@ -197,6 +198,7 @@ def admin_create_user(sid: int, body: UserCreate, me: User = Depends(admin_only)
         # (Recovery for a locked-out principal is a password reset of that account: audited and visible to the school.)
         raise HTTPException(403, "Ask the school to allow support access (Privacy settings in the app) before adding people for it.")
     check_password_rules(body.password, body.login_id)
+    login_free(db, sid, body.login_id)
     if body.role == Role.student:
         c = db.get(SchoolClass, body.class_id or 0)
         if not c or c.school_id != sid:
@@ -243,6 +245,8 @@ def admin_update_user(sid: int, uid: int, body: UserUpdate, me: User = Depends(a
     if not full:  # without permission, admin can't overwrite masked contact fields
         for k in ("phone", "email", "address", "dob"):
             data.pop(k, None)
+    if (data.get("login_id") or "").strip() and data["login_id"].strip().lower() != u.login_id.lower():
+        login_free(db, sid, data["login_id"], exclude_id=u.id)
     pw = data.pop("password", None)
     if pw:
         check_password_rules(pw, data.get("login_id") or u.login_id)

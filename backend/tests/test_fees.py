@@ -38,6 +38,8 @@ def login(c, lid, code="DEMO01", pw="demo123"):
     return h
 
 
+@pytest.mark.tc("TC-B-024", "Words and year")
+@pytest.mark.regression
 def test_words_and_year():
     assert amount_in_words(0) == "Rupees Zero Only"
     assert amount_in_words(1500) == "Rupees One Thousand Five Hundred Only"
@@ -47,6 +49,8 @@ def test_words_and_year():
     assert academic_year(date(2026, 3, 31)) == "2025-26" and academic_year(date(2026, 4, 1)) == "2026-27"
 
 
+@pytest.mark.tc("TC-B-025", "Module and permissions")
+@pytest.mark.regression
 def test_module_and_permissions(c):
     h2 = login(c, "principal", "DEMO02")   # Basic plan → no fees module
     r = c.get("/fees/summary", headers=h2)
@@ -58,6 +62,8 @@ def test_module_and_permissions(c):
     assert c.put("/fees/config", json={"monthly_amount": 1}, headers=hv).status_code == 403
 
 
+@pytest.mark.tc("TC-B-026", "Generation is idempotent with overrides")
+@pytest.mark.regression
 def test_generation_is_idempotent_with_overrides(c):
     h = login(c, "principal")
     cfg = c.get("/fees/config", headers=h).json()
@@ -79,6 +85,9 @@ def test_generation_is_idempotent_with_overrides(c):
     assert c.post("/fees/generate", json={"period": "2099-01"}, headers=h).status_code == 400
 
 
+@pytest.mark.tc("TC-B-027", "Payment allocation receipt and cancel")
+@pytest.mark.smoke
+@pytest.mark.regression
 def test_payment_allocation_receipt_and_cancel(c):
     h = login(c, "principal")
     rows = c.get("/fees/students?status=overdue", headers=h).json()
@@ -109,6 +118,8 @@ def test_payment_allocation_receipt_and_cancel(c):
     assert c.put(f"/fees/items/{item['id']}", json={"amount": 0, "reason": "first time"}, headers=h).json()["waived"]
 
 
+@pytest.mark.tc("TC-B-028", "Batch rollout preview exclusions and withdraw")
+@pytest.mark.regression
 def test_batch_rollout_preview_exclusions_and_withdraw(c):
     h = login(c, "principal")
     cfg = c.get("/fees/config", headers=h).json()
@@ -128,6 +139,8 @@ def test_batch_rollout_preview_exclusions_and_withdraw(c):
     assert c.post("/fees/batches", json={"title": "X", "amount": 5, "target": "students"}, headers=h).status_code in (400, 422)
 
 
+@pytest.mark.tc("TC-B-029", "Parent upi claim confirm and reject")
+@pytest.mark.regression
 def test_parent_upi_claim_confirm_and_reject(c):
     hp = login(c, "9876500002")
     h = login(c, "principal")
@@ -154,6 +167,8 @@ def test_parent_upi_claim_confirm_and_reject(c):
     assert st["111122223333"] == "rejected" and st["998877665544"] == "confirmed"
 
 
+@pytest.mark.tc("TC-B-030", "Summary and reports")
+@pytest.mark.regression
 def test_summary_and_reports(c):
     h = login(c, "principal")
     s = c.get("/fees/summary", headers=h).json()

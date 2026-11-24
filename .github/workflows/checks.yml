@@ -28,8 +28,10 @@ jobs:
           cache: pip
           cache-dependency-path: backend/requirements.txt
       - run: pip install -r backend/requirements.txt pytest httpx
-      - name: API tests
+      - name: API tests (every endpoint must have a successful call in some test)
         working-directory: backend
+        env:
+          API_ROUTE_GATE: "1"
         run: python -m pytest -q
 
   portal:

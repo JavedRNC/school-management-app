@@ -81,10 +81,10 @@ export function PostComposer({ visible, onDismiss, classes, subjects, allowSchoo
       {kind === 'homework' && subjects?.length ? (
         <SelectField label="Subject" options={subjects.map((s) => ({ label: s.name, value: s.id }))} value={subjectId} onChange={setSubjectId} />
       ) : null}
-      <TextInput mode="outlined" label="Title" value={title} onChangeText={setTitle} error={touched && !title.trim()}
+      <TextInput mode="outlined" label="Title" accessibilityLabel="Title" value={title} onChangeText={setTitle} error={touched && !title.trim()}
         placeholder={kind === 'homework' ? 'e.g. Chapter 4 exercises' : 'e.g. School closed tomorrow'} />
       <HelperText type="error" visible={touched && !title.trim()}>Title is required</HelperText>
-      <TextInput mode="outlined" label="Details" value={body} onChangeText={setBody} multiline numberOfLines={4} style={{ minHeight: 100 }} />
+      <TextInput mode="outlined" label="Details" accessibilityLabel="Details" value={body} onChangeText={setBody} multiline numberOfLines={4} style={{ minHeight: 100 }} />
       {kind === 'homework' ? (
         <FilterChips label="Due" style={{ marginTop: space.md }} value={due} onChange={setDue}
           options={[

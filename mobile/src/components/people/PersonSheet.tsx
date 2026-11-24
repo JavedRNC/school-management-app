@@ -149,10 +149,10 @@ export function PersonSheet({
           </Text>
         ) : null}
 
-        <TextInput mode="outlined" label="Full name" value={name} onChangeText={setName} disabled={readOnly}
+        <TextInput mode="outlined" label="Full name" accessibilityLabel="Full name" value={name} onChangeText={setName} disabled={readOnly}
           left={<TextInput.Icon icon="account-outline" />} error={touched && !name.trim()} />
         <HelperText type="error" visible={touched && !name.trim()}>Name is required</HelperText>
-        <TextInput mode="outlined" label={hint.label} placeholder={hint.placeholder} value={loginId} disabled={readOnly}
+        <TextInput mode="outlined" label={hint.label} accessibilityLabel={hint.label} placeholder={hint.placeholder} value={loginId} disabled={readOnly}
           onChangeText={(v) => { const x = hint.numeric ? v.replace(/\D/g, '') : v; setLoginId(x); if (role === 'parent' && adding) setPhone(x); }}
           keyboardType={hint.numeric ? 'phone-pad' : 'default'} autoCapitalize="none" autoCorrect={false}
           left={<TextInput.Icon icon="card-account-details-outline" />} error={touched && !loginId.trim()} />

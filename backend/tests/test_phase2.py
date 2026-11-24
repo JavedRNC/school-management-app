@@ -46,6 +46,8 @@ def login(c, lid, code="DEMO01", pw="demo123"):
 
 
 # ---------------------------------------------------------------- modules gating
+@pytest.mark.tc("TC-B-017", "Basic plan blocks modules")
+@pytest.mark.regression
 def test_basic_plan_blocks_modules(c):
     h2 = login(c, "principal", "DEMO02")
     for path in ("/leaves", "/polls", "/transport/overview", "/staff-attendance/day"):
@@ -58,6 +60,8 @@ def test_basic_plan_blocks_modules(c):
 
 
 # ---------------------------------------------------------------- leaves
+@pytest.mark.tc("TC-B-018", "Teacher leave flow")
+@pytest.mark.regression
 def test_teacher_leave_flow(c):
     t = login(c, "T001")
     start = today() + timedelta(days=10)
@@ -88,6 +92,8 @@ def test_teacher_leave_flow(c):
     assert c.post(f"/leaves/{lr['id']}/decide", json={"approve": False, "comment": "Exams"}, headers=login(c, "vp")).json()["status"] == "rejected"
 
 
+@pytest.mark.tc("TC-B-019", "Student leave by parent")
+@pytest.mark.regression
 def test_student_leave_by_parent(c):
     par = login(c, "9876500001")
     kids = c.get("/me/children", headers=par).json()
@@ -127,6 +133,8 @@ def test_student_leave_by_parent(c):
 
 
 # ---------------------------------------------------------------- banners
+@pytest.mark.tc("TC-B-020", "Banners")
+@pytest.mark.regression
 def test_banners(c):
     h = login(c, "principal")
     b = c.post("/banners", json={"title": "Parents only", "roles": ["parent"], "popup": True, "image_url": "https://example.org/a.jpg"}, headers=h).json()
@@ -151,6 +159,8 @@ def test_banners(c):
 
 
 # ---------------------------------------------------------------- polls & consent
+@pytest.mark.tc("TC-B-021", "Consent and polls")
+@pytest.mark.regression
 def test_consent_and_polls(c):
     h = login(c, "principal")
     classes = c.get("/classes", headers=h).json()
@@ -179,6 +189,8 @@ def test_consent_and_polls(c):
 
 
 # ---------------------------------------------------------------- GPS staff attendance
+@pytest.mark.tc("TC-B-022", "Staff check in")
+@pytest.mark.regression
 def test_staff_check_in(c):
     t = login(c, "T005")
     st = c.get("/staff-attendance/me", headers=t).json()
@@ -208,6 +220,8 @@ def test_staff_check_in(c):
 
 
 # ---------------------------------------------------------------- transport
+@pytest.mark.tc("TC-B-023", "Transport")
+@pytest.mark.regression
 def test_transport(c):
     h = login(c, "principal")
     ov = c.get("/transport/overview", headers=h).json()

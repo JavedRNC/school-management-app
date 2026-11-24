@@ -78,6 +78,8 @@ def fresh_month(c, h):
 
 
 # ---------------------------------------------------------------- who may use it
+@pytest.mark.tc("TC-B-064", "Only the principal manages payroll")
+@pytest.mark.regression
 def test_only_the_principal_manages_payroll(c, h):
     for lid in ("vp", "coord", "T001"):
         hh = login(c, lid)
@@ -93,12 +95,16 @@ def test_only_the_principal_manages_payroll(c, h):
     assert c.get("/payroll/staff").status_code == 401
 
 
+@pytest.mark.tc("TC-B-065", "Module is needed")
+@pytest.mark.regression
 def test_module_is_needed(c):
     h2 = login(c, "principal", "DEMO02")           # Basic plan
     r = c.get("/payroll/staff", headers=h2)
     assert r.status_code == 403 and "MODULE_NOT_ENABLED:payroll" in r.json()["detail"]
 
 
+@pytest.mark.tc("TC-B-066", "Demo has last month paid")
+@pytest.mark.regression
 def test_demo_has_last_month_paid(c, h):
     runs = c.get("/payroll/runs", headers=h).json()["runs"]
     assert runs and runs[0]["status"] == "final" and runs[0]["unpaid_count"] == 0 and runs[0]["people"] >= 5
@@ -106,6 +112,8 @@ def test_demo_has_last_month_paid(c, h):
 
 
 # ---------------------------------------------------------------- salaries
+@pytest.mark.tc("TC-B-067", "Set salary and its rules")
+@pytest.mark.regression
 def test_set_salary_and_its_rules(c, h):
     t = staff(c, h)["T001"]
     r = c.put(f"/payroll/staff/{t['user_id']}", json={
@@ -130,6 +138,8 @@ def test_set_salary_and_its_rules(c, h):
     assert c.put("/payroll/staff/999999", json={"basic": 100}, headers=h).status_code == 404
 
 
+@pytest.mark.tc("TC-B-068", "Salary amounts stay out of the activity log")
+@pytest.mark.regression
 def test_salary_amounts_stay_out_of_the_activity_log(c, h):
     t = staff(c, h)["T002"]
     c.put(f"/payroll/staff/{t['user_id']}", json={"basic": 31234}, headers=h)
@@ -139,6 +149,9 @@ def test_salary_amounts_stay_out_of_the_activity_log(c, h):
 
 
 # ---------------------------------------------------------------- a month from start to end
+@pytest.mark.tc("TC-B-069", "Prepare edit lock pay")
+@pytest.mark.smoke
+@pytest.mark.regression
 def test_prepare_edit_lock_pay(c, h):
     fresh_month(c, h)
     s = staff(c, h)
@@ -229,6 +242,8 @@ def test_prepare_edit_lock_pay(c, h):
     assert c.post(f"/payroll/payslips/{p['id']}/undo-payment", json={"reason": "again"}, headers=h).status_code == 409
 
 
+@pytest.mark.tc("TC-B-070", "Months allowed")
+@pytest.mark.regression
 def test_months_allowed(c, h):
     nxt = (today().replace(day=28) + timedelta(days=5))
     assert c.post("/payroll/runs", json={"month": f"{nxt.year:04d}-{nxt.month:02d}"}, headers=h).status_code == 400
@@ -237,6 +252,8 @@ def test_months_allowed(c, h):
         assert c.post("/payroll/runs", json={"month": bad}, headers=h).status_code == 422, bad
 
 
+@pytest.mark.tc("TC-B-071", "Other schools never see it")
+@pytest.mark.regression
 def test_other_schools_never_see_it(c, h):
     run = c.get("/payroll/runs", headers=h).json()["runs"][0]
     slip = c.get(f"/payroll/runs/{run['id']}", headers=h).json()["payslips"][0]
@@ -268,6 +285,8 @@ def months_back(n):
     return f"{y:04d}-{m:02d}"
 
 
+@pytest.mark.tc("TC-B-072", "Absence cut uses staff attendance")
+@pytest.mark.regression
 def test_absence_cut_uses_staff_attendance(c, h):
     """A finished month two months back: nothing else writes attendance there, so the count is the same on any day this runs."""
     import calendar
@@ -317,6 +336,8 @@ def test_absence_cut_uses_staff_attendance(c, h):
     assert c.delete(f"/payroll/runs/{run['id']}", headers=h).status_code == 200
 
 
+@pytest.mark.tc("TC-B-073", "Today is not counted as absent")
+@pytest.mark.regression
 def test_today_is_not_counted_as_absent(c, h):
     """Preparing this month's payroll in the morning must not cut a day's pay from everyone who has not checked in yet."""
     fresh_month(c, h)
@@ -337,6 +358,8 @@ def test_today_is_not_counted_as_absent(c, h):
         c.put("/payroll/config", json={"lop_enabled": False, "lop_basis": "calendar", "slip_prefix": "GVPS-SAL"}, headers=h)
 
 
+@pytest.mark.tc("TC-B-074", "Config rules")
+@pytest.mark.regression
 def test_config_rules(c, h):
     for body in ({"lop_basis": "weekly"}, {"slip_prefix": ""}, {"slip_prefix": "has space"}, {"slip_prefix": "X" * 13}):
         assert c.put("/payroll/config", json=body, headers=h).status_code == 422, body
@@ -345,6 +368,8 @@ def test_config_rules(c, h):
     assert c.put("/payroll/config", json={"lop_enabled": True}, headers=h2).status_code == 400
 
 
+@pytest.mark.tc("TC-B-075", "Staff who leave are paid up to the day they left")
+@pytest.mark.regression
 def test_staff_who_leave_are_paid_up_to_the_day_they_left(c, h):
     """Uses a finished month and a set leaving date, so it does not depend on today's date or the time of day."""
     import calendar
@@ -401,6 +426,8 @@ def test_staff_who_leave_are_paid_up_to_the_day_they_left(c, h):
         assert c.delete(f"/payroll/runs/{run['run']['id']}", headers=h).status_code == 200
 
 
+@pytest.mark.tc("TC-B-076", "A payslip number is never given to someone else")
+@pytest.mark.regression
 def test_a_payslip_number_is_never_given_to_someone_else(c, h):
     month = months_back(4)
     s = staff(c, h)
@@ -423,6 +450,8 @@ def test_a_payslip_number_is_never_given_to_someone_else(c, h):
     assert a
 
 
+@pytest.mark.tc("TC-B-077", "Read only school cannot change payroll")
+@pytest.mark.regression
 def test_read_only_school_cannot_change_payroll(c, h):
     a = admin(c)
     rows = c.get("/admin/schools", headers=a).json()
@@ -436,6 +465,8 @@ def test_read_only_school_cannot_change_payroll(c, h):
         assert c.put(f"/admin/schools/{one['id']}", json={"is_free": True}, headers=a).status_code == 200
 
 
+@pytest.mark.tc("TC-B-078", "Upgrade gives payroll to the top plan only")
+@pytest.mark.regression
 def test_upgrade_gives_payroll_to_the_top_plan_only(tmp_path):
     """A database made before payroll: the plan holding every other module gains it; smaller plans and custom schools don't."""
     import subprocess
@@ -455,6 +486,8 @@ def test_upgrade_gives_payroll_to_the_top_plan_only(tmp_path):
     assert out.stdout.strip() == f"{{'Premium': True, 'Standard': False}} {SCHEMA_VERSION}", out.stderr
 
 
+@pytest.mark.tc("TC-B-079", "Upgrade falls back to the biggest plan")
+@pytest.mark.regression
 def test_upgrade_falls_back_to_the_biggest_plan(tmp_path):
     """If the Admin trimmed the plans so none has every module, the biggest one still gets payroll (the demo school is on it)."""
     import subprocess
@@ -566,6 +599,8 @@ def snapshot_of_payroll(c, h):
     return out
 
 
+@pytest.mark.tc("TC-B-080", "Backup has payroll but template and admin copy do not")
+@pytest.mark.regression
 def test_backup_has_payroll_but_template_and_admin_copy_do_not(c, h):
     wb = book(download(c, "/data/backup", h))
     for name in PAY_SHEETS:
@@ -593,6 +628,8 @@ def test_backup_has_payroll_but_template_and_admin_copy_do_not(c, h):
         support_access(False)
 
 
+@pytest.mark.tc("TC-B-081", "Replace with the backup brings payroll back exactly")
+@pytest.mark.regression
 def test_replace_with_the_backup_brings_payroll_back_exactly(c, h):
     from datetime import datetime
 
@@ -662,6 +699,8 @@ def test_replace_with_the_backup_brings_payroll_back_exactly(c, h):
             db.commit()
 
 
+@pytest.mark.tc("TC-B-082", "Merge adds missing months and never doubles")
+@pytest.mark.regression
 def test_merge_adds_missing_months_and_never_doubles(c, h):
     ensure_draft(c, h)
     content = download(c, "/data/backup", h)
@@ -683,6 +722,8 @@ def test_merge_adds_missing_months_and_never_doubles(c, h):
     assert snapshot_of_payroll(c, h) == before
 
 
+@pytest.mark.tc("TC-B-083", "An edited backup never restores payroll")
+@pytest.mark.regression
 def test_an_edited_backup_never_restores_payroll(c, h):
     wb = book(download(c, "/data/backup", h))
     ws = wb["Payslips"]
@@ -696,6 +737,8 @@ def test_an_edited_backup_never_restores_payroll(c, h):
     assert not r["ok"] and any("isn't an unchanged backup" in e["message"] for e in r["errors"])
 
 
+@pytest.mark.tc("TC-B-084", "Payroll rows are checked like the payroll screens")
+@pytest.mark.regression
 def test_payroll_rows_are_checked_like_the_payroll_screens(c, h, monkeypatch):
     """Even a file that passes the backup check is refused when its payroll doesn't add up (a file from an older or faulty server)."""
     from app import dataimport
@@ -778,6 +821,8 @@ def test_payroll_rows_are_checked_like_the_payroll_screens(c, h, monkeypatch):
     assert "use Days in the month or School days" in broken(lambda wb: cell(wb, "Payroll settings", 3, "Value", "weekly"))
 
 
+@pytest.mark.tc("TC-B-085", "Replace with a file without payroll warns")
+@pytest.mark.regression
 def test_replace_with_a_file_without_payroll_warns(c, h):
     from app.db import SessionLocal
     from app.models import PayrollRun, School
@@ -789,6 +834,8 @@ def test_replace_with_a_file_without_payroll_warns(c, h):
         assert db.scalar(select(func.count()).select_from(PayrollRun).where(PayrollRun.school_id == sid)) > 0
 
 
+@pytest.mark.tc("TC-B-086", "The platform admin can neither restore nor delete payroll")
+@pytest.mark.regression
 def test_the_platform_admin_can_neither_restore_nor_delete_payroll(c, h):
     content = download(c, "/data/backup", h)             # the principal's own backup, as if they sent it to support
     before = snapshot_of_payroll(c, h)

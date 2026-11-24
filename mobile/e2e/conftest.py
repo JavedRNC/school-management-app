@@ -185,10 +185,12 @@ def dismiss_popups(page: Page):
     """Home screens greet with announcement pop-ups; close them so they don't cover what the test looks at."""
     for _ in range(4):
         got = page.get_by_text("Got it", exact=True)
+        for _wait in range(6):                       # pop-ups come after the home screen has loaded its banners
+            if got.count():
+                break
+            page.wait_for_timeout(300)
         if not got.count():
-            page.wait_for_timeout(400)
-            if not got.count():
-                return
+            return
         got.first.click()
         page.wait_for_timeout(300)
 

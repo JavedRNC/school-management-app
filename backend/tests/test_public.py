@@ -32,6 +32,8 @@ def tok(c, code, lid, pw="demo123"):
     return {"Authorization": "Bearer " + c.post("/auth/login", json={"school_code": code, "login_id": lid, "password": pw}).json()["token"]}
 
 
+@pytest.mark.tc("TC-B-060", "Public listing and privacy")
+@pytest.mark.regression
 def test_public_listing_and_privacy(c):
     pub._cache["data"] = None
     d = c.get("/public/schools").json()
@@ -50,6 +52,8 @@ def test_public_listing_and_privacy(c):
     assert any(s["city"] == "Ranchi, Jharkhand" for s in c.get("/public/schools").json()["schools"])
 
 
+@pytest.mark.tc("TC-B-061", "Initials")
+@pytest.mark.regression
 def test_initials():
     assert pub.initials("Green Valley Public School") == "GV"
     assert pub.initials("St. Xavier's School") == "SX"

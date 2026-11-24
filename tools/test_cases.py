@@ -13,24 +13,20 @@ import sys
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
-SUITES = [("Portal (web, Admin + Principal)", ROOT / "portal/e2e", "portal/e2e"), ("Android app (web build, Chalk look)", ROOT / "mobile/e2e", "mobile/e2e")]
+SUITES = [("API (backend, pytest)", ROOT / "backend/tests", "backend/tests"),
+          ("Portal (web, Admin + Principal — Playwright)", ROOT / "portal/e2e", "portal/e2e"),
+          ("Android app (web build — Playwright)", ROOT / "mobile/e2e", "mobile/e2e")]
 SUB = re.compile(r"#\s*(TC-[A-Z]+-\d+\.\d+)\s+—\s+(.*)$")
 
 # Cases without a Playwright test (yet). The server side of most of them is covered by the API tests in backend/tests.
 MANUAL = [
-    ("TC-M-001", "Student app: home, attendance ring, results, timetable, homework, notices", "Regression", "API tests only"),
-    ("TC-M-002", "Parent app: consent at first sign-in, switching between children, fees and UPI payment claim", "Regression", "API tests only"),
-    ("TC-M-003", "Parent app: leave request for a child", "Regression", "API tests only"),
-    ("TC-M-004", "Teacher app: homework and notices, own leave request, GPS check-in / check-out", "Regression", "API tests only"),
-    ("TC-M-005", "Teacher / VP / Coordinator app: My payslips", "Regression", "API tests only"),
-    ("TC-M-006", "Principal app: people, classes, notices, fees, payroll screens (the portal versions are automated)", "Regression", "API tests only"),
-    ("TC-M-007", "Vice Principal and Coordinator app with limited rights and class scope", "Regression", "API tests only"),
-    ("TC-M-008", "Register and Marigold Night themes: colours, fonts, P/A register rows, grid by default", "Regression", "Not automated"),
-    ("TC-M-009", "Push notifications reach an Android phone", "Regression", "Not automated"),
-    ("TC-M-010", "App update prompt when the build is older than the oldest allowed build", "Sanity", "API tests only"),
-    ("TC-M-011", "APK installs on a phone; Test and Prod apps install side by side", "Smoke", "Not automated"),
-    ("TC-M-012", "Excel Replace-import with the automatic undo backup (recovery drill on TEST)", "Regression", "API tests only"),
-    ("TC-M-013", "Public website pages and the school listing", "Regression", "Not automated"),
+    ("TC-M-001", "Parent pays by UPI in the app and sends the UTR for checking", "Regression", "API tests only (TC-B: parent UPI claim)"),
+    ("TC-M-002", "Principal app screens for classes, notices, fees and payroll (the portal versions are automated)", "Regression", "API tests only"),
+    ("TC-M-003", "Coordinator in the app limited to their classes", "Regression", "API tests only"),
+    ("TC-M-004", "Push notifications reach an Android phone", "Regression", "Not automated"),
+    ("TC-M-005", "App update prompt when the build is older than the oldest allowed build", "Sanity", "API tests only"),
+    ("TC-M-006", "APK installs on a phone; Test and Prod apps install side by side", "Smoke", "Not automated"),
+    ("TC-M-007", "Public website pages and the school listing", "Regression", "Not automated"),
 ]
 
 
@@ -46,13 +42,30 @@ def _tc(fn):
     return None
 
 
+def _value(node, consts):
+    """A parametrize list: a literal, a module constant, or sorted(CONST) / sorted(CONST.items())."""
+    if isinstance(node, ast.Name):
+        return consts.get(node.id)
+    if isinstance(node, ast.Call) and isinstance(node.func, ast.Name) and node.func.id == "sorted" and node.args:
+        inner = node.args[0]
+        if isinstance(inner, ast.Call) and isinstance(inner.func, ast.Attribute) and inner.func.attr == "items":
+            v = _value(inner.func.value, consts)
+            return sorted(v.items()) if isinstance(v, dict) else sorted(v or [])
+        v = _value(inner, consts)
+        return sorted(v or [])
+    try:
+        return ast.literal_eval(node)
+    except ValueError:
+        return []
+
+
 def _params(fn, consts):
     """Sub-cases of a parametrized test: one per value, numbered in order."""
     for d in fn.decorator_list:
         if isinstance(d, ast.Call) and isinstance(d.func, ast.Attribute) and d.func.attr == "parametrize":
             src = d.args[1]
-            values = consts.get(src.id) if isinstance(src, ast.Name) else ast.literal_eval(src)
-            return [f"{v[1]} ({v[0]})" if isinstance(v, (list, tuple)) else str(v) for v in values or []]
+            values = _value(src, consts)
+            return [(f"{v[1]} ({v[0]})" if v[1] else str(v[0])) if isinstance(v, (list, tuple)) else str(v) for v in values or []]
     return []
 
 
@@ -70,7 +83,11 @@ def collect():
                     try:
                         consts[node.targets[0].id] = ast.literal_eval(node.value)
                     except ValueError:
-                        pass
+                        if isinstance(node.value, ast.Dict):        # a dict whose values are expressions: its keys are enough
+                            try:
+                                consts[node.targets[0].id] = {ast.literal_eval(k): None for k in node.value.keys}
+                            except ValueError:
+                                pass
             for fn in [n for n in tree.body if isinstance(n, ast.FunctionDef) and n.name.startswith("test_")]:
                 tc = _tc(fn)
                 if not tc:
@@ -85,27 +102,45 @@ def collect():
     return groups
 
 
+def endpoints() -> list[tuple[str, str, str]]:
+    """Every API endpoint (method, path, summary), read from the app itself."""
+    import os
+    import tempfile
+    os.environ.setdefault("DATABASE_URL", f"sqlite:///{tempfile.gettempdir()}/prangan-endpoints.db")
+    sys.path.insert(0, str(ROOT / "backend"))
+    from app.main import app
+    out = []
+    for path, ops in app.openapi()["paths"].items():
+        for m, op in ops.items():
+            if m in ("get", "post", "put", "delete", "patch"):
+                out.append((m.upper(), path, (op.get("summary") or "").strip()))
+    return sorted(out, key=lambda x: (x[1], x[0]))
+
+
 def render(groups) -> str:
     all_rows = [r for _, rows in groups for r in rows]
     n_sub = sum(len(r["subs"]) for r in all_rows)
     count = lambda s: sum(1 for r in all_rows if s in r["suites"])  # noqa: E731
     out = ["# Prangan — test cases", "",
-           "Generated by `python tools/test_cases.py` from the Playwright tests — do not edit by hand.", "",
+           "Generated by `python tools/test_cases.py` from the tests themselves (API, portal, app) — do not edit by hand.", "",
            "**How to read it.** Each Playwright test is one test case (for example `TC-P-008`). When one test covers several",
            "checks, each check is a sub-case (`TC-P-008.1`, `TC-P-008.2`, …): it is marked with a comment where that check starts in",
            "the test, and it is executed whenever its parent test runs.", "",
            "**Suites.** Smoke: the product starts, people sign in and the main pages open. Sanity: the main happy path of each",
            "module. Regression: everything (every test is in it).", "",
-           "**Run.** `python -m pytest e2e -m smoke` (or `-m sanity`, `-m regression`) in `portal/` or `mobile/`;",
-           "`python -m pytest e2e --tc TC-P-008` runs one case. Every run ends with the list of test cases executed and their result.",
+           "**Run.** API: `python -m pytest -m smoke` in `backend/`; browser: `python -m pytest e2e -m smoke` in `portal/` or `mobile/`",
+           "(or `-m sanity`, `-m regression`); `--tc TC-P-008` runs one case. Every run ends with the list of cases executed and their",
+           "result. In the API suite every endpoint must also get a successful call from some test (CI fails otherwise).",
            "On TEST, the workflow *QA browser tests* runs the whole portal suite after every release to `test`; *Checks* runs both",
            "suites on every push to `dev`.", "",
            "## Summary", "",
            "| | Count |", "|---|---|",
            f"| Automated test cases | {len(all_rows)} |",
+           *[f"| — {label.split(' (')[0]} | {len(rows)} |" for label, rows in groups],
            f"| Automated sub-cases inside them | {n_sub} |",
            f"| Smoke | {count('Smoke')} |", f"| Sanity | {count('Sanity')} |", f"| Regression | {count('Regression')} |",
-           f"| Not automated in Playwright yet | {len(MANUAL)} |", ""]
+           f"| Not automated yet | {len(MANUAL)} |",
+           f"| **Total cases in this list** | **{len(all_rows) + n_sub + len(MANUAL)}** |", ""]
     for label, rows in groups:
         out += [f"## {label}", "", "| TC No. | Test case | Suite | Automation status | Playwright test |", "|---|---|---|---|---|"]
         for r in rows:
@@ -114,10 +149,19 @@ def render(groups) -> str:
             for sid, text in r["subs"]:
                 out.append(f"| {sid} | ↳ {text} | {', '.join(r['suites'])} | {status} (in {r['id']}) | ″ |")
         out.append("")
-    out += ["## Not automated in Playwright yet", "",
+    out += ["## Not automated yet", "",
             "| TC No. | Test case | Suite | Automation status | Note |", "|---|---|---|---|---|"]
     for tc, title, suite, note in MANUAL:
         out.append(f"| {tc} | {title} | {suite} | Not automated | {note} |")
+    eps = endpoints()
+    out += ["", "## API endpoints", "",
+            f"All {len(eps)} endpoints. Every one is called successfully by at least one API test, and every one is also called by",
+            "every kind of user (signed out, student, parent, teacher, coordinator, vice principal, another school's principal,",
+            "admin) in TC-B-128…137, which check that nobody gets in where they shouldn't and that nothing crashes. The API suite",
+            "fails in CI if an endpoint has no successful call (`API_ROUTE_GATE=1`).", "",
+            "| # | Method | Endpoint | Status |", "|---|---|---|---|"]
+    for i, (m, p, _) in enumerate(eps, 1):
+        out.append(f"| {i} | {m} | `{p}` | Covered by API tests |")
     out.append("")
     return "\n".join(out)
 

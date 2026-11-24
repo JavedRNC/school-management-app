@@ -94,7 +94,7 @@ export function ApplyLeaveSheet({ visible, onDismiss, child, onDone }: {
         style={{ marginBottom: space.md }}
         buttons={[{ value: 'single', label: 'One day', icon: 'calendar-today' }, { value: 'range', label: 'Several days', icon: 'calendar-range' }]} />
       <FilterChips label={mode === 'single' ? 'Date' : 'From'} value={start} onChange={(v) => { setStart(v); if (end < v) setEnd(v); }} options={quick} />
-      <TextInput mode="outlined" label={mode === 'single' ? 'Date (YYYY-MM-DD)' : 'From (YYYY-MM-DD)'} value={start} onChangeText={setStart}
+      <TextInput mode="outlined" label={mode === 'single' ? 'Date (YYYY-MM-DD)' : 'From (YYYY-MM-DD)'} accessibilityLabel={mode === 'single' ? 'Date' : 'From'} value={start} onChangeText={setStart}
         left={<TextInput.Icon icon="calendar" />} error={!isISO(start)} style={{ marginBottom: space.md }} />
       {mode === 'range' ? (
         <>
@@ -119,7 +119,7 @@ export function ApplyLeaveSheet({ visible, onDismiss, child, onDone }: {
           {validDates ? `${daysLabel(days)} of school${days === 0 ? ' — these are off days' : ''}` : 'Check the dates'}
         </Text>
       </View>
-      <TextInput mode="outlined" label="Reason" value={reason} onChangeText={setReason} multiline numberOfLines={3} style={{ minHeight: 84 }}
+      <TextInput mode="outlined" label="Reason" accessibilityLabel="Reason" value={reason} onChangeText={setReason} multiline numberOfLines={3} style={{ minHeight: 84 }}
         placeholder={isParent ? 'e.g. Fever, doctor advised rest' : 'e.g. Family function'} />
       <HelperText type="error" visible={!!error}>{error}</HelperText>
       <Button mode="contained" icon="send" onPress={submit} loading={busy} disabled={!validDates || busy || readOnly}

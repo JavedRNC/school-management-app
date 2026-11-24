@@ -54,6 +54,8 @@ def upload(c, h, content, mode="merge", confirm=False, code="", url="/data/impor
 
 
 # ================================================================ F28
+@pytest.mark.tc("TC-B-031", "Bell schedule")
+@pytest.mark.regression
 def test_bell_schedule(c):
     h = login(c, "principal")
     b = c.get("/school/bell", headers=h).json()
@@ -82,6 +84,8 @@ def test_bell_schedule(c):
     assert c.put("/school/bell", json={"day": -1, "slots": sat5}, headers=ht).status_code == 403
 
 
+@pytest.mark.tc("TC-B-032", "Timetable rejects teacher of other school")
+@pytest.mark.regression
 def test_timetable_rejects_teacher_of_other_school(c):
     h = login(c, "principal")
     h2 = login(c, "principal", "DEMO02")
@@ -93,6 +97,8 @@ def test_timetable_rejects_teacher_of_other_school(c):
 
 
 # ================================================================ F29
+@pytest.mark.tc("TC-B-033", "Bulk add students with parents")
+@pytest.mark.regression
 def test_bulk_add_students_with_parents(c):
     h = login(c, "principal")
     rows = [{"name": "Riya Sen", "login_id": "2026201", "class": "8-A", "roll_no": 40, "parent_name": "Amit Sen", "parent_mobile": "+91 98111-22233"},
@@ -117,6 +123,8 @@ def test_bulk_add_students_with_parents(c):
     assert len(parent["children_ids"]) == 2
 
 
+@pytest.mark.tc("TC-B-034", "Bulk add teachers permissions")
+@pytest.mark.regression
 def test_bulk_add_teachers_permissions(c):
     h = login(c, "principal")
     rows = [{"name": "New Teacher", "login_id": "T101", "phone": "9876543210", "email": "t101@school.in"}]
@@ -151,6 +159,8 @@ def fill_template(c, h) -> bytes:
     return to_bytes(wb)
 
 
+@pytest.mark.tc("TC-B-035", "Template import preview then commit")
+@pytest.mark.regression
 def test_template_import_preview_then_commit(c):
     h = login(c, "principal", "DEMO02")
     content = fill_template(c, h)
@@ -179,6 +189,8 @@ def test_template_import_preview_then_commit(c):
     assert r["saved"] and sum(s["add"] for s in r["sheets"]) == 0 and not r["credentials"]
 
 
+@pytest.mark.tc("TC-B-036", "Import errors save nothing")
+@pytest.mark.regression
 def test_import_errors_save_nothing(c):
     h = login(c, "principal", "DEMO02")
     wb = book(c.get("/data/template", headers=h).content)
@@ -195,6 +207,8 @@ def test_import_errors_save_nothing(c):
     assert "S201" not in {u["login_id"] for u in c.get("/users?role=student", headers=h).json()}
 
 
+@pytest.mark.tc("TC-B-037", "Bad files and permissions")
+@pytest.mark.regression
 def test_bad_files_and_permissions(c):
     h = login(c, "principal", "DEMO02")
     assert upload(c, h, b"hello").status_code == 400
@@ -228,6 +242,8 @@ def admin(c):
 
 
 # ================================================================ F31 backup & restore
+@pytest.mark.tc("TC-B-038", "Backup restore round trip keeps passwords")
+@pytest.mark.regression
 def test_backup_restore_round_trip_keeps_passwords(c):
     h = login(c, "principal")
     b1 = c.get("/data/backup", headers=h)
@@ -274,6 +290,8 @@ def test_backup_restore_round_trip_keeps_passwords(c):
     assert summ["outstanding"] > 0 and summ["pending_claims"] >= 1
 
 
+@pytest.mark.tc("TC-B-039", "Edited backup is plain data")
+@pytest.mark.regression
 def test_edited_backup_is_plain_data(c):
     h = login(c, "principal")
     wb = book(c.get("/data/backup", headers=h).content)
@@ -296,6 +314,8 @@ def test_edited_backup_is_plain_data(c):
         assert not db.scalar(select(Mark.id).where(Mark.entered_by == t2, Mark.score == 1))     # can't be pinned on T002
 
 
+@pytest.mark.tc("TC-B-040", "Tampered vault is ignored")
+@pytest.mark.regression
 def test_tampered_vault_is_ignored(c):
     h = login(c, "principal")
     wb = book(c.get("/data/backup", headers=h).content)
@@ -304,6 +324,8 @@ def test_tampered_vault_is_ignored(c):
     assert not r["verified"] and not r["passwords_kept"]
 
 
+@pytest.mark.tc("TC-B-041", "Other schools backup cannot bring passwords")
+@pytest.mark.regression
 def test_other_schools_backup_cannot_bring_passwords(c):
     h1 = login(c, "principal")
     h2 = login(c, "principal", "DEMO02")
@@ -312,6 +334,8 @@ def test_other_schools_backup_cannot_bring_passwords(c):
     assert not r["passwords_kept"] and any("DEMO01" in w for w in r["warnings"])
 
 
+@pytest.mark.tc("TC-B-042", "Principal row cannot create or hijack")
+@pytest.mark.regression
 def test_principal_row_cannot_create_or_hijack(c):
     h = login(c, "principal", "DEMO02")
     wb = book(c.get("/data/template", headers=h).content)
@@ -322,6 +346,8 @@ def test_principal_row_cannot_create_or_hijack(c):
     assert any("evilprincipal" in w for w in r["warnings"])
 
 
+@pytest.mark.tc("TC-B-043", "Bulk ignores row roles and module rules")
+@pytest.mark.regression
 def test_bulk_ignores_row_roles_and_module_rules(c):
     h = login(c, "principal", "DEMO02")      # Basic plan: no extra roles
     r = c.post("/users/bulk", json={"role": "teacher", "rows": [{"name": "Sneaky", "login_id": "Z1", "role": "Coordinator"}],
@@ -329,6 +355,8 @@ def test_bulk_ignores_row_roles_and_module_rules(c):
     assert r["ok"] and r["by_role"] == {"teacher": {"add": 1, "update": 0}}
 
 
+@pytest.mark.tc("TC-B-044", "Bad values and backup robustness")
+@pytest.mark.regression
 def test_bad_values_and_backup_robustness(c):
     h = login(c, "principal", "DEMO02")
     wb = book(c.get("/data/template", headers=h).content)
@@ -343,6 +371,8 @@ def test_bad_values_and_backup_robustness(c):
     assert c.get("/data/backup", headers=login(c, "principal")).content.startswith(b"PK")
 
 
+@pytest.mark.tc("TC-B-045", "Dimension bomb is cheap")
+@pytest.mark.regression
 def test_dimension_bomb_is_cheap(c):
     import time
     import zipfile
@@ -362,6 +392,8 @@ def test_dimension_bomb_is_cheap(c):
     assert r.status_code == 200 and time.time() - t < 15
 
 
+@pytest.mark.tc("TC-B-046", "Admin rules")
+@pytest.mark.regression
 def test_admin_rules(c):
     ha = admin(c)
     h1 = login(c, "principal")
@@ -375,6 +407,8 @@ def test_admin_rules(c):
     c.put("/school/settings", json={"share_contact_with_admin": False}, headers=h1)
 
 
+@pytest.mark.tc("TC-B-047", "Vault chunks and carriage returns still verify")
+@pytest.mark.regression
 def test_vault_chunks_and_carriage_returns_still_verify(c):
     from app.databook import vault_open, vault_seal
     for i in range(200):                      # base64 chunks that start with symbols used to break the vault
@@ -388,6 +422,8 @@ def test_vault_chunks_and_carriage_returns_still_verify(c):
     assert r["verified"] and r["passwords_kept"]
 
 
+@pytest.mark.tc("TC-B-048", "Unverified history never imported")
+@pytest.mark.regression
 def test_unverified_history_never_imported(c):
     h = login(c, "principal")
     wb = book(c.get("/data/backup", headers=h).content)
@@ -400,6 +436,8 @@ def test_unverified_history_never_imported(c):
     assert not r["ok"] and any("unchanged backup" in e["message"] for e in r["errors"])
 
 
+@pytest.mark.tc("TC-B-049", "Replace password is throttled")
+@pytest.mark.regression
 def test_replace_password_is_throttled(c):
     h = login(c, "principal", "DEMO02")
     content = c.get("/data/template", headers=h).content

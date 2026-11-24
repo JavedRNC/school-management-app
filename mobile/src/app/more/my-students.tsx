@@ -3,6 +3,7 @@ import { View } from 'react-native';
 import { Button, HelperText, Searchbar, Text } from 'react-native-paper';
 
 import { TextInput } from '@/components/Field';
+import { RoleGuard } from '@/components/RoleGuard';
 import { BLOOD, isDate } from '@/components/people/constants';
 import {
   EmptyState, ErrorState, FadeIn, FilterChips, Hero, LoadingCards, Panel, Row, Screen, Sheet, ToneChip, UserAvatar,
@@ -102,7 +103,11 @@ function EditSheet({ student, parent, onDismiss, onSaved }: {
 }
 
 /** Teacher → My students: the classes the principal lets this teacher edit (by default their own class as class teacher). */
-export default function MyStudentsScreen() {
+export default function MyStudentsScreenGuarded() {
+  return <RoleGuard role="teacher"><MyStudentsScreen /></RoleGuard>;
+}
+
+function MyStudentsScreen() {
   const t = useAppTheme();
   const toast = useToast();
   const { data, error, reload, refresh, refreshing } = useLoad(() => api<MyStudents>('/my-students'));

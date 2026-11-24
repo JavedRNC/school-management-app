@@ -324,5 +324,6 @@ def close_poll(pid: int, user: User = Depends(require_area("notices", "edit")), 
 def archive_poll(pid: int, user: User = Depends(require_area("notices", "edit")), db: Session = Depends(get_db)):
     p = owned(db, Poll, pid, user, "Poll")
     p.is_active, p.archived_at, p.archived_by = False, utcnow(), user.id
+    audit(db, user, f"{p.kind}.removed", p.title)
     db.commit()
     return {"ok": True}

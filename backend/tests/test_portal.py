@@ -61,6 +61,8 @@ def principal_h(c, code="DEMO01", client="app"):
     return {"Authorization": f"Bearer {login(c, code, 'principal', 'demo123', client).json()['token']}"}
 
 
+@pytest.mark.tc("TC-B-050", "Public form validation and duplicates")
+@pytest.mark.regression
 def test_public_form_validation_and_duplicates(c):
     bad = c.post("/public/onboarding", json={**FORM, "pin": "12", "mobile": "12345", "email": "nope"})
     assert bad.status_code == 422
@@ -92,12 +94,16 @@ def test_public_form_validation_and_duplicates(c):
     assert s["status"] == "PENDING" and s["school_name"] == "Sunrise Public School" and "email" not in s
 
 
+@pytest.mark.tc("TC-B-051", "Public form rate limit")
+@pytest.mark.regression
 def test_public_form_rate_limit(c):
     codes = [c.post("/public/onboarding", json={**FORM, "school_name": f"Flood School {i}", "reg_no": f"F-{i}",
                                                 "mobile": f"98000000{i:02d}", "email": f"f{i}@x.example"}).status_code for i in range(7)]
     assert codes[:5] == [201] * 5 and codes[5:] == [429, 429]
 
 
+@pytest.mark.tc("TC-B-052", "Admin workflow to onboarded school")
+@pytest.mark.regression
 def test_admin_workflow_to_onboarded_school(c):
     h = admin_h(c)
     lst = c.get("/admin/onboarding", params={"q": "sunrise", "status": "PENDING"}, headers=h).json()
@@ -149,6 +155,8 @@ def test_admin_workflow_to_onboarded_school(c):
     assert summary["by_status"]["ONBOARDED"] == 1 and summary["total"] >= 1
 
 
+@pytest.mark.tc("TC-B-053", "Schools page export trends")
+@pytest.mark.regression
 def test_schools_page_export_trends(c):
     h = admin_h(c)
     pg = c.get("/admin/schools-page", params={"size": 2, "page": 1, "sort": "code"}, headers=h).json()
@@ -167,6 +175,8 @@ def test_schools_page_export_trends(c):
     assert d.status_code == 409                                                        # registration numbers are unique
 
 
+@pytest.mark.tc("TC-B-054", "Permissions admin vs principal vs public")
+@pytest.mark.regression
 def test_permissions_admin_vs_principal_vs_public(c):
     p = principal_h(c)
     for path in ("/admin/onboarding", "/admin/onboarding/summary", "/admin/onboarding/1", "/admin/schools-page",
@@ -191,6 +201,8 @@ def test_permissions_admin_vs_principal_vs_public(c):
         assert c.get("/data/history", headers={"Authorization": f"Bearer {t.json()['token']}"}).status_code == 403
 
 
+@pytest.mark.tc("TC-B-055", "Web sessions")
+@pytest.mark.regression
 def test_web_sessions(c):
     # only Admin and Principal may sign in to the portal; a wrong password never reveals the role
     from sqlalchemy import select
@@ -235,12 +247,16 @@ def test_web_sessions(c):
     assert c.get("/admin/overview", headers={"Authorization": f"Bearer {forged}"}).status_code == 401
 
 
+@pytest.mark.tc("TC-B-056", "Login rate limit per address")
+@pytest.mark.regression
 def test_login_rate_limit_per_address(c):
     codes = {login(c, "DEMO02", f"nobody{i}", "x").status_code for i in range(30)}
     assert codes == {401}
     assert login(c, "DEMO02", "principal", "demo123").status_code == 429
 
 
+@pytest.mark.tc("TC-B-057", "Cors and headers")
+@pytest.mark.regression
 def test_cors_and_headers(c):
     def pre(origin):
         return c.options("/auth/login", headers={"Origin": origin, "Access-Control-Request-Method": "POST"})
@@ -254,6 +270,8 @@ def test_cors_and_headers(c):
     assert r.headers["x-content-type-options"] == "nosniff" and r.headers["x-frame-options"] == "DENY"
 
 
+@pytest.mark.tc("TC-B-058", "Push tokens")
+@pytest.mark.regression
 def test_push_tokens(c):
     p = principal_h(c)
     tok = "fcm-token-" + "a" * 60
@@ -275,6 +293,8 @@ def test_push_tokens(c):
     push.notify([1], "t", "b")            # not configured: a quiet no-op
 
 
+@pytest.mark.tc("TC-B-059", "Review fixes")
+@pytest.mark.regression
 def test_review_fixes(c):
     """Regression tests for the security review findings."""
     import io

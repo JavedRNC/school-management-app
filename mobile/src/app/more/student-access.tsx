@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { View } from 'react-native';
 import { Button, Dialog, Switch, Text } from 'react-native-paper';
 
+import { RoleGuard } from '@/components/RoleGuard';
 import { SelectField } from '@/components/SelectField';
 import {
   EmptyState, ErrorState, Fab, FadeIn, Hero, Icon, LoadingCards, Panel, Row, Screen, Sheet, TopLayer, UserAvatar,
@@ -80,7 +81,11 @@ function GrantSheet({ visible, grant, teachers, classes, onDismiss, onSaved }: {
 }
 
 /** Principal → Student data access (F40). */
-export default function StudentAccessScreen() {
+export default function StudentAccessScreenGuarded() {
+  return <RoleGuard role="principal"><StudentAccessScreen /></RoleGuard>;
+}
+
+function StudentAccessScreen() {
   const t = useAppTheme();
   const toast = useToast();
   const { school } = useAuth();

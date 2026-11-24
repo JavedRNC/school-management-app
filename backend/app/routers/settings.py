@@ -50,9 +50,10 @@ def update_settings(body: SchoolSettingsIn, user: User = Depends(require_area("s
         if not days:
             raise HTTPException(400, "Choose at least one working day")
         data["working_days"] = days
+    before = snap(s, data.keys())
     for k, v in data.items():
         setattr(s, k, v.strip() if isinstance(v, str) else v)
-    audit(db, user, "settings.updated", ", ".join(sorted(data)))
+    audit(db, user, "settings.updated", changes(before, s, {"share_contact_with_admin": "share contact with support"}) or "no change")
     db.commit()
     return school_info(db, user)
 

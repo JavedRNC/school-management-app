@@ -121,3 +121,15 @@ def get_prefs(db: Session, school_id: int) -> SchoolPrefs:
         db.add(p)
         db.flush()
     return p
+
+
+def login_free(db: Session, school_id: int | None, login_id: str, exclude_id: int | None = None) -> None:
+    """Sign-in ignores capital letters, so two accounts of one school may not differ only by them (T001 / t001)."""
+    from fastapi import HTTPException
+    from sqlalchemy import func
+
+    q = select(User.id).where(User.school_id == school_id, func.lower(User.login_id) == login_id.strip().lower())
+    if exclude_id is not None:
+        q = q.where(User.id != exclude_id)
+    if db.scalar(q.limit(1)) is not None:
+        raise HTTPException(409, f"Login ID “{login_id.strip()}” is already used in this school")

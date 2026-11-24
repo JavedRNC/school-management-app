@@ -9,7 +9,7 @@ from ..bell import period_count, schedules
 from .. import ratelimit
 from ..auth import audit, changes, check_password_rules, snap, hash_password, require_area, school_user
 from ..db import get_db
-from ..deps import (active_ids, class_students, get_school, manager_class_ids, name_maps, owned, resolve_student,
+from ..deps import (active_ids, class_students, get_school, login_free, manager_class_ids, name_maps, owned, resolve_student,
                     visible_class_ids)
 from ..models import (Assignment, Exam, Mark, ParentLink, Post, PushToken, Role, SchoolClass, Subject, TimetableEntry, User,
                       utcnow)
@@ -227,6 +227,7 @@ def _check_class(db: Session, me: User, class_id: int | None) -> None:
 def create_user(body: UserCreate, me: User = Depends(require_area("people", "edit")), db: Session = Depends(get_db)):
     _validate_role(db, me, body.role)
     check_password_rules(body.password, body.login_id)
+    login_free(db, me.school_id, body.login_id)
     if body.role == Role.student:
         _check_class(db, me, body.class_id)
         school = get_school(db, me)
@@ -315,6 +316,8 @@ def update_user(user_id: int, body: UserUpdate, me: User = Depends(require_area(
     for k in ("name", "login_id", "phone", "email", "address", "blood_group"):
         if k in data and data[k] is not None:
             data[k] = data[k].strip()
+    if data.get("login_id") and data["login_id"].lower() != u.login_id.lower():
+        login_free(db, me.school_id, data["login_id"], exclude_id=u.id)
     if u.role == Role.student:
         if "class_id" in data:
             _check_class(db, me, data["class_id"])

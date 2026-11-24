@@ -42,6 +42,8 @@ def admin(c):
     return {"Authorization": f"Bearer {r.json()['token']}"}
 
 
+@pytest.mark.tc("TC-B-062", "Public version and admin settings")
+@pytest.mark.regression
 def test_public_version_and_admin_settings(c):
     v = c.get("/app/version").json()                       # no login needed
     assert v["latest_build"] == 7 and v["min_build"] == 0 and v["url"].endswith("Prangan.apk") and v["source"] == "github"
@@ -58,6 +60,8 @@ def test_public_version_and_admin_settings(c):
     assert c.put("/admin/app-version", json={}, headers={"Authorization": f"Bearer {p}"}).status_code == 403
 
 
+@pytest.mark.tc("TC-B-063", "Build lookup falls back and is remembered")
+@pytest.mark.regression
 def test_build_lookup_falls_back_and_is_remembered(c, monkeypatch):
     h = admin(c)
     c.put("/admin/app-version", json={"auto_latest": True}, headers=h)

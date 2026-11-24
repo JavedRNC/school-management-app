@@ -66,6 +66,10 @@ def first_school_day(c, h, start, step=1, n=40):
 
 
 # ---------------------------------------------------------------- login & passwords
+@pytest.mark.tc("TC-B-001", "Login school code")
+@pytest.mark.smoke
+@pytest.mark.sanity
+@pytest.mark.regression
 def test_login_school_code(client):
     login(client, "demo01", "PRINCIPAL")  # case-insensitive
     assert login(client, "NOPE", "principal", expect=401).json()["detail"] == "Wrong school code, login ID or password"
@@ -74,6 +78,8 @@ def test_login_school_code(client):
     assert client.get("/classes").status_code == 401
 
 
+@pytest.mark.tc("TC-B-002", "Lockout after 5 wrong")
+@pytest.mark.regression
 def test_lockout_after_5_wrong(client):
     for _ in range(5):
         login(client, "DEMO01", "T005", "bad", expect=401)
@@ -90,6 +96,9 @@ def test_lockout_after_5_wrong(client):
     login(client, "DEMO01", "T005", "reset123")
 
 
+@pytest.mark.tc("TC-B-003", "Temp password flow")
+@pytest.mark.smoke
+@pytest.mark.regression
 def test_temp_password_flow(client):
     h = P(client)
     r = client.post("/users", json={"name": "New Teacher", "login_id": "T099", "password": "temp123", "role": "teacher"}, headers=h)
@@ -111,6 +120,10 @@ def test_temp_password_flow(client):
 
 
 # ---------------------------------------------------------------- tenancy
+@pytest.mark.tc("TC-B-004", "School isolation")
+@pytest.mark.smoke
+@pytest.mark.sanity
+@pytest.mark.regression
 def test_school_isolation(client):
     h1, h2 = P(client), login(client, "DEMO02", "principal")
     c1 = {c["name"] for c in client.get("/classes", headers=h1).json()}
@@ -127,6 +140,8 @@ def test_school_isolation(client):
 
 
 # ---------------------------------------------------------------- working days, calendar, attendance rules
+@pytest.mark.tc("TC-B-005", "Working days and holidays")
+@pytest.mark.regression
 def test_working_days_and_holidays(client):
     h = P(client)
     me = client.get("/school/me", headers=h).json()
@@ -162,6 +177,8 @@ def test_working_days_and_holidays(client):
     client.put("/school/settings", json={"working_days": [0, 1, 2, 3, 4, 5]}, headers=h)
 
 
+@pytest.mark.tc("TC-B-006", "Teacher attendance locks")
+@pytest.mark.regression
 def test_teacher_attendance_locks(client):
     t = login(client, "DEMO01", "T003")  # class teacher of 9-A
     t0 = today()
@@ -180,6 +197,8 @@ def test_teacher_attendance_locks(client):
     assert client.get("/attendance", params={"class_id": 3, "day": t0.isoformat()}, headers=t5).status_code == 200
 
 
+@pytest.mark.tc("TC-B-007", "Dashboard flags class teacher")
+@pytest.mark.regression
 def test_dashboard_flags_class_teacher(client):
     h = P(client)
     d = client.get("/dashboard", headers=h).json()
@@ -190,6 +209,8 @@ def test_dashboard_flags_class_teacher(client):
 
 
 # ---------------------------------------------------------------- archive
+@pytest.mark.tc("TC-B-008", "Archive and restore")
+@pytest.mark.regression
 def test_archive_and_restore(client):
     h = P(client)
     assert client.delete("/classes/1", headers=h).status_code == 409
@@ -229,6 +250,9 @@ def test_archive_and_restore(client):
 
 
 # ---------------------------------------------------------------- parents
+@pytest.mark.tc("TC-B-009", "Parent views")
+@pytest.mark.smoke
+@pytest.mark.regression
 def test_parent_views(client):
     par = login(client, "DEMO01", "9876500001")
     kids = client.get("/me/children", headers=par).json()
@@ -257,6 +281,8 @@ def test_parent_views(client):
 
 
 # ---------------------------------------------------------------- roles & permissions
+@pytest.mark.tc("TC-B-010", "Vice principal and coordinator")
+@pytest.mark.regression
 def test_vice_principal_and_coordinator(client):
     vp = login(client, "DEMO01", "vp")
     assert client.get("/dashboard", headers=vp).status_code == 200
@@ -281,6 +307,9 @@ def test_vice_principal_and_coordinator(client):
     assert client.post("/users", json={"name": "p", "login_id": "p2", "password": "temp123", "role": "principal"}, headers=h).status_code == 403
 
 
+@pytest.mark.tc("TC-B-011", "Teacher flows still work")
+@pytest.mark.smoke
+@pytest.mark.regression
 def test_teacher_flows_still_work(client):
     t = login(client, "DEMO01", "T005", "reset123")
     client.post("/auth/password", json={"old_password": "reset123", "new_password": "teach#55"}, headers=t)
@@ -300,6 +329,8 @@ def test_teacher_flows_still_work(client):
 
 
 # ---------------------------------------------------------------- admin, privacy, subscriptions
+@pytest.mark.tc("TC-B-012", "Admin privacy and audit")
+@pytest.mark.regression
 def test_admin_privacy_and_audit(client):
     a = admin(client)
     ov = client.get("/admin/overview", headers=a).json()
@@ -336,6 +367,9 @@ def test_admin_privacy_and_audit(client):
     assert client.get("/classes", headers=P(client)).status_code == 200
 
 
+@pytest.mark.tc("TC-B-013", "Admin schools plans subscription")
+@pytest.mark.smoke
+@pytest.mark.regression
 def test_admin_schools_plans_subscription(client):
     a = admin(client)
     plans = {p["name"]: p for p in client.get("/admin/plans", headers=a).json()}
@@ -377,6 +411,8 @@ def test_admin_schools_plans_subscription(client):
     assert len(client.get("/admin/audit", params={"school_id": nid}, headers=a).json()) >= 3
 
 
+@pytest.mark.tc("TC-B-014", "Legacy schema is reset")
+@pytest.mark.regression
 def test_legacy_schema_is_reset(tmp_path):
     """v1 single-school DB (no meta table) is reset to the multi-school schema."""
     import sqlite3
@@ -397,6 +433,8 @@ def test_legacy_schema_is_reset(tmp_path):
     assert out.stdout.strip() == f"True {SCHEMA_VERSION}", out.stderr
 
 
+@pytest.mark.tc("TC-B-015", "A database is never wiped by default")
+@pytest.mark.regression
 def test_a_database_is_never_wiped_by_default(tmp_path):
     """A current database that lost its version row (partial restore, wrong DATABASE_URL) must be refused, not dropped."""
     import sqlite3
@@ -420,6 +458,8 @@ def test_a_database_is_never_wiped_by_default(tmp_path):
     assert before > 0 and con.execute("select count(*) from schools").fetchone()[0] == before
 
 
+@pytest.mark.tc("TC-B-016", "Admin reset password env")
+@pytest.mark.regression
 def test_admin_reset_password_env(client):
     from app.seed import ensure_platform
     for _ in range(6):

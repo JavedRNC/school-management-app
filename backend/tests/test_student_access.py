@@ -44,6 +44,9 @@ def audit(c, h, **params):
     return r.json()
 
 
+@pytest.mark.tc("TC-B-087", "Class teacher edits own class only")
+@pytest.mark.sanity
+@pytest.mark.regression
 def test_class_teacher_edits_own_class_only(c):
     p = login(c, "principal")
     t1 = login(c, "T001")
@@ -73,6 +76,9 @@ def test_class_teacher_edits_own_class_only(c):
     assert c.get("/my-students", headers=p).status_code == 403
 
 
+@pytest.mark.tc("TC-B-088", "Principal grants and switches")
+@pytest.mark.sanity
+@pytest.mark.regression
 def test_principal_grants_and_switches(c):
     p = login(c, "principal")
     t4 = login(c, "T004")
@@ -111,6 +117,9 @@ def test_principal_grants_and_switches(c):
     assert {"student_access.granted", "student_access.removed", "student_access.policy"} <= acts
 
 
+@pytest.mark.tc("TC-B-089", "Replaced class teacher loses access at once")
+@pytest.mark.sanity
+@pytest.mark.regression
 def test_replaced_class_teacher_loses_access_at_once(c):
     p = login(c, "principal")
     t1 = login(c, "T001")
@@ -128,6 +137,9 @@ def test_replaced_class_teacher_loses_access_at_once(c):
     c.put(f"/classes/{cid}", json={"name": k["name"], "class_teacher_id": k["class_teacher_id"]}, headers=p)
 
 
+@pytest.mark.tc("TC-B-090", "More actions are audited with old and new")
+@pytest.mark.sanity
+@pytest.mark.regression
 def test_more_actions_are_audited_with_old_and_new(c):
     p = login(c, "principal")
     users = c.get("/users", params={"role": "student"}, headers=p).json()
