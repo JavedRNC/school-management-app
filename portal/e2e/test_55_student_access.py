@@ -4,7 +4,7 @@ from conftest import TAG, call, ok
 from helpers import confirm, dialog, go, heading, toast
 
 
-@pytest.mark.tc("TC-P-043", "Student data access: class teachers and extra access (F40)")
+@pytest.mark.tc("TC-P-043", "Student data access: class teachers' levels and extra access (F40)")
 @pytest.mark.smoke
 @pytest.mark.sanity
 @pytest.mark.regression
@@ -17,28 +17,33 @@ def test_principal_gives_and_takes_back_a_teachers_access(principal_page, school
     heading(page, "Student data access")
     # TC-P-043.1 — Each class shows its class teacher (who may edit by default)
     page.locator(".item", has_text=klass["name"]).get_by_text(one["name"]).wait_for()          # its class teacher, who may edit by default
-    # TC-P-043.2 — The 'and their parents' switch turns on and off and is saved
-    parents = page.get_by_role("switch", name="… and their parents")
-    assert parents.get_attribute("aria-checked") == "false"
-    parents.click()
-    toast(page, "Class teachers can edit parent details")
-    assert ok(call("GET", "/student-access", t))["class_teachers_parents"] is True
-    parents.click()
-    toast(page, "Parent details: principal only")
+    # TC-P-043.2 — Class teachers' levels: students can be set to add, parents to edit; both are saved
+    page.get_by_label("Students", exact=True).select_option(label="Add and edit")
+    toast(page, "Class teachers: access saved")
+    page.get_by_label("Parents", exact=True).select_option(label="Edit details")
+    toast(page, "Class teachers: access saved")
+    assert ok(call("GET", "/student-access", t))["class_teachers"] == {"students": "add", "parents": "edit"}
+    page.get_by_label("Students", exact=True).select_option(label="No access")                      # no parents without students
+    toast(page, "Class teachers: access saved")
+    assert page.get_by_label("Parents", exact=True).count() == 0
+    assert ok(call("GET", "/student-access", t))["class_teachers"] == {"students": "none", "parents": "none"}
+    page.get_by_label("Students", exact=True).select_option(label="Edit details")
+    toast(page, "Class teachers: access saved")
 
-    # TC-P-043.3 — Give a teacher access: a class must be chosen; with parents it is saved
+    # TC-P-043.3 — Give a teacher access: a class must be chosen; add students and add parents is saved
     page.get_by_role("button", name="Give a teacher access").click()
     box = dialog(page)
     box.get_by_label("Teacher").select_option(label=f"{two['name']} ({two['login_id']})")
     assert box.get_by_role("button", name="Save access").is_disabled(), "a class must be chosen first"
     box.get_by_role("button", name=klass["name"], exact=True).click()
-    box.get_by_role("switch", name="Parent details too").click()
+    box.get_by_label("Students in these classes").select_option(label="Add and edit")
+    box.get_by_label("Their parents").select_option(label="Add and edit")
     box.get_by_role("button", name="Save access").click()
     toast(page, f"Access saved for {two['name']}")
     row = page.locator(".item", has_text=two["name"])
-    row.get_by_text("parent details too").wait_for()
+    row.get_by_text("students: add and edit · parents: add and edit").wait_for()
     grant = next(g for g in ok(call("GET", "/student-access", t))["grants"] if g["teacher_id"] == two["id"])
-    assert grant["classes"] == [klass["id"]] and grant["parents"] is True
+    assert grant["classes"] == [klass["id"]] and grant["students"] == "add" and grant["parents"] == "add"
 
     # TC-P-043.4 — Activity shows 'student access granted' with old → new
     go(page, "/school/activity")

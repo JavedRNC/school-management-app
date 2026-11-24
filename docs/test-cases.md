@@ -19,16 +19,16 @@ suites on every push to `dev`.
 
 | | Count |
 |---|---|
-| Automated test cases | 241 |
-| — API | 137 |
+| Automated test cases | 257 |
+| — API | 150 |
 | — Portal | 74 |
-| — Android app | 30 |
-| Automated sub-cases inside them | 339 |
-| Smoke | 30 |
-| Sanity | 105 |
-| Regression | 241 |
+| — Android app | 33 |
+| Automated sub-cases inside them | 344 |
+| Smoke | 33 |
+| Sanity | 116 |
+| Regression | 257 |
 | Not automated yet | 7 |
-| **Total cases in this list** | **587** |
+| **Total cases in this list** | **608** |
 
 ## API (backend, pytest)
 
@@ -190,6 +190,19 @@ suites on every push to `dev`.
 | TC-B-136.5 | ↳ /staff-attendance/day (staff_attendance) | Regression | Automated (in TC-B-136) | ″ |
 | TC-B-136.6 | ↳ /transport/overview (transport) | Regression | Automated (in TC-B-136) | ″ |
 | **TC-B-137** | **One school cannot touch another schools records** | Regression | Automated | `backend/tests/test_access_matrix.py::test_one_school_cannot_touch_another_schools_records` |
+| **TC-B-138** | **Defaults: class teachers may edit their class, not add, no parents** | Sanity, Regression | Automated | `backend/tests/test_teacher_people.py::test_defaults` |
+| **TC-B-139** | **Class teachers allowed to add: a new student gets a temporary password** | Smoke, Sanity, Regression | Automated | `backend/tests/test_teacher_people.py::test_class_teacher_adds_a_student` |
+| **TC-B-140** | **Adding a student: every refusal** | Sanity, Regression | Automated | `backend/tests/test_teacher_people.py::test_add_student_refusals` |
+| **TC-B-141** | **The plan's student limit also applies to teachers** | Regression | Automated | `backend/tests/test_teacher_people.py::test_student_limit_applies` |
+| **TC-B-142** | **Parents: edit only, then add a new parent or link an existing one** | Sanity, Regression | Automated | `backend/tests/test_teacher_people.py::test_parents_edit_and_add` |
+| **TC-B-143** | **Any teacher can be given chosen classes with their own levels** | Sanity, Regression | Automated | `backend/tests/test_teacher_people.py::test_grants_with_levels` |
+| **TC-B-144** | **Own class and a grant together: the higher level wins** | Regression | Automated | `backend/tests/test_teacher_people.py::test_levels_combine` |
+| **TC-B-145** | **Policy rules: no parents without students, old switches still accepted, logged** | Regression | Automated | `backend/tests/test_teacher_people.py::test_policy_rules` |
+| **TC-B-146** | **Another school's teacher and principal can't reach these students** | Regression | Automated | `backend/tests/test_teacher_people.py::test_other_school_is_kept_out` |
+| **TC-B-147** | **Fake locations are refused and logged** | Smoke, Sanity, Regression | Automated | `backend/tests/test_gps.py::test_fake_locations_are_refused` |
+| **TC-B-148** | **Real readings check in cleanly, even with normal GPS corrections** | Sanity, Regression | Automated | `backend/tests/test_gps.py::test_real_readings_check_in` |
+| **TC-B-149** | **Doubtful readings are let through and shown to the principal** | Sanity, Regression | Automated | `backend/tests/test_gps.py::test_doubtful_readings_are_flagged` |
+| **TC-B-150** | **Too many readings and bad values are refused** | Regression | Automated | `backend/tests/test_gps.py::test_reading_limits` |
 
 ## Portal (web, Admin + Principal — Playwright)
 
@@ -383,10 +396,10 @@ suites on every push to `dev`.
 | TC-P-042.2 | ↳ A .txt file is refused | Regression | Automated (in TC-P-042) | ″ |
 | TC-P-042.3 | ↳ A fake .xlsx is refused by the server with the reason | Regression | Automated (in TC-P-042) | ″ |
 | TC-P-042.4 | ↳ The school's own filled template checks clean and changes nothing | Regression | Automated (in TC-P-042) | ″ |
-| **TC-P-043** | **Student data access: class teachers and extra access (F40)** | Smoke, Sanity, Regression | Automated | `portal/e2e/test_55_student_access.py::test_principal_gives_and_takes_back_a_teachers_access` |
+| **TC-P-043** | **Student data access: class teachers' levels and extra access (F40)** | Smoke, Sanity, Regression | Automated | `portal/e2e/test_55_student_access.py::test_principal_gives_and_takes_back_a_teachers_access` |
 | TC-P-043.1 | ↳ Each class shows its class teacher (who may edit by default) | Smoke, Sanity, Regression | Automated (in TC-P-043) | ″ |
-| TC-P-043.2 | ↳ The 'and their parents' switch turns on and off and is saved | Smoke, Sanity, Regression | Automated (in TC-P-043) | ″ |
-| TC-P-043.3 | ↳ Give a teacher access: a class must be chosen; with parents it is saved | Smoke, Sanity, Regression | Automated (in TC-P-043) | ″ |
+| TC-P-043.2 | ↳ Class teachers' levels: students can be set to add, parents to edit; both are saved | Smoke, Sanity, Regression | Automated (in TC-P-043) | ″ |
+| TC-P-043.3 | ↳ Give a teacher access: a class must be chosen; add students and add parents is saved | Smoke, Sanity, Regression | Automated (in TC-P-043) | ″ |
 | TC-P-043.4 | ↳ Activity shows 'student access granted' with old → new | Smoke, Sanity, Regression | Automated (in TC-P-043) | ″ |
 | TC-P-043.5 | ↳ Removing the access asks first and clears it | Smoke, Sanity, Regression | Automated (in TC-P-043) | ″ |
 | **TC-P-044** | **Activity: search, kind and date filters (F41)** | Sanity, Regression | Automated | `portal/e2e/test_55_student_access.py::test_activity_filters_by_kind_and_date` |
@@ -576,10 +589,9 @@ suites on every push to `dev`.
 | TC-A-015.1 | ↳ Student details opens My students with the class and 'class teacher' | Smoke, Sanity, Regression | Automated (in TC-A-015) | ″ |
 | TC-A-015.2 | ↳ Edit a student's mobile and save | Smoke, Sanity, Regression | Automated (in TC-A-015) | ″ |
 | TC-A-015.3 | ↳ The server has it and the activity log shows 'by teacher' with the new value | Smoke, Sanity, Regression | Automated (in TC-A-015) | ″ |
-| **TC-A-016** | **Principal lets class teachers edit parents (F40)** | Sanity, Regression | Automated | `mobile/e2e/test_50_student_details.py::test_principal_lets_class_teachers_edit_parents` |
-| TC-A-016.1 | ↳ Student data access opens; parent switch is off | Sanity, Regression | Automated (in TC-A-016) | ″ |
-| TC-A-016.2 | ↳ Turning it on is saved | Sanity, Regression | Automated (in TC-A-016) | ″ |
-| TC-A-016.3 | ↳ The class teacher now sees parent edit buttons | Sanity, Regression | Automated (in TC-A-016) | ″ |
+| **TC-A-016** | **Principal sets class teachers' levels in the app (F40)** | Sanity, Regression | Automated | `mobile/e2e/test_50_student_details.py::test_principal_sets_class_teacher_levels` |
+| TC-A-016.1 | ↳ Student data access opens with students 'Edit details' and parents 'No access' | Sanity, Regression | Automated (in TC-A-016) | ″ |
+| TC-A-016.2 | ↳ Choosing 'Add and edit' for students and parents is saved | Sanity, Regression | Automated (in TC-A-016) | ″ |
 | **TC-A-017** | **Parent sees the privacy notice first and must agree** | Smoke, Sanity, Regression | Automated | `mobile/e2e/test_60_student_parent.py::test_parent_must_agree_to_the_privacy_notice_first` |
 | TC-A-017.1 | ↳ The notice opens before anything else and Agree is off until the box is ticked | Smoke, Sanity, Regression | Automated (in TC-A-017) | ″ |
 | TC-A-017.2 | ↳ Ticking the box and agreeing opens the parent's home and is saved | Smoke, Sanity, Regression | Automated (in TC-A-017) | ″ |
@@ -624,6 +636,15 @@ suites on every push to `dev`.
 | **TC-A-030** | **Parent asks leave for a child** | Sanity, Regression | Automated | `mobile/e2e/test_80_money_and_presence.py::test_parent_asks_leave_for_a_child` |
 | TC-A-030.1 | ↳ The parent's leave form is for the chosen child | Sanity, Regression | Automated (in TC-A-030) | ″ |
 | TC-A-030.2 | ↳ Date and reason are sent; the class teacher's inbox gets it | Sanity, Regression | Automated (in TC-A-030) | ″ |
+| **TC-A-031** | **Class teacher adds a student and gets the temporary password (F40)** | Smoke, Sanity, Regression | Automated | `mobile/e2e/test_50_student_details.py::test_class_teacher_adds_a_student` |
+| TC-A-031.1 | ↳ Add student asks for a name and admission no. | Smoke, Sanity, Regression | Automated (in TC-A-031) | ″ |
+| TC-A-031.2 | ↳ The student is added to the teacher's class and the sign-in details are shown once | Smoke, Sanity, Regression | Automated (in TC-A-031) | ″ |
+| **TC-A-032** | **Class teacher adds a parent for a student (F40)** | Sanity, Regression | Automated | `mobile/e2e/test_50_student_details.py::test_class_teacher_adds_a_parent` |
+| TC-A-032.1 | ↳ Opening a student shows their parents and 'Add parent' | Sanity, Regression | Automated (in TC-A-032) | ″ |
+| TC-A-032.2 | ↳ A wrong mobile is refused; a right one creates the parent and shows the sign-in details | Sanity, Regression | Automated (in TC-A-032) | ″ |
+| **TC-A-033** | **A location that jumps while checking in is refused as fake** | Sanity, Regression | Automated | `mobile/e2e/test_80_money_and_presence.py::test_a_jumping_location_is_refused` |
+| TC-A-033.1 | ↳ While the app takes its readings the phone "moves" 2 km in a second: the app is told it's a fake location | Sanity, Regression | Automated (in TC-A-033) | ″ |
+| TC-A-033.2 | ↳ Nothing is recorded and the attempt is in the principal's activity log | Sanity, Regression | Automated (in TC-A-033) | ″ |
 
 ## Not automated yet
 
@@ -639,7 +660,7 @@ suites on every push to `dev`.
 
 ## API endpoints
 
-All 192 endpoints. Every one is called successfully by at least one API test, and every one is also called by
+All 194 endpoints. Every one is called successfully by at least one API test, and every one is also called by
 every kind of user (signed out, student, parent, teacher, coordinator, vice principal, another school's principal,
 admin) in TC-B-128…137, which check that nobody gets in where they shouldn't and that nothing crashes. The API suite
 fails in CI if an endpoint has no successful call (`API_ROUTE_GATE=1`).
@@ -757,84 +778,86 @@ fails in CI if an endpoint has no successful call (`API_ROUTE_GATE=1`).
 | 109 | GET | `/me/children` | Covered by API tests |
 | 110 | GET | `/me/marks` | Covered by API tests |
 | 111 | GET | `/my-students` | Covered by API tests |
-| 112 | PUT | `/my-students/parents/{pid}` | Covered by API tests |
-| 113 | PUT | `/my-students/{sid}` | Covered by API tests |
-| 114 | GET | `/payroll/config` | Covered by API tests |
-| 115 | PUT | `/payroll/config` | Covered by API tests |
-| 116 | GET | `/payroll/me` | Covered by API tests |
-| 117 | GET | `/payroll/payslips/{slip_id}` | Covered by API tests |
-| 118 | PUT | `/payroll/payslips/{slip_id}` | Covered by API tests |
-| 119 | POST | `/payroll/payslips/{slip_id}/pay` | Covered by API tests |
-| 120 | POST | `/payroll/payslips/{slip_id}/undo-payment` | Covered by API tests |
-| 121 | GET | `/payroll/runs` | Covered by API tests |
-| 122 | POST | `/payroll/runs` | Covered by API tests |
-| 123 | DELETE | `/payroll/runs/{run_id}` | Covered by API tests |
-| 124 | GET | `/payroll/runs/{run_id}` | Covered by API tests |
-| 125 | POST | `/payroll/runs/{run_id}/finalize` | Covered by API tests |
-| 126 | POST | `/payroll/runs/{run_id}/pay` | Covered by API tests |
-| 127 | POST | `/payroll/runs/{run_id}/recalculate` | Covered by API tests |
-| 128 | POST | `/payroll/runs/{run_id}/reopen` | Covered by API tests |
-| 129 | GET | `/payroll/staff` | Covered by API tests |
-| 130 | PUT | `/payroll/staff/{user_id}` | Covered by API tests |
-| 131 | GET | `/polls` | Covered by API tests |
-| 132 | POST | `/polls` | Covered by API tests |
-| 133 | DELETE | `/polls/{pid}` | Covered by API tests |
-| 134 | POST | `/polls/{pid}/close` | Covered by API tests |
-| 135 | POST | `/polls/{pid}/respond` | Covered by API tests |
-| 136 | GET | `/polls/{pid}/results` | Covered by API tests |
-| 137 | GET | `/posts` | Covered by API tests |
-| 138 | POST | `/posts` | Covered by API tests |
-| 139 | DELETE | `/posts/{pid}` | Covered by API tests |
-| 140 | PUT | `/posts/{pid}` | Covered by API tests |
-| 141 | POST | `/public/onboarding` | Covered by API tests |
-| 142 | POST | `/public/onboarding/status` | Covered by API tests |
-| 143 | GET | `/public/schools` | Covered by API tests |
-| 144 | POST | `/push/register` | Covered by API tests |
-| 145 | POST | `/push/unregister` | Covered by API tests |
-| 146 | GET | `/school/audit` | Covered by API tests |
-| 147 | GET | `/school/bell` | Covered by API tests |
-| 148 | PUT | `/school/bell` | Covered by API tests |
-| 149 | DELETE | `/school/bell/{day}` | Covered by API tests |
-| 150 | GET | `/school/leave-quotas` | Covered by API tests |
-| 151 | PUT | `/school/leave-quotas` | Covered by API tests |
-| 152 | GET | `/school/me` | Covered by API tests |
-| 153 | PUT | `/school/settings` | Covered by API tests |
-| 154 | GET | `/school/showcase` | Covered by API tests |
-| 155 | PUT | `/school/showcase` | Covered by API tests |
-| 156 | DELETE | `/school/support-access` | Covered by API tests |
-| 157 | POST | `/school/support-access` | Covered by API tests |
-| 158 | POST | `/staff-attendance/check-in` | Covered by API tests |
-| 159 | POST | `/staff-attendance/check-out` | Covered by API tests |
-| 160 | GET | `/staff-attendance/day` | Covered by API tests |
-| 161 | POST | `/staff-attendance/manual` | Covered by API tests |
-| 162 | GET | `/staff-attendance/me` | Covered by API tests |
-| 163 | GET | `/staff-attendance/report` | Covered by API tests |
-| 164 | GET | `/staff-attendance/settings` | Covered by API tests |
-| 165 | PUT | `/staff-attendance/settings` | Covered by API tests |
-| 166 | GET | `/student-access` | Covered by API tests |
-| 167 | PUT | `/student-access/policy` | Covered by API tests |
-| 168 | DELETE | `/student-access/teachers/{tid}` | Covered by API tests |
-| 169 | PUT | `/student-access/teachers/{tid}` | Covered by API tests |
-| 170 | GET | `/subjects` | Covered by API tests |
-| 171 | POST | `/subjects` | Covered by API tests |
-| 172 | DELETE | `/subjects/{subject_id}` | Covered by API tests |
-| 173 | PUT | `/subjects/{subject_id}` | Covered by API tests |
-| 174 | GET | `/subjects/{subject_id}/usage` | Covered by API tests |
-| 175 | GET | `/timetable` | Covered by API tests |
-| 176 | PUT | `/timetable` | Covered by API tests |
-| 177 | DELETE | `/timetable/{eid}` | Covered by API tests |
-| 178 | GET | `/transport/me` | Covered by API tests |
-| 179 | GET | `/transport/overview` | Covered by API tests |
-| 180 | POST | `/transport/routes` | Covered by API tests |
-| 181 | DELETE | `/transport/routes/{rid}` | Covered by API tests |
-| 182 | PUT | `/transport/routes/{rid}` | Covered by API tests |
-| 183 | GET | `/transport/students` | Covered by API tests |
-| 184 | PUT | `/transport/students` | Covered by API tests |
-| 185 | POST | `/transport/vehicles` | Covered by API tests |
-| 186 | DELETE | `/transport/vehicles/{vid}` | Covered by API tests |
-| 187 | PUT | `/transport/vehicles/{vid}` | Covered by API tests |
-| 188 | GET | `/users` | Covered by API tests |
-| 189 | POST | `/users` | Covered by API tests |
-| 190 | POST | `/users/bulk` | Covered by API tests |
-| 191 | DELETE | `/users/{user_id}` | Covered by API tests |
-| 192 | PUT | `/users/{user_id}` | Covered by API tests |
+| 112 | POST | `/my-students` | Covered by API tests |
+| 113 | PUT | `/my-students/parents/{pid}` | Covered by API tests |
+| 114 | PUT | `/my-students/{sid}` | Covered by API tests |
+| 115 | POST | `/my-students/{sid}/parents` | Covered by API tests |
+| 116 | GET | `/payroll/config` | Covered by API tests |
+| 117 | PUT | `/payroll/config` | Covered by API tests |
+| 118 | GET | `/payroll/me` | Covered by API tests |
+| 119 | GET | `/payroll/payslips/{slip_id}` | Covered by API tests |
+| 120 | PUT | `/payroll/payslips/{slip_id}` | Covered by API tests |
+| 121 | POST | `/payroll/payslips/{slip_id}/pay` | Covered by API tests |
+| 122 | POST | `/payroll/payslips/{slip_id}/undo-payment` | Covered by API tests |
+| 123 | GET | `/payroll/runs` | Covered by API tests |
+| 124 | POST | `/payroll/runs` | Covered by API tests |
+| 125 | DELETE | `/payroll/runs/{run_id}` | Covered by API tests |
+| 126 | GET | `/payroll/runs/{run_id}` | Covered by API tests |
+| 127 | POST | `/payroll/runs/{run_id}/finalize` | Covered by API tests |
+| 128 | POST | `/payroll/runs/{run_id}/pay` | Covered by API tests |
+| 129 | POST | `/payroll/runs/{run_id}/recalculate` | Covered by API tests |
+| 130 | POST | `/payroll/runs/{run_id}/reopen` | Covered by API tests |
+| 131 | GET | `/payroll/staff` | Covered by API tests |
+| 132 | PUT | `/payroll/staff/{user_id}` | Covered by API tests |
+| 133 | GET | `/polls` | Covered by API tests |
+| 134 | POST | `/polls` | Covered by API tests |
+| 135 | DELETE | `/polls/{pid}` | Covered by API tests |
+| 136 | POST | `/polls/{pid}/close` | Covered by API tests |
+| 137 | POST | `/polls/{pid}/respond` | Covered by API tests |
+| 138 | GET | `/polls/{pid}/results` | Covered by API tests |
+| 139 | GET | `/posts` | Covered by API tests |
+| 140 | POST | `/posts` | Covered by API tests |
+| 141 | DELETE | `/posts/{pid}` | Covered by API tests |
+| 142 | PUT | `/posts/{pid}` | Covered by API tests |
+| 143 | POST | `/public/onboarding` | Covered by API tests |
+| 144 | POST | `/public/onboarding/status` | Covered by API tests |
+| 145 | GET | `/public/schools` | Covered by API tests |
+| 146 | POST | `/push/register` | Covered by API tests |
+| 147 | POST | `/push/unregister` | Covered by API tests |
+| 148 | GET | `/school/audit` | Covered by API tests |
+| 149 | GET | `/school/bell` | Covered by API tests |
+| 150 | PUT | `/school/bell` | Covered by API tests |
+| 151 | DELETE | `/school/bell/{day}` | Covered by API tests |
+| 152 | GET | `/school/leave-quotas` | Covered by API tests |
+| 153 | PUT | `/school/leave-quotas` | Covered by API tests |
+| 154 | GET | `/school/me` | Covered by API tests |
+| 155 | PUT | `/school/settings` | Covered by API tests |
+| 156 | GET | `/school/showcase` | Covered by API tests |
+| 157 | PUT | `/school/showcase` | Covered by API tests |
+| 158 | DELETE | `/school/support-access` | Covered by API tests |
+| 159 | POST | `/school/support-access` | Covered by API tests |
+| 160 | POST | `/staff-attendance/check-in` | Covered by API tests |
+| 161 | POST | `/staff-attendance/check-out` | Covered by API tests |
+| 162 | GET | `/staff-attendance/day` | Covered by API tests |
+| 163 | POST | `/staff-attendance/manual` | Covered by API tests |
+| 164 | GET | `/staff-attendance/me` | Covered by API tests |
+| 165 | GET | `/staff-attendance/report` | Covered by API tests |
+| 166 | GET | `/staff-attendance/settings` | Covered by API tests |
+| 167 | PUT | `/staff-attendance/settings` | Covered by API tests |
+| 168 | GET | `/student-access` | Covered by API tests |
+| 169 | PUT | `/student-access/policy` | Covered by API tests |
+| 170 | DELETE | `/student-access/teachers/{tid}` | Covered by API tests |
+| 171 | PUT | `/student-access/teachers/{tid}` | Covered by API tests |
+| 172 | GET | `/subjects` | Covered by API tests |
+| 173 | POST | `/subjects` | Covered by API tests |
+| 174 | DELETE | `/subjects/{subject_id}` | Covered by API tests |
+| 175 | PUT | `/subjects/{subject_id}` | Covered by API tests |
+| 176 | GET | `/subjects/{subject_id}/usage` | Covered by API tests |
+| 177 | GET | `/timetable` | Covered by API tests |
+| 178 | PUT | `/timetable` | Covered by API tests |
+| 179 | DELETE | `/timetable/{eid}` | Covered by API tests |
+| 180 | GET | `/transport/me` | Covered by API tests |
+| 181 | GET | `/transport/overview` | Covered by API tests |
+| 182 | POST | `/transport/routes` | Covered by API tests |
+| 183 | DELETE | `/transport/routes/{rid}` | Covered by API tests |
+| 184 | PUT | `/transport/routes/{rid}` | Covered by API tests |
+| 185 | GET | `/transport/students` | Covered by API tests |
+| 186 | PUT | `/transport/students` | Covered by API tests |
+| 187 | POST | `/transport/vehicles` | Covered by API tests |
+| 188 | DELETE | `/transport/vehicles/{vid}` | Covered by API tests |
+| 189 | PUT | `/transport/vehicles/{vid}` | Covered by API tests |
+| 190 | GET | `/users` | Covered by API tests |
+| 191 | POST | `/users` | Covered by API tests |
+| 192 | POST | `/users/bulk` | Covered by API tests |
+| 193 | DELETE | `/users/{user_id}` | Covered by API tests |
+| 194 | PUT | `/users/{user_id}` | Covered by API tests |

@@ -1,20 +1,25 @@
 import { useEffect, useMemo, useState } from 'react';
 import { View } from 'react-native';
-import { Button, Dialog, Switch, Text } from 'react-native-paper';
+import { Button, Dialog, Text } from 'react-native-paper';
 
 import { RoleGuard } from '@/components/RoleGuard';
 import { SelectField } from '@/components/SelectField';
 import {
-  EmptyState, ErrorState, Fab, FadeIn, Hero, Icon, LoadingCards, Panel, Row, Screen, Sheet, TopLayer, UserAvatar,
+  EmptyState, ErrorState, Fab, FadeIn, FilterChips, Hero, Icon, IconName, LoadingCards, Panel, Row, Screen, Sheet, TopLayer, UserAvatar,
 } from '@/components/ui';
 import { api } from '@/lib/api';
 import { useAuth } from '@/lib/auth';
 import { haptic, useToast } from '@/lib/feedback';
 import { space, useAppTheme } from '@/lib/theme';
-import type { SchoolClass, StudentAccess, StudentAccessGrant, User } from '@/lib/types';
+import type { AccessLevel, SchoolClass, StudentAccess, StudentAccessGrant, User } from '@/lib/types';
 import { useLoad } from '@/lib/useLoad';
 
-/** Give one teacher access: all classes or chosen ones, with or without parent details. */
+const WORD: Record<AccessLevel, string> = { none: 'no access', edit: 'edit', add: 'add & edit' };
+const LEVEL_OPTIONS: { label: string; value: AccessLevel; icon: IconName }[] = [
+  { label: 'No access', value: 'none', icon: 'lock-outline' }, { label: 'Edit details', value: 'edit', icon: 'pencil-outline' },
+  { label: 'Add and edit', value: 'add', icon: 'account-plus-outline' }];
+
+/** Give one teacher access to all or chosen classes: students edit / add, parents none / edit / add. */
 function GrantSheet({ visible, grant, teachers, classes, onDismiss, onSaved }: {
   visible: boolean; grant: StudentAccessGrant | null; teachers: User[]; classes: SchoolClass[];
   onDismiss: () => void; onSaved: (a: StudentAccess, msg: string) => void;
@@ -24,7 +29,8 @@ function GrantSheet({ visible, grant, teachers, classes, onDismiss, onSaved }: {
   const [tid, setTid] = useState(0);
   const [all, setAll] = useState(false);
   const [picked, setPicked] = useState<number[]>([]);
-  const [parents, setParents] = useState(false);
+  const [students, setStudents] = useState<'edit' | 'add'>('edit');
+  const [parents, setParents] = useState<AccessLevel>('none');
   const [busy, setBusy] = useState(false);
 
   useEffect(() => {
@@ -32,7 +38,8 @@ function GrantSheet({ visible, grant, teachers, classes, onDismiss, onSaved }: {
     setTid(grant?.teacher_id ?? 0);
     setAll(grant?.classes === 'all');
     setPicked(grant && grant.classes !== 'all' ? grant.classes : []);
-    setParents(grant?.parents ?? false);
+    setStudents(grant?.students ?? 'edit');
+    setParents(grant?.parents ?? 'none');
     setBusy(false);
   }, [visible, grant]);
 
@@ -41,7 +48,7 @@ function GrantSheet({ visible, grant, teachers, classes, onDismiss, onSaved }: {
     if (!ok) return haptic.error();
     setBusy(true);
     try {
-      const a = await api<StudentAccess>(`/student-access/teachers/${tid}`, { method: 'PUT', body: { classes: all ? 'all' : picked, parents } });
+      const a = await api<StudentAccess>(`/student-access/teachers/${tid}`, { method: 'PUT', body: { classes: all ? 'all' : picked, students, parents } });
       haptic.success();
       onSaved(a, `Access saved for ${teachers.find((x) => x.id === tid)?.name ?? 'teacher'}`);
     } catch (e) {
@@ -57,7 +64,7 @@ function GrantSheet({ visible, grant, teachers, classes, onDismiss, onSaved }: {
         <SelectField label="Teacher" sheetTitle="Choose a teacher" value={tid || null} onChange={setTid}
           options={teachers.map((x) => ({ label: `${x.name} (${x.login_id})`, value: x.id }))} />
       ) : null}
-      <Text variant="labelLarge" style={{ color: t.colors.onSurfaceVariant, marginTop: space.sm, marginBottom: 6 }}>Classes they can edit</Text>
+      <Text variant="labelLarge" style={{ color: t.colors.onSurfaceVariant, marginTop: space.sm, marginBottom: 6 }}>Classes</Text>
       <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 6, marginBottom: space.md }}>
         <Button compact mode={all ? 'contained-tonal' : 'outlined'} icon={all ? 'check' : undefined} onPress={() => { haptic.tap(); setAll(!all); }}>All classes</Button>
         {!all ? classes.map((c) => {
@@ -68,13 +75,11 @@ function GrantSheet({ visible, grant, teachers, classes, onDismiss, onSaved }: {
           );
         }) : null}
       </View>
-      <View style={{ flexDirection: 'row', alignItems: 'center', gap: space.md, marginBottom: space.lg }}>
-        <View style={{ flex: 1 }}>
-          <Text variant="bodyLarge" style={{ color: t.colors.onSurface }}>Parent details too</Text>
-          <Text variant="bodySmall" style={{ color: t.colors.onSurfaceVariant }}>Name, mobile, email and address of these students' parents</Text>
-        </View>
-        <Switch value={parents} onValueChange={(v) => { haptic.tap(); setParents(v); }} accessibilityLabel="Parent details too" />
-      </View>
+      <FilterChips label="Students in these classes" value={students} onChange={setStudents}
+        options={[{ label: 'Edit details', value: 'edit', icon: 'pencil-outline' }, { label: 'Add and edit', value: 'add', icon: 'account-plus-outline' }]} />
+      <FilterChips label="Their parents" value={parents} onChange={setParents}
+        options={[{ label: 'No access', value: 'none', icon: 'lock-outline' }, { label: 'Edit details', value: 'edit', icon: 'pencil-outline' },
+          { label: 'Add and edit', value: 'add', icon: 'account-plus-outline' }]} />
       <Button mode="contained" icon="content-save-outline" onPress={save} loading={busy} disabled={!ok || busy} contentStyle={{ paddingVertical: 6 }}>Save access</Button>
     </Sheet>
   );
@@ -104,12 +109,13 @@ function StudentAccessScreen() {
   const classTeachers = useMemo(() => (classes.data ?? []).filter((c) => c.class_teacher_id).map((c) => ({
     cls: c.name, who: teachers.data?.find((x) => x.id === c.class_teacher_id)?.name ?? '' })), [classes.data, teachers.data]);
   const free = (teachers.data ?? []).filter((x) => !data?.grants.some((g) => g.teacher_id === x.id));
+  const ct = data?.class_teachers ?? { students: 'edit' as AccessLevel, parents: 'none' as AccessLevel };
 
-  async function setPolicy(body: { class_teachers: boolean; class_teachers_parents: boolean }, msg: string) {
+  async function setPolicy(body: { students: AccessLevel; parents: AccessLevel }) {
     setBusy(true);
     try {
       setData(await api<StudentAccess>('/student-access/policy', { method: 'PUT', body }));
-      toast(msg);
+      toast('Class teachers: access saved');
     } catch (e) {
       toast((e as Error).message, { error: true });
     } finally {
@@ -130,30 +136,19 @@ function StudentAccessScreen() {
   return (
     <>
     <Screen onRefresh={() => { access.reload(); teachers.reload(); classes.reload(); }} refreshing={access.refreshing}
-      header={<Hero title="Student data access" subtitle="Which teachers can update student and parent details" compact />}>
+      header={<Hero title="Student data access" subtitle="Which teachers can add and edit students and parents" compact />}>
       {err ? <ErrorState message={err} onRetry={() => { access.reload(); teachers.reload(); classes.reload(); }} /> : null}
       {!data || !classes.data || !teachers.data ? <LoadingCards /> : (
         <>
           <FadeIn>
             <Panel title="Class teachers" icon="account-star-outline">
-              <View style={{ flexDirection: 'row', alignItems: 'center', gap: space.md, marginBottom: space.md }}>
-                <View style={{ flex: 1 }}>
-                  <Text variant="bodyLarge" style={{ color: t.colors.onSurface }}>Can edit their own class</Text>
-                  <Text variant="bodySmall" style={{ color: t.colors.onSurfaceVariant }}>Contact and profile details of the students in the class they lead</Text>
-                </View>
-                <Switch value={data.class_teachers} disabled={busy || !canWrite} accessibilityLabel="Class teachers can edit their own class"
-                  onValueChange={(v) => { haptic.tap(); setPolicy({ class_teachers: v, class_teachers_parents: v && data.class_teachers_parents },
-                    v ? 'Class teachers can edit their class' : 'Class teachers can no longer edit students'); }} />
-              </View>
-              <View style={{ flexDirection: 'row', alignItems: 'center', gap: space.md, marginBottom: space.md, opacity: data.class_teachers ? 1 : 0.5 }}>
-                <View style={{ flex: 1 }}>
-                  <Text variant="bodyLarge" style={{ color: t.colors.onSurface }}>… and their parents</Text>
-                  <Text variant="bodySmall" style={{ color: t.colors.onSurfaceVariant }}>Parent name, mobile, email and address</Text>
-                </View>
-                <Switch value={data.class_teachers && data.class_teachers_parents} disabled={busy || !canWrite || !data.class_teachers}
-                  accessibilityLabel="Class teachers can edit parents"
-                  onValueChange={(v) => { haptic.tap(); setPolicy({ class_teachers: true, class_teachers_parents: v },
-                    v ? 'Class teachers can edit parent details' : 'Parent details: principal only'); }} />
+              <Text variant="bodySmall" style={{ color: t.colors.onSurfaceVariant, marginBottom: space.sm }}>For the class each one leads</Text>
+              <View pointerEvents={busy || !canWrite ? 'none' : 'auto'} style={{ opacity: canWrite ? 1 : 0.6 }}>
+                <FilterChips label="Students" value={ct.students}
+                  onChange={(v) => setPolicy({ students: v, parents: v === 'none' ? 'none' : ct.parents })} options={LEVEL_OPTIONS} />
+                {ct.students !== 'none' ? (
+                  <FilterChips label="Parents" value={ct.parents} onChange={(v) => setPolicy({ students: ct.students, parents: v })} options={LEVEL_OPTIONS} />
+                ) : null}
               </View>
               {classTeachers.length ? classTeachers.map((c, i) => (
                 <Row key={c.cls} divider={i < classTeachers.length - 1} title={c.cls} subtitle={c.who || 'No class teacher'}
@@ -167,10 +162,10 @@ function StudentAccessScreen() {
           <FadeIn index={1}>
             <Panel title="Other teachers" icon="account-key-outline" subtitle="Access you have given on top of class teachers">
               {!data.grants.length ? (
-                <EmptyState icon="account-key-outline" title="No extra access given" text="Tap “Give access” to let any teacher edit chosen classes." />
+                <EmptyState icon="account-key-outline" title="No extra access given" text="Tap “Give access” to let any teacher add or edit students of chosen classes." />
               ) : data.grants.map((g, i) => (
                 <Row key={g.teacher_id} divider={i < data.grants.length - 1} title={g.name}
-                  subtitle={`${g.classes === 'all' ? 'All classes' : g.classes.map(className).join(', ')}${g.parents ? ' · parent details too' : ''}`}
+                  subtitle={`${g.classes === 'all' ? 'All classes' : g.classes.map(className).join(', ')} · students: ${WORD[g.students]} · parents: ${WORD[g.parents]}`}
                   left={<UserAvatar name={g.name} size={40} />}
                   onPress={canWrite ? () => setEditing(g) : undefined}
                   right={canWrite ? <Button compact mode="text" textColor={t.colors.error} onPress={() => setRemoving(g)} accessibilityLabel={`Remove access for ${g.name}`}>Remove</Button> : undefined} />
@@ -178,7 +173,7 @@ function StudentAccessScreen() {
             </Panel>
           </FadeIn>
           <Text variant="bodySmall" style={{ color: t.colors.onSurfaceVariant, marginBottom: space.md }}>
-            Teachers can't change login IDs, passwords or classes, or remove students. Every change they make is in the activity log (Me → Privacy & audit).
+            Teachers never change login IDs, passwords or classes, and never remove anyone. New accounts get a temporary password the teacher shares. Every change is in the activity log (Me → Privacy & audit).
           </Text>
         </>
       )}
@@ -191,7 +186,7 @@ function StudentAccessScreen() {
       <TopLayer visible={!!removing} onDismiss={() => setRemoving(null)}>
         <Dialog visible={!!removing} onDismiss={() => setRemoving(null)}>
           <Dialog.Title>Remove access for {removing?.name}?</Dialog.Title>
-          <Dialog.Content><Text variant="bodyMedium">They will no longer be able to edit these students. If they are a class teacher, they keep their own class.</Text></Dialog.Content>
+          <Dialog.Content><Text variant="bodyMedium">They will no longer be able to add or edit these students and parents. If they are a class teacher, they keep what class teachers are allowed.</Text></Dialog.Content>
           <Dialog.Actions>
             <Button onPress={() => setRemoving(null)}>Cancel</Button>
             <Button textColor={t.colors.error} onPress={() => removing && remove(removing)}>Remove</Button>

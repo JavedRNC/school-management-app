@@ -1,9 +1,10 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import Constants from 'expo-constants';
 
+import { readToken, writeToken } from './secureToken';
+
 const KEY_URL = 'api_url_admin';      // F33: only an Admin sign-in can store a server override
 const KEY_URL_OLD = 'api_url';        // pre-F33 override anyone could set: dropped on first start
-const KEY_TOKEN = 'token';
 
 export const DEFAULT_URL: string = (Constants.expoConfig?.extra?.apiUrl as string) || 'http://localhost:8000';
 let baseUrl: string = DEFAULT_URL;
@@ -37,14 +38,14 @@ export function setPasswordChangeHandler(fn: () => void) {
 }
 
 export async function loadStored() {
-  const [u, t, old] = await Promise.all([AsyncStorage.getItem(KEY_URL), AsyncStorage.getItem(KEY_TOKEN), AsyncStorage.getItem(KEY_URL_OLD)]);
+  const [u, t, old] = await Promise.all([AsyncStorage.getItem(KEY_URL), readToken(), AsyncStorage.getItem(KEY_URL_OLD)]);
   token = t;
   if (old !== null) {
     await AsyncStorage.removeItem(KEY_URL_OLD).catch(() => {});
     // A sign-in made against another server can't be used on the built-in one.
     if (!u && old.replace(/\/+$/, '') !== DEFAULT_URL.replace(/\/+$/, '')) {
       token = null;
-      await AsyncStorage.removeItem(KEY_TOKEN).catch(() => {});
+      await writeToken(null).catch(() => {});
     }
   }
   if (u && !onTrial) baseUrl = u;
@@ -86,8 +87,11 @@ export function revertServer() {
 
 export async function setToken(t: string | null) {
   token = t;
-  if (t) await AsyncStorage.setItem(KEY_TOKEN, t);
-  else await AsyncStorage.removeItem(KEY_TOKEN);
+  try {
+    await writeToken(t);         // secure storage (Android Keystore); if it fails the session simply lasts until the app closes
+  } catch {
+    /* keep the in-memory token */
+  }
 }
 
 /** Headers for requests made outside api() (file downloads). */

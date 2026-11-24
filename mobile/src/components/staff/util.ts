@@ -51,16 +51,60 @@ export class LocationError extends Error {
   }
 }
 
-/** Ask permission (once) and read a precise position. Location is used only for this reading. */
-export async function readPosition(): Promise<{ lat: number; lng: number; accuracy: number | null; mocked: boolean }> {
+type Fix = { lat: number; lng: number; accuracy: number | null; mocked: boolean; t: number };
+export type Reading = { lat: number; lng: number; accuracy: number | null; mocked: boolean; samples: Fix[]; rooted: boolean };
+
+export const FAKE_LOCATION = 'A fake-location app seems to be on. Turn it off to check in.';
+const toFix = (p: Location.LocationObject): Fix => ({
+  lat: p.coords.latitude, lng: p.coords.longitude, accuracy: p.coords.accuracy ?? null, mocked: p.mocked === true, t: p.timestamp,
+});
+
+/** Up to `n` fresh readings about a second apart (stops early after `ms`). */
+async function watchFixes(n: number, ms: number): Promise<Fix[]> {
+  const out: Fix[] = [];
+  let sub: Location.LocationSubscription | null = null;
+  await new Promise<void>((resolve) => {
+    const done = setTimeout(resolve, ms);
+    Location.watchPositionAsync({ accuracy: Location.Accuracy.High, timeInterval: 1000, distanceInterval: 0 }, (p) => {
+      out.push(toFix(p));
+      if (out.length >= n) {
+        clearTimeout(done);
+        resolve();
+      }
+    }).then((s) => { sub = s; }).catch(() => { clearTimeout(done); resolve(); });
+  });
+  (sub as Location.LocationSubscription | null)?.remove();
+  return out;
+}
+
+async function rootedPhone(): Promise<boolean> {
+  try {
+    const Device = await import('expo-device');
+    return (await Device.isRootedExperimentalAsync()) === true;
+  } catch {
+    return false;
+  }
+}
+
+/**
+ * Ask permission (once) and read the position a few times, a second apart. A reading the phone itself marks as coming from
+ * a mock-location app stops the check-in here; the server checks the readings again (mock flags, perfect accuracy, jumps
+ * no person could make) and keeps blocked attempts in the activity log. Location is used only for this check-in.
+ */
+export async function readPosition(): Promise<Reading> {
   const perm = await Location.requestForegroundPermissionsAsync();
   if (perm.status !== 'granted') {
     throw new LocationError('Location permission is off. Allow location for Prangan to check in.', !perm.canAskAgain);
   }
   const enabled = await Location.hasServicesEnabledAsync().catch(() => true);
   if (!enabled) throw new LocationError('Turn on Location (GPS) on your phone and try again.');
-  const pos = await Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.High });
-  return { lat: pos.coords.latitude, lng: pos.coords.longitude, accuracy: pos.coords.accuracy ?? null, mocked: pos.mocked === true };
+  const first = toFix(await Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.High }));
+  if (first.mocked) throw new LocationError(FAKE_LOCATION);
+  const more = await watchFixes(3, 4500);
+  const samples = [first, ...more].sort((a, b) => a.t - b.t).filter((f, i, all) => i === 0 || f.t !== all[i - 1].t).slice(-5);
+  if (samples.some((f) => f.mocked)) throw new LocationError(FAKE_LOCATION);
+  const last = samples[samples.length - 1];
+  return { lat: last.lat, lng: last.lng, accuracy: last.accuracy, mocked: false, samples, rooted: await rootedPhone() };
 }
 
 export function openSettings() {

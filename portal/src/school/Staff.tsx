@@ -4,7 +4,7 @@ import { Avatar, dayLabel, Tabs, today, useAct } from '../kit';
 import { Badge, Button, Empty, ErrorBox, Loading, PageHead, parseTime, Text, useLoad, useToast } from '../ui';
 import { ReadOnlyNote, ROLE_LABEL, useSchool } from './ctx';
 
-type DayRow = { user_id: number; name: string; role: string; login_id: string; status: string; check_in_at?: string | null; check_out_at?: string | null; manual?: boolean };
+type DayRow = { user_id: number; name: string; role: string; login_id: string; status: string; check_in_at?: string | null; check_out_at?: string | null; manual?: boolean; note?: string };
 type Day = { date: string; is_school_day: boolean; reason: string; rows: DayRow[]; summary: { present: number; late: number; leave: number; absent: number } };
 type Report = { month: string; school_days: number; rows: { user_id: number; name: string; role: string; present: number; late: number; leave: number; absent: number; percent: number }[] };
 type Geo = { lat: number | null; lng: number | null; radius_m: number; late_after: string; configured: boolean };
@@ -43,7 +43,7 @@ function DayView({ canWrite }: { canWrite: boolean }) {
             <div className="row"><Badge status="active">{x.summary.present} present</Badge><Badge status="trial">{x.summary.late} late</Badge><Badge status="free">{x.summary.leave} on leave</Badge><Badge status="expired">{x.summary.absent} absent</Badge></div></div>
           {!x.is_school_day ? <div className="alert warn" style={{ margin: '0 18px 14px' }}>Not a school day{x.reason ? ` (${x.reason})` : ''}.</div> : null}
           {!x.rows.length ? <Empty title="No staff accounts yet" /> : <div className="list">{x.rows.map((r) => (
-            <div key={r.user_id} className="item"><div className="person grow"><Avatar name={r.name} /><div><b>{r.name}</b><small>{ROLE_LABEL[r.role] ?? r.role} · {r.login_id}{r.check_in_at ? ` · in ${clock(r.check_in_at)}` : ''}{r.check_out_at ? ` · out ${clock(r.check_out_at)}` : ''}{r.manual ? ' · marked by hand' : ''}</small></div></div>
+            <div key={r.user_id} className="item"><div className="person grow"><Avatar name={r.name} /><div><b>{r.name}</b><small>{ROLE_LABEL[r.role] ?? r.role} · {r.login_id}{r.check_in_at ? ` · in ${clock(r.check_in_at)}` : ''}{r.check_out_at ? ` · out ${clock(r.check_out_at)}` : ''}{r.manual ? ' · marked by hand' : ''}</small>{r.note && r.note.includes('⚠') ? <small className="warn-text" role="note">{r.note}</small> : null}</div></div>
               <Badge status={TONE[r.status]}>{r.status}</Badge>
               {canWrite && r.status !== 'leave' ? (r.status === 'absent'
                 ? <Button kind="small" busy={busy === `m${r.user_id}`} onClick={() => mark(r, true)} aria-label={`Mark ${r.name} present`}>Mark present</Button>

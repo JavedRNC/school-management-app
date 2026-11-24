@@ -58,7 +58,7 @@ export function DayBoard() {
             {rows.length ? rows.map((r, i) => (
               <Row key={r.user_id} title={r.name} divider={i < rows.length - 1}
                 subtitle={r.check_in_at
-                  ? `${fmtTime(r.check_in_at)}${r.check_out_at ? ` – ${fmtTime(r.check_out_at)}` : ' · not checked out'}${r.in_distance_m != null ? ` · ${Math.round(r.in_distance_m)} m` : ''}${r.manual ? ' · marked by office' : ''}`
+                  ? `${fmtTime(r.check_in_at)}${r.check_out_at ? ` – ${fmtTime(r.check_out_at)}` : ' · not checked out'}${r.in_distance_m != null ? ` · ${Math.round(r.in_distance_m)} m` : ''}${r.manual ? ' · marked by office' : ''}${r.note && r.note.includes('⚠') ? `\n${r.note}` : ''}`
                   : `${ROLE_LABEL[r.role]} · ${r.login_id}`}
                 left={<UserAvatar name={r.name} size={40} />}
                 right={<ToneChip text={STATUS_LABEL[r.status]} tone={STATUS_TONE[r.status]} />}

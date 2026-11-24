@@ -284,7 +284,7 @@ def test_fee_batches_are_listed(c):
 def test_student_access_settings_are_read_by_the_principal_only(c):
     p = login(c, "principal")
     a = c.get("/student-access", headers=p).json()
-    assert a["class_teachers"] is True and a["class_teachers_parents"] is False and a["grants"] == []
+    assert a["class_teachers"] == {"students": "edit", "parents": "none"} and a["grants"] == []
     for who in ("vp", "T001", "2026001"):
         assert c.get("/student-access", headers=login(c, who)).status_code == 403, who
 

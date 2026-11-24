@@ -20,11 +20,22 @@ STAFF = (Role.teacher, Role.vice_principal, Role.coordinator)
 MAX_ACCURACY_M = 100
 
 
+class Fix(BaseModel):
+    """One GPS reading as the phone reported it (t = the reading's own time, milliseconds)."""
+    lat: float = Field(ge=-90, le=90)
+    lng: float = Field(ge=-180, le=180)
+    accuracy: float | None = Field(default=None, ge=0)
+    mocked: bool = False
+    t: float | None = None
+
+
 class GeoIn(BaseModel):
     lat: float = Field(ge=-90, le=90)
     lng: float = Field(ge=-180, le=180)
     accuracy: float | None = Field(default=None, ge=0)
     mocked: bool = False
+    samples: list[Fix] = Field(default=[], max_length=10)      # a few readings a second apart (app builds from Nov 2026)
+    rooted: bool = False                                       # the phone looks rooted: fake locations are easy to hide there
 
 
 class SchoolGeoIn(BaseModel):
@@ -53,12 +64,57 @@ def _local_now() -> datetime:
     return datetime.now(SCHOOL_TZ)
 
 
+FAKE = "A fake-location app seems to be on. Turn it off to check in."
+MAX_SPEED_MS = 60          # faster than this between two readings a second apart = the location was set, not measured
+
+
+def _refuse_fake(db: Session, user: User, body: GeoIn, why: str) -> None:
+    """Blocked attempts are kept in the activity log, so the principal can see who tried."""
+    audit(db, user, "staff_attendance.fake_location", f"{user.name} ({user.login_id}): {why} · reported {body.lat:.5f}, {body.lng:.5f}")
+    db.commit()
+    raise HTTPException(400, FAKE)
+
+
+def location_doubts(body: GeoIn) -> list[str]:
+    """Signs that the location may not be real, which are not proof on their own: shown to the principal, not blocked."""
+    doubts = []
+    fixes = body.samples or []
+    if body.rooted:
+        doubts.append("rooted phone")
+    if body.accuracy is None and not any(f.accuracy for f in fixes):
+        doubts.append("no accuracy reported")
+    if len(fixes) >= 3 and len({(round(f.lat, 7), round(f.lng, 7), f.accuracy) for f in fixes}) == 1:
+        doubts.append("readings did not change at all")
+    return doubts
+
+
+def _note_doubts(db: Session, user: User, rec: StaffAttendance, body: GeoIn, what: str) -> None:
+    doubts = location_doubts(body)
+    if doubts:
+        text = f"⚠ {what}: {', '.join(doubts)}"
+        rec.note = (f"{rec.note} · {text}" if rec.note else text)[:200]
+        audit(db, user, "staff_attendance.location_doubt", f"{user.name} ({user.login_id}) {what}: {', '.join(doubts)}")
+
+
 def _check_geo(db: Session, user: User, body: GeoIn) -> float:
     prefs = get_prefs(db, user.school_id)
     if prefs.geo_lat is None or prefs.geo_lng is None:
         raise HTTPException(409, "The principal hasn't set the school location yet")
-    if body.mocked:
-        raise HTTPException(400, "A fake-location app seems to be on. Turn it off to check in.")
+    if body.mocked or any(f.mocked for f in body.samples):
+        _refuse_fake(db, user, body, "the phone marked the location as coming from a fake-location app")
+    if body.accuracy == 0 or any(f.accuracy == 0 for f in body.samples):
+        _refuse_fake(db, user, body, "a GPS reading claimed perfect (0 m) accuracy, which real GPS never gives")
+    timed = [f for f in body.samples if f.t is not None]
+    for a, b in zip(timed, timed[1:]):
+        secs = (b.t - a.t) / 1000
+        if secs <= 0:
+            _refuse_fake(db, user, body, "GPS readings arrived out of order")
+        # a real phone can correct itself by up to its stated accuracy; only a jump beyond that, faster than a car, counts
+        jump = distance_m(a.lat, a.lng, b.lat, b.lng) - (a.accuracy or 0) - (b.accuracy or 0)
+        if jump > 0 and jump / secs > MAX_SPEED_MS:
+            _refuse_fake(db, user, body, f"the location jumped {distance_m(a.lat, a.lng, b.lat, b.lng):.0f} m in {secs:.1f} s")
+    if body.samples and distance_m(body.lat, body.lng, body.samples[-1].lat, body.samples[-1].lng) > 1:
+        _refuse_fake(db, user, body, "the location sent differs from the GPS readings")
     if body.accuracy is not None and body.accuracy > MAX_ACCURACY_M:
         raise HTTPException(400, f"Location isn't precise enough (±{body.accuracy:.0f} m). Step outside or turn on GPS and try again.")
     d = distance_m(prefs.geo_lat, prefs.geo_lng, body.lat, body.lng)
@@ -131,6 +187,7 @@ def check_in(body: GeoIn, user: User = Depends(require(*STAFF)), db: Session = D
         rec = StaffAttendance(school_id=user.school_id, user_id=user.id, date=t)
         db.add(rec)
     rec.check_in_at, rec.in_distance_m, rec.in_accuracy_m, rec.late = utcnow(), round(d, 1), body.accuracy, late
+    _note_doubts(db, user, rec, body, "check-in")
     db.commit()
     return _row(rec)
 
@@ -145,6 +202,7 @@ def check_out(body: GeoIn, user: User = Depends(require(*STAFF)), db: Session = 
         raise HTTPException(409, "You've already checked out today")
     d = _check_geo(db, user, body)
     rec.check_out_at, rec.out_distance_m = utcnow(), round(d, 1)
+    _note_doubts(db, user, rec, body, "check-out")
     db.commit()
     return _row(rec)
 
