@@ -536,4 +536,4 @@ Today only the principal, and the VP / coordinator with "Students, teachers & pa
 - Where: Principal → Teachers → open a teacher → "Student data" section (Off · Own class · Chosen classes) + "Parent details" toggle. Teacher sees an Edit button on the student profile only when allowed.
 - Every edit by a teacher is written to the audit log (who, which student, which field, old → new) so the principal can check.
 - Backend: a per-teacher grant (teacher, scope own-class / class list, can_edit_parent) checked on the student and parent update endpoints; class-teacher default comes from SchoolClass.class_teacher_id.
-- Open question for Javed: if the class teacher changes mid-year, does the old teacher lose access at once? (Suggested: yes, the access follows the class.)
+- Decided 24 Nov: when the class teacher changes, the old teacher loses access at once (access follows the class). Audit log for every teacher edit: yes.
