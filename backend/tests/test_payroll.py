@@ -13,6 +13,7 @@ import pytest  # noqa: E402
 from fastapi.testclient import TestClient  # noqa: E402
 
 from app.main import app  # noqa: E402
+from app.migrate import SCHEMA_VERSION  # noqa: E402
 from app.util import today  # noqa: E402
 
 SCHOOL = (23.3441, 85.3096)
@@ -451,7 +452,7 @@ def test_upgrade_gives_payroll_to_the_top_plan_only(tmp_path):
         "print({p.name: 'payroll' in p.modules for p in db.query(Plan)}, db.get(Meta,'schema_version').value)")
     out = subprocess.run([sys.executable, "-c", code], capture_output=True, text=True,
                          env={**os.environ, "DATABASE_URL": f"sqlite:///{db}", "SEED_DEMO": "0"}, cwd=os.path.dirname(os.path.dirname(__file__)))
-    assert out.stdout.strip() == "{'Premium': True, 'Standard': False} 10", out.stderr
+    assert out.stdout.strip() == f"{{'Premium': True, 'Standard': False}} {SCHEMA_VERSION}", out.stderr
 
 
 def test_upgrade_falls_back_to_the_biggest_plan(tmp_path):
