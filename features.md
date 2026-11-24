@@ -539,6 +539,13 @@ Today only the principal, and the VP / coordinator with "Students, teachers & pa
 - Backend: a per-teacher grant (teacher, scope own-class / class list, can_edit_parent) checked on the student and parent update endpoints; class-teacher default comes from SchoolClass.class_teacher_id.
 - Decided 24 Nov: when the class teacher changes, the old teacher loses access at once (access follows the class). Audit log for every teacher edit: yes.
 
+### F40 v2 · Principal lets teachers ADD students and parents too ✅ — 24 Nov night
+Javed: the principal must be able to let teachers add and edit students, and add and edit their parents.
+- Levels: students **edit** or **add and edit**; parents **no access**, **edit**, or **add and edit**. Class teachers get the school-wide levels for their own class (default: students edit, parents none); any teacher can be given chosen classes with their own levels. The higher level wins where both apply.
+- Teacher app → My students: **Add student** (class, name, admission no., roll no., mobile, date of birth) → a temporary password shown once to share; **Add parent** on a student (name, 10-digit mobile, relation) → new parent account with a temporary password, or the child is linked to the parent account that mobile already has.
+- Still never for teachers: login IDs, passwords, changing a student's class, removing anyone, fees. The plan's student limit applies. Every add/link/edit is in the activity log ("by teacher"); temporary passwords never are.
+- Principal: app Me → Student data access and portal Student data access (level pickers).
+
 ### F41 · Activity log for (almost) everything ✅ `M` — requested 24 Nov
 Javed: "jahan jahan possible hai wahan audit logs". Every change by staff is now recorded with who, when and the old → new value: people edits, marks (per student), attendance changes (which students flipped), classes and class-teacher changes, subjects, subject teachers, timetable slots, exams, notices/homework, banners, calendar, leave cancel, transport edits and riders, student data access, plus wrong-password sign-ins to real accounts. Already recorded before: fees, payroll, data downloads/imports, settings, privacy, archive.
 - Principal: Activity (portal) and Me → Privacy & audit (app) now search, filter by kind and dates, and page back with "Show older".
