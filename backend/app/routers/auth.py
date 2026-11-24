@@ -52,6 +52,10 @@ def login(body: LoginIn, request: Request, db: Session = Depends(get_db)):
     if not ok:
         for key, limit, per in ((ip_key, FAILS_PER_IP, 300), (pair_key, MAX_FAILED, window), (acct_key, ACCOUNT_MAX_FAILED, window)):
             ratelimit.hit(key, limit, per)
+        if user is not None:      # a real account got a wrong password: the school (or the admin) can see it
+            audit(db, None, "login.failed", f"{user.role.value} {user.name} ({user.login_id}) · wrong password"
+                  + (" · web portal" if body.client == "web" else ""), school_id=user.school_id)
+            db.commit()
         raise HTTPException(401, WRONG)
     if school and school.suspended:
         raise HTTPException(403, "This school's account is suspended. Please contact support.")

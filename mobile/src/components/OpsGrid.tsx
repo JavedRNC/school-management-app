@@ -9,7 +9,7 @@ import { FadeIn, Icon, IconName, PressScale, SectionTitle } from './ui';
 
 type Op = { key: string; label: string; icon: IconName; path: string; show: boolean };
 
-/** Shortcuts (fees, leaves, staff attendance, payroll, transport, polls, banners) — shown only when allowed. */
+/** Shortcuts (fees, leaves, staff attendance, payroll, transport, polls, banners, student details) — shown only when allowed. */
 export function useOps(): Op[] {
   const { user } = useAuth();
   const staff = user?.role === 'teacher' || user?.role === 'vice_principal' || user?.role === 'coordinator';
@@ -34,6 +34,8 @@ export function useOps(): Op[] {
     { key: 'transport', label: 'Transport', icon: 'bus-school', path: '/more/transport', show: transport && (canTransport || parentish) },
     { key: 'polls', label: 'Forms & polls', icon: 'clipboard-check-multiple-outline', path: '/more/polls', show: comms },
     { key: 'banners', label: 'Banners', icon: 'image-text', path: '/more/banners', show: canNotices },
+    { key: 'my-students', label: 'My students', icon: 'account-edit-outline', path: '/more/my-students', show: user?.role === 'teacher' },
+    { key: 'student-access', label: 'Student data access', icon: 'account-key-outline', path: '/more/student-access', show: user?.role === 'principal' },
   ].filter((o) => o.show) as Op[];
 }
 

@@ -223,6 +223,11 @@ def _sweep(t):
             call("DELETE", f"/transport/routes/{r['id']}", t)
         for v in tr.get("vehicles", []):
             call("DELETE", f"/transport/vehicles/{v['id']}", t)
+    status, acc = call("GET", "/student-access", t)              # teachers' extra access to student details, and the defaults
+    if status == 200:
+        for g in acc.get("grants", []):
+            call("DELETE", f"/student-access/teachers/{g['teacher_id']}", t)
+        call("PUT", "/student-access/policy", t, {"class_teachers": True, "class_teachers_parents": False})
     for role in ("student", "parent", "teacher", "vice_principal", "coordinator"):
         for u in rows("/users", {"role": role}):
             call("DELETE", f"/users/{u['id']}", t)

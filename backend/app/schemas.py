@@ -356,6 +356,7 @@ class AuditOut(ORM):
     id: int
     at: datetime
     school_id: int | None
+    actor_id: int | None = None
     actor_name: str
     actor_role: str
     action: str

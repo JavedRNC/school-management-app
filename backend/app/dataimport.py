@@ -589,6 +589,7 @@ class Importer:
         cfg = db.get(M.FeeConfig, sid)
         if cfg:
             db.delete(cfg)
+        db.execute(delete(M.StudentEditAccess).where(M.StudentEditAccess.school_id == sid))   # teacher ids in it are about to go
         db.execute(update(M.SchoolClass).where(M.SchoolClass.school_id == sid).values(class_teacher_id=None))
         db.execute(update(M.User).where(M.User.id.in_(keep or [-1])).values(class_id=None))
         gone = select(M.User.id).where(M.User.school_id == sid, M.User.id.not_in(keep or [-1]))

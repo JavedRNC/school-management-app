@@ -9,7 +9,7 @@ from fastapi.responses import JSONResponse
 
 from .migrate import migrate
 from .routers import (academics, admin, appversion, auth, bell, comms, dashboard, data, fees, leaves, onboarding, payroll, portal, public,
-                      school, settings, staff_attendance, transport)
+                      school, settings, staff_attendance, student_access, transport)
 
 
 @asynccontextmanager
@@ -129,7 +129,7 @@ async def security_headers(request, call_next):
 
 
 for r in (auth.router, school.router, academics.router, dashboard.router, settings.router, admin.router,
-          leaves.router, comms.router, comms.poll_router, staff_attendance.router, transport.router, fees.router, bell.router, data.router, appversion.router, public.router, onboarding.router, portal.router, payroll.router):
+          leaves.router, comms.router, comms.poll_router, staff_attendance.router, transport.router, fees.router, bell.router, data.router, appversion.router, public.router, onboarding.router, portal.router, payroll.router, student_access.router):
     app.include_router(r)
 
 

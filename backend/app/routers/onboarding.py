@@ -326,6 +326,7 @@ class NoteIn(BaseModel):
 def admin_note(rid: int, body: NoteIn, me: User = Depends(admin_only), db: Session = Depends(get_db)):
     r = _get(db, rid)
     _event(db, r, "note", me, remarks=_CTRL.sub("", body.note).strip())
+    audit(db, me, "onboarding.note", f"request {rid}", school_id=None)
     r.updated_at = utcnow()
     db.commit()
     return admin_detail(rid, me, db)
@@ -341,6 +342,7 @@ def admin_assign(rid: int, me: User = Depends(admin_only), db: Session = Depends
     else:
         r.assigned_to, r.assigned_name = me.id, me.name
         _event(db, r, "assigned", me, remarks=f"Assigned to {me.name}")
+    audit(db, me, "onboarding.assigned", f"request {rid}: {r.assigned_name or 'released'}", school_id=None)
     r.updated_at = utcnow()
     db.commit()
     return admin_detail(rid, me, db)

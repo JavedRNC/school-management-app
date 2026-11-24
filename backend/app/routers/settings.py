@@ -1,19 +1,19 @@
 """School profile & settings, privacy, audit log, archive, calendar (F4, F12, F18, F25, F26)."""
-from datetime import date, timedelta
+from datetime import date, datetime, time, timedelta, timezone
 
 from fastapi import APIRouter, Depends, HTTPException
-from sqlalchemy import select
+from sqlalchemy import func, or_, select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
-from ..auth import audit, require, require_area, school_user
+from ..auth import audit, changes, require, require_area, school_user, snap
 from ..db import get_db
 from ..deps import get_school, owned
 from ..models import AuditLog, Banner, Exam, Holiday, Poll, Post, Role, Route, SchoolClass, Subject, User, Vehicle, utcnow
 from ..perms import AREAS, MODULES, level_of
 from ..schemas import AuditOut, HolidayIn, HolidayOut, SchoolSettingsIn
 from ..subscription import subscription_summary
-from ..util import day_status, today
+from ..util import SCHOOL_TZ, day_status, today
 
 router = APIRouter(tags=["settings"])
 
@@ -78,12 +78,49 @@ def revoke_support_access(user: User = Depends(require(Role.principal)), db: Ses
     return school_info(db, user)
 
 
+def _utc_midnight(d: date) -> datetime:
+    """School-local midnight of a day, as the naive UTC time the log is stored in."""
+    return datetime.combine(d, time.min, tzinfo=SCHOOL_TZ).astimezone(timezone.utc).replace(tzinfo=None)
+
+
+AUDIT_GROUPS = {
+    "people": ("user.", "users.", "password.", "login.", "student_access."),
+    "attendance": ("attendance.", "staff_attendance."),
+    "marks": ("marks.", "exam."),
+    "classes": ("class.", "subject.", "subject_teacher.", "timetable.", "bell."),
+    "notices": ("notice.", "homework.", "banner.", "poll.", "consent.", "calendar."),
+    "fees": ("fees.", "payroll.", "subscription."),
+    "leaves": ("leave.",),
+    "transport": ("transport.",),
+    "settings": ("settings.", "school.", "privacy.", "data.", "plan.", "website.", "onboarding."),
+}
+
+
 @router.get("/school/audit", response_model=list[AuditOut])
-def school_audit(admin_only_: bool = False, user: User = Depends(require_area("settings", "view")), db: Session = Depends(get_db)):
-    q = select(AuditLog).where(AuditLog.school_id == user.school_id).order_by(AuditLog.at.desc()).limit(200)
+def school_audit(admin_only_: bool = False, group: str | None = None, q: str | None = None, actor_id: int | None = None,
+                 date_from: date | None = None, date_to: date | None = None, before_id: int | None = None, limit: int = 200,
+                 user: User = Depends(require_area("settings", "view")), db: Session = Depends(get_db)):
+    """Newest first. Filters: what kind of change (group), free text, who, a date range; before_id pages back."""
+    sel = select(AuditLog).where(AuditLog.school_id == user.school_id)
     if admin_only_:
-        q = q.where(AuditLog.actor_role == "admin")
-    return list(db.scalars(q))
+        sel = sel.where(AuditLog.actor_role == "admin")
+    if group:
+        if group not in AUDIT_GROUPS:
+            raise HTTPException(400, "Unknown kind of activity")
+        sel = sel.where(or_(*[AuditLog.action.startswith(p) for p in AUDIT_GROUPS[group]]))
+    if q and q.strip():
+        like = f"%{q.strip().lower()[:80]}%"
+        sel = sel.where(or_(func.lower(AuditLog.detail).like(like), func.lower(AuditLog.actor_name).like(like),
+                            func.lower(AuditLog.action).like(like)))
+    if actor_id:
+        sel = sel.where(AuditLog.actor_id == actor_id)
+    if date_from:
+        sel = sel.where(AuditLog.at >= _utc_midnight(date_from))
+    if date_to:
+        sel = sel.where(AuditLog.at < _utc_midnight(date_to + timedelta(days=1)))
+    if before_id:
+        sel = sel.where(AuditLog.id < before_id)
+    return list(db.scalars(sel.order_by(AuditLog.id.desc()).limit(max(1, min(limit, 500)))))
 
 
 # ---------------------------------------------------------------- archive (F12)
@@ -168,8 +205,11 @@ def add_holiday(body: HolidayIn, user: User = Depends(require_area("calendar", "
 @router.put("/holidays/{hid}", response_model=HolidayOut)
 def edit_holiday(hid: int, body: HolidayIn, user: User = Depends(require_area("calendar", "edit")), db: Session = Depends(get_db)):
     h = owned(db, Holiday, hid, user, "Calendar entry")
-    for k, v in _holiday_data(body).items():
+    vals = _holiday_data(body)
+    before = snap(h, vals.keys())
+    for k, v in vals.items():
         setattr(h, k, v)
+    audit(db, user, "calendar.edited", f"{h.name}: {changes(before, h) or 'no change'}")
     db.commit()
     return h
 
@@ -178,6 +218,7 @@ def edit_holiday(hid: int, body: HolidayIn, user: User = Depends(require_area("c
 def archive_holiday(hid: int, user: User = Depends(require_area("calendar", "edit")), db: Session = Depends(get_db)):
     h = owned(db, Holiday, hid, user, "Calendar entry")
     h.is_active, h.archived_at, h.archived_by = False, utcnow(), user.id
+    audit(db, user, "calendar.removed", f"{h.name} {h.start_date}–{h.end_date}")
     db.commit()
     return {"ok": True}
 
@@ -194,6 +235,8 @@ def add_national_holidays(year: int, user: User = Depends(require_area("calendar
             h = Holiday(school_id=user.school_id, name=name, start_date=day, end_date=day, kind="national", is_off=True)
             db.add(h)
             added.append(h)
+    if added:
+        audit(db, user, "calendar.national_added", f"{year}: " + ", ".join(h.name for h in added))
     db.commit()
     return added
 

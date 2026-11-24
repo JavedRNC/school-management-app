@@ -20,6 +20,7 @@ const ADMIN: Item[] = [
 const SCHOOL: Item[] = [
   { to: '/school', label: 'Dashboard', icon: 'home', end: true, group: '' },
   { to: '/school/people', label: 'People', icon: 'people', group: 'School', words: 'students teachers parents staff add' },
+  { to: '/school/student-access', label: 'Student data access', icon: 'key', group: 'School', words: 'teachers edit students parents permission class teacher' },
   { to: '/school/classes', label: 'Classes & subjects', icon: 'layers', group: 'School', words: 'sections subject teachers' },
   { to: '/school/timetable', label: 'Timetable', icon: 'grid', group: 'School', words: 'periods bell timings' },
   { to: '/school/attendance', label: 'Attendance', icon: 'check', group: 'Every day', words: 'present absent register' },

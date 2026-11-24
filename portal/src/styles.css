@@ -292,3 +292,4 @@ a.stat { transition: transform .12s, border-color .12s; } a.stat:hover { transfo
 .todo { grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); }
 #print-root { display: none; }
 @media print { body.printing > :not(#print-root) { display: none !important; } body.printing #print-root { display: block; padding: 0; } body.printing .receipt { border: 0; } }
+.t td.wrap-text { white-space: normal; overflow-wrap: anywhere; min-width: 220px; max-width: 560px; }

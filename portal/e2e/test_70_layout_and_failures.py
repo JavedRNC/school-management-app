@@ -7,7 +7,7 @@ import pytest
 from conftest import TAG, TODAY, _open, call, ok
 from helpers import dialog, go, heading, no_sideways_scroll, sign_in, tab, toast
 
-SCHOOL_PAGES = [("/school", "E2E Test School"), ("/school/people", "People"), ("/school/classes", "Classes & subjects"), ("/school/timetable", "Timetable"), ("/school/attendance", "Attendance"),
+SCHOOL_PAGES = [("/school", "E2E Test School"), ("/school/people", "People"), ("/school/student-access", "Student data access"), ("/school/classes", "Classes & subjects"), ("/school/timetable", "Timetable"), ("/school/attendance", "Attendance"),
                 ("/school/exams", "Exams & marks"), ("/school/notices", "Notices & homework"), ("/school/calendar", "Calendar"), ("/school/leaves", "Leaves"), ("/school/staff", "Staff attendance"),
                 ("/school/fees", "Fees"), ("/school/transport", "Transport"), ("/school/polls", "Polls & consent forms"), ("/school/banners", "Banners"), ("/school/data", "Import & export"),
                 ("/school/settings", "Settings"), ("/school/activity", "Activity"), ("/account", "Account")]

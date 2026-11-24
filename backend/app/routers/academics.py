@@ -5,7 +5,7 @@ from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy import or_, select
 from sqlalchemy.orm import Session
 
-from ..auth import audit, require, school_user, staff
+from ..auth import audit, changes, require, school_user, snap, staff
 from ..db import get_db
 from ..deps import (active_ids, children, class_students, ensure_class_access, ensure_subject_access, get_school,
                     name_maps, owned, resolve_student, visible_class_ids)
@@ -64,20 +64,28 @@ def mark_attendance(body: AttendanceIn, user: User = Depends(staff), db: Session
     ok, reason = day_status(db, get_school(db, user), body.date)
     if not ok and not (body.override and user.role in MANAGERS):
         raise HTTPException(400, f"Not a school day ({reason}). Attendance isn't needed.")
-    valid = {s.id for s in class_students(db, body.class_id)}
+    studs = {s.id: s for s in class_students(db, body.class_id)}
+    valid = set(studs)
     existing = {a.student_id: a for a in db.scalars(
         select(Attendance).where(Attendance.class_id == body.class_id, Attendance.date == body.date))}
+    diffs: list[str] = []
+    word = {True: "present", False: "absent"}
     for r in body.records:
         if r.student_id not in valid:
             raise HTTPException(400, f"Student {r.student_id} is not in this class")
         if r.student_id in existing:
             a = existing[r.student_id]
+            if a.present != r.present:
+                diffs.append(f"{studs[r.student_id].name}: {word[a.present]} → {word[r.present]}")
             a.present, a.marked_by, a.marked_at = r.present, user.id, utcnow()
         else:
             db.add(Attendance(school_id=user.school_id, student_id=r.student_id, class_id=body.class_id, date=body.date,
                               present=r.present, marked_by=user.id))
-    if body.date != today() or not ok:
-        audit(db, user, "attendance.edited", f"class {body.class_id} on {body.date}")
+    if diffs or body.date != today() or not ok:
+        _, classes, _ = name_maps(db, user.school_id)
+        note = "" if ok else f" (not a school day: {reason})"
+        audit(db, user, "attendance.edited", f"{classes.get(body.class_id, body.class_id)} on {body.date}{note}"
+              + (f": {len(diffs)} changed — " + "; ".join(diffs) if diffs else ""))
     db.commit()
     return {"ok": True, "saved": len(body.records)}
 
@@ -121,20 +129,29 @@ def save_marks(body: MarksIn, user: User = Depends(staff), db: Session = Depends
     ensure_subject_access(db, user, body.class_id, body.subject_id)
     exam = owned(db, Exam, body.exam_id, user, "Exam")
     owned(db, Subject, body.subject_id, user, "Subject")
-    valid = {s.id for s in class_students(db, body.class_id)}
+    studs = {s.id: s for s in class_students(db, body.class_id)}
+    valid = set(studs)
     existing = {m.student_id: m for m in db.scalars(select(Mark).where(
         Mark.exam_id == body.exam_id, Mark.subject_id == body.subject_id, Mark.student_id.in_(valid or {0})))}
+    diffs: list[str] = []
     for r in body.records:
         if r.student_id not in valid:
             raise HTTPException(400, f"Student {r.student_id} is not in this class")
         if r.score > exam.max_marks:
             raise HTTPException(400, f"Score {r.score:g} is above max marks {exam.max_marks:g}")
+        old = existing[r.student_id].score if r.student_id in existing else None
+        if old != r.score:
+            diffs.append(f"{studs[r.student_id].name}: {'—' if old is None else f'{old:g}'} → {r.score:g}")
         if r.student_id in existing:
             existing[r.student_id].score = r.score
             existing[r.student_id].entered_by = user.id
         else:
             db.add(Mark(school_id=user.school_id, exam_id=body.exam_id, student_id=r.student_id, subject_id=body.subject_id,
                         score=r.score, entered_by=user.id))
+    if diffs:
+        _, classes, subjects = name_maps(db, user.school_id)
+        audit(db, user, "marks.saved", f"{exam.name} · {classes.get(body.class_id, '')} · {subjects.get(body.subject_id, '')}: "
+              f"{len(diffs)} changed — " + "; ".join(diffs))
     db.commit()
     return {"ok": True, "saved": len(body.records)}
 
@@ -218,6 +235,7 @@ def create_post(body: PostIn, user: User = Depends(staff), db: Session = Depends
     _can_post(db, user, body)
     p = Post(school_id=user.school_id, **body.model_dump(), author_id=user.id)
     db.add(p)
+    audit(db, user, f"{p.kind}.posted", p.title)
     db.commit()
     return _post_out(p, name_maps(db, user.school_id))
 
@@ -227,8 +245,10 @@ def update_post(pid: int, body: PostIn, user: User = Depends(staff), db: Session
     p = owned(db, Post, pid, user, "Post")
     _may_modify(user, p)
     _can_post(db, user, body)
+    before = snap(p, body.model_dump().keys())
     for k, v in body.model_dump().items():
         setattr(p, k, v)
+    audit(db, user, f"{p.kind}.edited", f"{p.title}: {changes(before, p) or 'no change'}")
     db.commit()
     return _post_out(p, name_maps(db, user.school_id))
 
@@ -238,6 +258,7 @@ def archive_post(pid: int, user: User = Depends(staff), db: Session = Depends(ge
     p = owned(db, Post, pid, user, "Post")
     _may_modify(user, p)
     p.is_active, p.archived_at, p.archived_by = False, utcnow(), user.id
+    audit(db, user, f"{p.kind}.removed", p.title)
     db.commit()
     return {"ok": True}
 

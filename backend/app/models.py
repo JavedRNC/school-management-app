@@ -684,3 +684,19 @@ class Payslip(Base):
     mode: Mapped[str] = mapped_column(String(12), default="")             # cash | bank | upi | cheque
     reference: Mapped[str] = mapped_column(String(80), default="")
     paid_by: Mapped[int | None] = mapped_column(Integer, nullable=True)
+
+
+# ================================================================ Teachers editing student data (F40)
+class StudentEditAccess(Base):
+    """Which teachers may change student (and parent) details. One row per school; no row = the defaults.
+
+    class_teachers: a class teacher may edit the students of their own class.
+    class_teachers_parents: … and those students' parents.
+    grants: extra access the principal gave, {"<teacher id>": {"classes": "all" | [class ids], "parents": bool}}.
+    Access is worked out at request time, so a class teacher who is replaced loses it at once."""
+    __tablename__ = "student_edit_access"
+    school_id: Mapped[int] = mapped_column(ForeignKey("schools.id"), primary_key=True)
+    class_teachers: Mapped[bool] = mapped_column(Boolean, default=True)
+    class_teachers_parents: Mapped[bool] = mapped_column(Boolean, default=False)
+    grants: Mapped[dict] = mapped_column(JSON, default=dict)
+    updated_at: Mapped[datetime] = mapped_column(DateTime, default=utcnow)

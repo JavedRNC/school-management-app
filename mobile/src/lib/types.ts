@@ -86,6 +86,7 @@ export interface AuditEntry {
   id: number;
   at: string;
   school_id: number | null;
+  actor_id?: number | null;
   actor_name: string;
   actor_role: string;
   action: string;
@@ -604,3 +605,15 @@ export interface ImportReport {
   sheets: { sheet: string; add: number; update: number; skip: number }[]; new_logins: number;
   credentials?: NewLogin[];
 }
+
+/** F40 · a teacher's editable students (GET /my-students). */
+export interface EditableParent { id: number; login_id: string; name: string; phone: string; email: string; address: string; relation: string }
+export interface EditableStudent {
+  id: number; login_id: string; name: string; phone: string; email: string; address: string; dob: string | null;
+  blood_group: string; roll_no: number | null; class_id: number; class_name: string; parents: EditableParent[];
+}
+export interface MyStudents { can_edit_parents: boolean; classes: { id: number; name: string; why: string }[]; students: EditableStudent[] }
+
+/** F40 · who may edit student data (GET /student-access, principal). */
+export interface StudentAccessGrant { teacher_id: number; name: string; login_id: string; classes: 'all' | number[]; parents: boolean }
+export interface StudentAccess { class_teachers: boolean; class_teachers_parents: boolean; grants: StudentAccessGrant[] }

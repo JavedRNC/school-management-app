@@ -142,7 +142,7 @@ export interface RequestDetail extends RequestRow {
   school: { id: number; code: string; name: string } | null; events: RequestEvent[];
 }
 export interface OnboardingSummary { by_status: Record<string, number>; total: number; pending: number; latest: RequestRow[] }
-export interface AuditRow { id: number; at: string; school_id: number | null; actor_name: string; actor_role: string; action: string; detail: string }
+export interface AuditRow { id: number; at: string; school_id: number | null; actor_id?: number | null; actor_name: string; actor_role: string; action: string; detail: string }
 export interface ImportReport {
   ok: boolean; saved: boolean; mode: 'merge' | 'replace'; kind: string; errors: { sheet: string; row: number | null; column?: string | null; message: string }[];
   error_count: number; warnings: string[]; sheets: { sheet: string; add: number; update: number; skip: number }[]; new_logins: number;

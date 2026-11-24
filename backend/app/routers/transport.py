@@ -6,7 +6,7 @@ from pydantic import BaseModel, Field
 from sqlalchemy import delete, func, select
 from sqlalchemy.orm import Session
 
-from ..auth import audit, require, require_area, require_module
+from ..auth import audit, changes, require, require_area, require_module, snap
 from ..db import get_db
 from ..deps import name_maps, owned, resolve_student
 from ..models import Role, Route, Stop, StudentTransport, User, Vehicle, utcnow
@@ -107,8 +107,10 @@ def add_vehicle(body: VehicleIn, user: User = Depends(require_area("transport", 
 @router.put("/vehicles/{vid}")
 def edit_vehicle(vid: int, body: VehicleIn, user: User = Depends(require_area("transport", "edit")), db: Session = Depends(get_db)):
     v = owned(db, Vehicle, vid, user, "Vehicle")
+    before = snap(v, body.model_dump().keys())
     for k, x in body.model_dump().items():
         setattr(v, k, x.strip() if isinstance(x, str) else x)
+    audit(db, user, "transport.vehicle.edited", f"{v.number}: {changes(before, v) or 'no change'}")
     db.commit()
     return _vehicle_out(v)
 
@@ -119,6 +121,7 @@ def archive_vehicle(vid: int, user: User = Depends(require_area("transport", "ed
     v.is_active, v.archived_at, v.archived_by = False, utcnow(), user.id
     for r in db.scalars(select(Route).where(Route.vehicle_id == vid)):
         r.vehicle_id = None
+    audit(db, user, "transport.vehicle.removed", v.number)
     db.commit()
     return {"ok": True}
 
@@ -163,8 +166,10 @@ def add_route(body: RouteIn, user: User = Depends(require_area("transport", "edi
 def edit_route(rid: int, body: RouteIn, user: User = Depends(require_area("transport", "edit")), db: Session = Depends(get_db)):
     r = owned(db, Route, rid, user, "Route")
     _check_vehicle(db, user, body.vehicle_id)
+    old = r.name
     r.name, r.vehicle_id = body.name.strip(), body.vehicle_id
     _save_stops(db, user, r, body.stops)
+    audit(db, user, "transport.route.edited", r.name if old == r.name else f"{old} → {r.name}")
     db.commit()
     return _route_out(db, r)
 
@@ -176,6 +181,7 @@ def archive_route(rid: int, user: User = Depends(require_area("transport", "edit
     if riders:
         raise HTTPException(409, f"{riders} student(s) use this route. Move them first.")
     r.is_active, r.archived_at, r.archived_by = False, utcnow(), user.id
+    audit(db, user, "transport.route.removed", r.name)
     db.commit()
     return {"ok": True}
 
@@ -192,6 +198,11 @@ def riders(route_id: int | None = None, user: User = Depends(require_area("trans
              "stop_id": st.stop_id, "stop_name": stops.get(st.stop_id)} for st, u in db.execute(q).all()]
 
 
+def _names(db: Session, ids) -> str:
+    names = sorted(db.scalars(select(User.name).where(User.id.in_(ids or {0}))))
+    return ", ".join(names[:20]) + (f" and {len(names) - 20} more" if len(names) > 20 else "")
+
+
 @router.put("/students")
 def assign(body: AssignIn, user: User = Depends(require_area("transport", "edit")), db: Session = Depends(get_db)):
     valid = set(db.scalars(select(User.id).where(User.id.in_(body.student_ids or [0]), User.school_id == user.school_id, User.role == Role.student)))
@@ -199,6 +210,7 @@ def assign(body: AssignIn, user: User = Depends(require_area("transport", "edit"
         raise HTTPException(400, "Some selected people are not students of this school")
     if body.route_id is None:
         db.execute(delete(StudentTransport).where(StudentTransport.student_id.in_(valid or {0})))
+        audit(db, user, "transport.riders.removed", _names(db, valid))
         db.commit()
         return {"ok": True, "removed": len(valid)}
     r = owned(db, Route, body.route_id, user, "Route")
@@ -212,6 +224,7 @@ def assign(body: AssignIn, user: User = Depends(require_area("transport", "edit"
             row.route_id, row.stop_id = r.id, body.stop_id
         else:
             db.add(StudentTransport(student_id=sid, school_id=user.school_id, route_id=r.id, stop_id=body.stop_id))
+    audit(db, user, "transport.riders.assigned", f"{r.name}: {_names(db, valid)}")
     db.commit()
     return {"ok": True, "assigned": len(valid)}
 

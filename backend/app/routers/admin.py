@@ -290,6 +290,7 @@ def _plan_data(body: PlanIn) -> dict:
 def create_plan(body: PlanIn, me: User = Depends(admin_only), db: Session = Depends(get_db)):
     p = Plan(**_plan_data(body), sort=(db.scalar(select(func.max(Plan.sort))) or 0) + 1)
     db.add(p)
+    audit(db, me, "plan.created", p.name, school_id=None)
     try:
         db.commit()
     except IntegrityError:

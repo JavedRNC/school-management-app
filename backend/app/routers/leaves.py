@@ -175,6 +175,7 @@ def cancel(lid: int, user: User = Depends(school_user), db: Session = Depends(ge
     if lr.status not in ("pending", "approved") or (lr.status == "approved" and lr.start_date <= today()):
         raise HTTPException(409, "This request can't be cancelled now")
     lr.status = "cancelled"
+    audit(db, user, "leave.cancelled", f"{lr.start_date}–{lr.end_date}")
     db.commit()
     return {"ok": True}
 

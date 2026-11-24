@@ -50,6 +50,11 @@ export default function TeacherHome() {
                   labelStyle={{ fontSize: 16, lineHeight: 22, fontWeight: '700' }}>
                   Mark attendance
                 </Button>
+                <Button mode="outlined" icon="account-edit-outline" onPress={() => router.push('/more/my-students')}
+                  textColor={t.custom.onFeature} style={{ borderRadius: 14, borderColor: t.custom.onFeature }}
+                  labelStyle={{ fontSize: 15, lineHeight: 20, fontWeight: '600' }}>
+                  Student details
+                </Button>
               </View>
             </FadeIn>
           ) : null}

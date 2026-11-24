@@ -109,7 +109,31 @@ def audit(db: Session, actor: User | None, action: str, detail: str = "", school
                     actor_role=actor.role.value if actor else "", action=action, detail=detail[:2000]))
 
 
-ALLOW_DURING_PW_CHANGE = {"/auth/me", "/auth/password", "/auth/consent", "/school/me"}
+def _show(v) -> str:
+    if v is None or v == "":
+        return "—"
+    if hasattr(v, "isoformat"):
+        v = v.isoformat()
+    s = str(v)
+    return s if len(s) <= 60 else s[:57] + "…"
+
+
+def snap(obj, fields) -> dict:
+    """The current values of some fields, to compare after a change (see changes())."""
+    return {f: getattr(obj, f, None) for f in fields}
+
+
+def changes(before: dict, after: dict | object, labels: dict | None = None) -> str:
+    """'Name: Asha → Asha K; Phone: — → 98…' for the fields whose value changed. `after` may be the object itself."""
+    out = []
+    for k, old in before.items():
+        new = after.get(k) if isinstance(after, dict) else getattr(after, k, None)
+        if _show(old) != _show(new):
+            out.append(f"{(labels or {}).get(k, k.replace('_', ' '))}: {_show(old)} → {_show(new)}")
+    return "; ".join(out)
+
+
+ALLOW_DURING_PW_CHANGE ={"/auth/me", "/auth/password", "/auth/consent", "/school/me"}
 
 
 def current_user(request: Request, creds: HTTPAuthorizationCredentials | None = Depends(bearer),

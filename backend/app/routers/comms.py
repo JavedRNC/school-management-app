@@ -7,7 +7,7 @@ from sqlalchemy import or_, select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
-from ..auth import admin_only, audit, require_area, require_module, school_user
+from ..auth import admin_only, audit, changes, require_area, snap, require_module, school_user
 from ..db import get_db
 from ..deps import children, class_students, get_school, name_maps, owned
 from ..models import Banner, ParentLink, Poll, PollResponse, Role, SchoolClass, User, utcnow
@@ -99,8 +99,11 @@ def create_banner(body: BannerIn, user: User = Depends(require_area("notices", "
 def update_banner(bid: int, body: BannerIn, user: User = Depends(require_area("notices", "edit")), db: Session = Depends(get_db)):
     b = owned(db, Banner, bid, user, "Banner")
     allow = "communication" in school_modules(db, get_school(db, user))
-    for k, v in _clean_banner(body, allow).items():
+    vals = _clean_banner(body, allow)
+    before = snap(b, vals.keys())
+    for k, v in vals.items():
         setattr(b, k, v)
+    audit(db, user, "banner.edited", f"{b.title}: {changes(before, b) or 'no change'}")
     db.commit()
     return _banner_out(b)
 
@@ -109,6 +112,7 @@ def update_banner(bid: int, body: BannerIn, user: User = Depends(require_area("n
 def archive_banner(bid: int, user: User = Depends(require_area("notices", "edit")), db: Session = Depends(get_db)):
     b = owned(db, Banner, bid, user, "Banner")
     b.is_active, b.archived_at, b.archived_by = False, utcnow(), user.id
+    audit(db, user, "banner.removed", b.title)
     db.commit()
     return {"ok": True}
 
@@ -133,8 +137,11 @@ def admin_update_banner(bid: int, body: BannerIn, me: User = Depends(admin_only)
     b = db.get(Banner, bid)
     if not b or b.school_id is not None:
         raise HTTPException(404, "Banner not found")
-    for k, v in _clean_banner(body, True).items():
+    vals = _clean_banner(body, True)
+    before = snap(b, vals.keys())
+    for k, v in vals.items():
         setattr(b, k, v)
+    audit(db, me, "platform.banner.edited", f"{b.title}: {changes(before, b) or 'no change'}", school_id=None)
     db.commit()
     return _banner_out(b)
 
@@ -145,6 +152,7 @@ def admin_archive_banner(bid: int, me: User = Depends(admin_only), db: Session =
     if not b or b.school_id is not None:
         raise HTTPException(404, "Banner not found")
     b.is_active, b.archived_at = False, utcnow()
+    audit(db, me, "platform.banner.removed", b.title, school_id=None)
     db.commit()
     return {"ok": True}
 

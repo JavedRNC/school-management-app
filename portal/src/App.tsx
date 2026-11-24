@@ -33,6 +33,7 @@ const Leaves = lazy(() => import('./school/Leaves').then((m) => ({ default: m.Le
 const Notices = lazy(() => import('./school/Notices').then((m) => ({ default: m.Notices })));
 const Payroll = lazy(() => import('./school/Payroll').then((m) => ({ default: m.Payroll })));
 const People = lazy(() => import('./school/People').then((m) => ({ default: m.People })));
+const StudentAccess = lazy(() => import('./school/StudentAccess').then((m) => ({ default: m.StudentAccess })));
 const Polls = lazy(() => import('./school/Polls').then((m) => ({ default: m.Polls })));
 const Activity = lazy(() => import('./school/Settings').then((m) => ({ default: m.Activity })));
 const SchoolBanners = lazy(() => import('./school/Settings').then((m) => ({ default: m.SchoolBanners })));
@@ -101,6 +102,7 @@ export function App() {
                 <Route element={<Guard roles={['principal']} />}>
                   <Route path="/school" element={<SchoolDashboard />} />
                   <Route path="/school/people" element={<People />} />
+                  <Route path="/school/student-access" element={<StudentAccess />} />
                   <Route path="/school/classes" element={<Classes />} />
                   <Route path="/school/timetable" element={<Timetable />} />
                   <Route path="/school/attendance" element={<Attendance />} />

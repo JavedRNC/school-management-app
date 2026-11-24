@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import { api, type AuditRow } from '../api';
 import { Banners } from '../Banners';
 import { Chips, DAYS, Switch, Tabs, useAct, useConfirm } from '../kit';
-import { Badge, Button, Empty, ErrorBox, fmtDate, fmtDateTime, fmtInt, fmtMoney, Loading, PageHead, parseTime, Text, useLoad, words } from '../ui';
+import { Badge, Button, Empty, ErrorBox, fmtDate, fmtDateTime, fmtInt, fmtMoney, Loading, PageHead, parseTime, Select, Text, useDebounced, useLoad, words } from '../ui';
 import { ReadOnlyNote, useSchool, type Klass, type SchoolMe } from './ctx';
 
 type Tab = 'profile' | 'privacy' | 'listing' | 'plan' | 'archive';
@@ -142,19 +142,47 @@ function Archive({ canWrite }: { canWrite: boolean }) {
 }
 
 // ---------------------------------------------------------------- activity log
+const GROUPS: [string, string][] = [['', 'Everything'], ['people', 'People & sign-ins'], ['attendance', 'Attendance'], ['marks', 'Marks & exams'],
+  ['classes', 'Classes & timetable'], ['notices', 'Notices & calendar'], ['fees', 'Fees & payroll'], ['leaves', 'Leaves'], ['transport', 'Transport'],
+  ['settings', 'Settings & data'], ['support', 'Prangan support only']];
+const PAGE = 100;
 export function Activity() {
-  const [supportOnly, setSupportOnly] = useState(false);
-  const log = useLoad(() => api<AuditRow[]>('/school/audit', { query: { admin_only_: supportOnly ? 'true' : undefined } }), [supportOnly]);
+  const [group, setGroup] = useState('');
+  const [text, setText] = useState('');
+  const [from, setFrom] = useState('');
+  const [to, setTo] = useState('');
+  const q = useDebounced(text.trim(), 350);
+  const query = { admin_only_: group === 'support' ? 'true' : undefined, group: group && group !== 'support' ? group : undefined, q: q || undefined,
+    date_from: from || undefined, date_to: to || undefined, limit: String(PAGE) };
+  const log = useLoad(() => api<AuditRow[]>('/school/audit', { query }), [group, q, from, to], true);
+  const [older, setOlder] = useState<AuditRow[]>([]);
+  const [end, setEnd] = useState(false);
+  const { act, busy } = useAct();
+  useEffect(() => { setOlder([]); setEnd(false); }, [log.data]);
+  const rows = [...(log.data ?? []), ...older];
+  const more = async () => {
+    const last = rows[rows.length - 1];
+    const next = await act('more', () => api<AuditRow[]>('/school/audit', { query: { ...query, before_id: String(last.id) } }));
+    if (next) { setOlder((o) => [...o, ...next]); if (next.length < PAGE) setEnd(true); }
+  };
+  const filtered = !!(group || q || from || to);
   return (
     <>
-      <PageHead title="Activity" sub="A record of important changes in your school, including anything done by Prangan support" />
-      <div className="toolbar"><div className="seg" role="group" aria-label="Show"><button type="button" aria-pressed={!supportOnly} onClick={() => setSupportOnly(false)}>Everything</button><button type="button" aria-pressed={supportOnly} onClick={() => setSupportOnly(true)}>Prangan support only</button></div></div>
+      <PageHead title="Activity" sub="A record of important changes in your school — who changed what, with the old and new value — including anything done by Prangan support" />
+      <div className="toolbar">
+        <div className="search"><Text label="Search" value={text} onChange={setText} placeholder="Person, student, class or change" type="search" /></div>
+        <Select label="Show" value={group} onChange={setGroup} options={GROUPS} />
+        <Text label="From" type="date" value={from} onChange={setFrom} />
+        <Text label="To" type="date" value={to} onChange={setTo} />
+        {filtered ? <Button kind="small" onClick={() => { setGroup(''); setText(''); setFrom(''); setTo(''); }}>Clear filters</Button> : null}
+      </div>
       <section className="card flush">
-        {log.error ? <div style={{ padding: 18 }}><ErrorBox message={log.error} onRetry={log.reload} /></div> : !log.data ? <div style={{ padding: 18 }}><Loading rows={6} /></div> : !log.data.length ? <Empty title={supportOnly ? 'Prangan support has not done anything in your school' : 'No activity yet'} /> : (
+        {log.error ? <div style={{ padding: 18 }}><ErrorBox message={log.error} onRetry={log.reload} /></div> : !log.data ? <div style={{ padding: 18 }}><Loading rows={6} /></div> : !rows.length ? <Empty title={group === 'support' ? 'Prangan support has not done anything in your school' : filtered ? 'Nothing matches these filters' : 'No activity yet'} /> : (
           <div className="tablewrap"><table className="t"><thead><tr><th>When</th><th>Who</th><th>What</th><th>Details</th></tr></thead>
-            <tbody>{log.data.map((a) => <tr key={a.id}><td data-label="When" className="num">{fmtDateTime(a.at)}</td><td className="primary-cell"><b>{a.actor_name}</b><small>{words(a.actor_role)}</small></td><td data-label="What">{words(a.action)}</td><td data-label="Details">{a.detail || '—'}</td></tr>)}</tbody></table></div>
+            <tbody>{rows.map((a) => <tr key={a.id}><td data-label="When" className="num">{fmtDateTime(a.at)}</td><td className="primary-cell"><b>{a.actor_name}</b><small>{words(a.actor_role)}</small></td><td data-label="What">{words(a.action)}</td><td data-label="Details" className="wrap-text">{a.detail || '—'}</td></tr>)}</tbody></table></div>
         )}
       </section>
+      {log.data && rows.length >= PAGE && !end ? <div className="row" style={{ marginTop: 12 }}><Button busy={busy === 'more'} onClick={more}>Show older</Button></div> : null}
     </>
   );
 }

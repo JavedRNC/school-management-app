@@ -7,7 +7,7 @@ from sqlalchemy.orm import Session
 
 from ..bell import period_count, schedules
 from .. import ratelimit
-from ..auth import audit, check_password_rules, hash_password, require_area, school_user
+from ..auth import audit, changes, check_password_rules, snap, hash_password, require_area, school_user
 from ..db import get_db
 from ..deps import (active_ids, class_students, get_school, manager_class_ids, name_maps, owned, resolve_student,
                     visible_class_ids)
@@ -53,6 +53,11 @@ def list_classes(user: User = Depends(school_user), db: Session = Depends(get_db
             for c in db.scalars(q)]
 
 
+def _uname(db: Session, uid: int | None) -> str:
+    u = db.get(User, uid) if uid else None
+    return f"{u.name} ({u.login_id})" if u else "—"
+
+
 def _check_teacher(db: Session, user: User, teacher_id: int | None) -> None:
     if teacher_id is None:
         return
@@ -66,6 +71,7 @@ def create_class(body: ClassIn, user: User = Depends(require_area("classes", "ed
     _check_teacher(db, user, body.class_teacher_id)
     c = SchoolClass(school_id=user.school_id, name=body.name.strip(), class_teacher_id=body.class_teacher_id)
     db.add(c)
+    audit(db, user, "class.created", f"{c.name} · class teacher {_uname(db, c.class_teacher_id)}")
     _commit(db, "A class with this name already exists (check the Archive too)")
     return ClassOut(id=c.id, name=c.name, class_teacher_id=c.class_teacher_id)
 
@@ -74,7 +80,13 @@ def create_class(body: ClassIn, user: User = Depends(require_area("classes", "ed
 def update_class(class_id: int, body: ClassIn, user: User = Depends(require_area("classes", "edit")), db: Session = Depends(get_db)):
     c = owned(db, SchoolClass, class_id, user, "Class")
     _check_teacher(db, user, body.class_teacher_id)
+    old_name, old_t = c.name, c.class_teacher_id
     c.name, c.class_teacher_id = body.name.strip(), body.class_teacher_id
+    diff = [f"name: {old_name} → {c.name}"] if old_name != c.name else []
+    if old_t != c.class_teacher_id:
+        diff.append(f"class teacher: {_uname(db, old_t)} → {_uname(db, c.class_teacher_id)}")
+    if diff:
+        audit(db, user, "class.updated", f"{c.name}: " + "; ".join(diff))
     _commit(db, "A class with this name already exists")
     return ClassOut(id=c.id, name=c.name, class_teacher_id=c.class_teacher_id, student_count=len(class_students(db, c.id)))
 
@@ -114,6 +126,7 @@ def list_subjects(user: User = Depends(school_user), db: Session = Depends(get_d
 def create_subject(body: NameIn, user: User = Depends(require_area("classes", "edit")), db: Session = Depends(get_db)):
     s = Subject(school_id=user.school_id, name=body.name.strip())
     db.add(s)
+    audit(db, user, "subject.created", s.name)
     _commit(db, "Subject already exists (check the Archive too)")
     return s
 
@@ -121,7 +134,10 @@ def create_subject(body: NameIn, user: User = Depends(require_area("classes", "e
 @router.put("/subjects/{subject_id}", response_model=SubjectOut)
 def rename_subject(subject_id: int, body: NameIn, user: User = Depends(require_area("classes", "edit")), db: Session = Depends(get_db)):
     s = owned(db, Subject, subject_id, user, "Subject")
+    old = s.name
     s.name = body.name.strip()
+    if old != s.name:
+        audit(db, user, "subject.renamed", f"{old} → {s.name}")
     _commit(db, "Subject already exists")
     return s
 
@@ -181,6 +197,24 @@ def _set_children(db: Session, me: User, parent: User, ids: list[int], relation:
     db.execute(delete(ParentLink).where(ParentLink.parent_id == parent.id))
     for sid in ids:
         db.add(ParentLink(school_id=me.school_id, parent_id=parent.id, student_id=sid, relation=relation))
+
+
+PROFILE_FIELDS = ("name", "login_id", "phone", "email", "address", "dob", "blood_group", "class_id", "roll_no", "active")
+PROFILE_LABELS = {"login_id": "login ID", "class_id": "class", "roll_no": "roll no.", "blood_group": "blood group", "dob": "date of birth"}
+
+
+def profile_snap(db: Session, u: User) -> dict:
+    out = snap(u, PROFILE_FIELDS)
+    if out["class_id"]:
+        c = db.get(SchoolClass, out["class_id"])
+        out["class_id"] = c.name if c else out["class_id"]
+    out["active"] = "yes" if out["active"] else "removed"
+    return out
+
+
+def _children_names(db: Session, parent: User) -> str:
+    return ", ".join(sorted(db.scalars(select(User.name).join(ParentLink, ParentLink.student_id == User.id)
+                                       .where(ParentLink.parent_id == parent.id))))
 
 
 def _check_class(db: Session, me: User, class_id: int | None) -> None:
@@ -295,12 +329,21 @@ def update_user(user_id: int, body: UserUpdate, me: User = Depends(require_area(
         data.pop("scope_class_ids", None)
     if "active" in data:
         u.archived_at = None if data["active"] else (utcnow() if u.active or not u.archived_at else u.archived_at)   # keep the day they first left
+    before = profile_snap(db, u)
+    old_kids = _children_names(db, u) if kids is not None and u.role == Role.parent else None
     for k, v in data.items():
         setattr(u, k, v)
     if kids is not None and u.role == Role.parent:
         _set_children(db, me, u, kids)
-    changed = sorted(set(data) | ({"password"} if pw else set()) | ({"children"} if kids is not None else set()))
-    audit(db, me, "user.updated", f"{u.name} ({u.login_id}): {', '.join(changed)}")
+        db.flush()
+    parts = [changes(before, profile_snap(db, u), PROFILE_LABELS)]
+    if old_kids is not None and old_kids != _children_names(db, u):
+        parts.append(f"children: {old_kids or '—'} → {_children_names(db, u) or '—'}")
+    if pw:
+        parts.append("password reset")
+    if "permissions" in data or "scope_class_ids" in data:
+        parts.append("permissions updated")
+    audit(db, me, "user.updated", f"{u.role.value} {u.name} ({u.login_id}): {'; '.join(p for p in parts if p) or 'no change'}")
     _commit(db, "Login ID already used in this school")
     return user_out(db, u)
 
@@ -355,11 +398,16 @@ def create_assignment(body: AssignmentIn, user: User = Depends(require_area("cla
     if not t or t.school_id != user.school_id or t.role != Role.teacher or not t.active:
         raise HTTPException(400, "Not an active teacher")
     a = db.scalar(select(Assignment).where(Assignment.class_id == body.class_id, Assignment.subject_id == body.subject_id))
+    _, classes, subjects = name_maps(db, user.school_id)
+    what = f"{classes.get(body.class_id, '')} · {subjects.get(body.subject_id, '')}"
     if a:
+        if a.teacher_id != body.teacher_id:
+            audit(db, user, "subject_teacher.changed", f"{what}: {_uname(db, a.teacher_id)} → {_uname(db, body.teacher_id)}")
         a.teacher_id = body.teacher_id
     else:
         a = Assignment(school_id=user.school_id, **body.model_dump())
         db.add(a)
+        audit(db, user, "subject_teacher.assigned", f"{what}: {_uname(db, body.teacher_id)}")
     _commit(db)
     return AssignmentOut.model_validate(a)
 
@@ -367,6 +415,8 @@ def create_assignment(body: AssignmentIn, user: User = Depends(require_area("cla
 @router.delete("/assignments/{aid}")
 def delete_assignment(aid: int, user: User = Depends(require_area("classes", "edit")), db: Session = Depends(get_db)):
     a = owned(db, Assignment, aid, user, "Assignment")
+    _, classes, subjects = name_maps(db, user.school_id)
+    audit(db, user, "subject_teacher.removed", f"{classes.get(a.class_id, '')} · {subjects.get(a.subject_id, '')}: {_uname(db, a.teacher_id)}")
     db.delete(a)
     db.commit()
     return {"ok": True}
@@ -410,11 +460,19 @@ def set_timetable_slot(body: TimetableIn, user: User = Depends(require_area("cla
         raise HTTPException(409, "Teacher already has a class in this period")
     e = db.scalar(select(TimetableEntry).where(TimetableEntry.class_id == body.class_id,
                                                TimetableEntry.day == body.day, TimetableEntry.period == body.period))
+    users, classes, subjects = name_maps(db, user.school_id)
+    days = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"]
+    slot = f"{classes.get(body.class_id, '')} {days[body.day]} period {body.period}"
+    new = f"{subjects.get(body.subject_id, '')} ({users.get(body.teacher_id, '')})"
     if e:
+        old = f"{subjects.get(e.subject_id, '')} ({users.get(e.teacher_id, '')})"
+        if old != new:
+            audit(db, user, "timetable.changed", f"{slot}: {old} → {new}")
         e.subject_id, e.teacher_id = body.subject_id, body.teacher_id
     else:
         e = TimetableEntry(school_id=user.school_id, **body.model_dump())
         db.add(e)
+        audit(db, user, "timetable.changed", f"{slot}: — → {new}")
     _commit(db)
     return TimetableOut.model_validate(e)
 
@@ -422,6 +480,10 @@ def set_timetable_slot(body: TimetableIn, user: User = Depends(require_area("cla
 @router.delete("/timetable/{eid}")
 def delete_slot(eid: int, user: User = Depends(require_area("classes", "edit")), db: Session = Depends(get_db)):
     e = owned(db, TimetableEntry, eid, user, "Slot")
+    users, classes, subjects = name_maps(db, user.school_id)
+    days = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"]
+    audit(db, user, "timetable.cleared", f"{classes.get(e.class_id, '')} {days[e.day]} period {e.period}: "
+          f"{subjects.get(e.subject_id, '')} ({users.get(e.teacher_id, '')})")
     db.delete(e)
     db.commit()
     return {"ok": True}
@@ -439,6 +501,7 @@ def list_exams(user: User = Depends(school_user), db: Session = Depends(get_db))
 def create_exam(body: ExamIn, user: User = Depends(require_area("exams", "edit")), db: Session = Depends(get_db)):
     e = Exam(school_id=user.school_id, name=body.name.strip(), date=body.date, max_marks=body.max_marks)
     db.add(e)
+    audit(db, user, "exam.created", f"{e.name} · {e.date} · max {e.max_marks:g}")
     db.commit()
     return e
 
@@ -449,7 +512,11 @@ def update_exam(exam_id: int, body: ExamIn, user: User = Depends(require_area("e
     top = db.scalar(select(func.max(Mark.score)).where(Mark.exam_id == exam_id))
     if top is not None and body.max_marks < top:
         raise HTTPException(409, f"Max marks can't be below the highest score already entered ({top:g})")
+    before = snap(e, ("name", "date", "max_marks"))
     e.name, e.date, e.max_marks = body.name.strip(), body.date, body.max_marks
+    diff = changes(before, e)
+    if diff:
+        audit(db, user, "exam.updated", f"{e.name}: {diff}")
     db.commit()
     return e
 
