@@ -526,3 +526,14 @@ Javed picked direction A · Chalk (with C's grid attendance) from three designs.
 
 ### F39 · Choose the app's look: Chalk, Register or Marigold Night ✅ `M` — requested 23 Nov
 Me → Appearance shows the three designs with small previews; the choice is saved on the phone and the app redraws at once. Chalk (default) follows the phone's dark mode; Register is always light (paper and blue ink, P / A attendance rows); Marigold Night is always dark (navy and marigold, attendance opens on the grid). Layout and buttons stay in the same places in every theme. Adds about 0.6 MB of fonts.
+
+### F40 · Teachers can edit student and parent details 📝 `M` — requested 24 Nov (plan only; build after the logo is final)
+Today only the principal, and the VP / coordinator with "Students, teachers & parents" set to edit, can change a student's or parent's details. Javed wants teachers to help:
+- **Default:** a class teacher can edit the students of **their own class** (not other classes). The principal can switch this off for the school.
+- **Extra teachers:** the principal can give any other teacher (not a class teacher) permission to edit students, and choose which classes (one, several or all).
+- **Parent details:** a separate switch per teacher — "can also edit parent details" (name, mobile, relation). Off by default; the principal turns it on.
+- **Never allowed for teachers:** deleting or archiving a student, moving a student to another class, resetting student/parent passwords, changing the login ID (admission no. / parent mobile), fees. These stay with the principal / VP.
+- Where: Principal → Teachers → open a teacher → "Student data" section (Off · Own class · Chosen classes) + "Parent details" toggle. Teacher sees an Edit button on the student profile only when allowed.
+- Every edit by a teacher is written to the audit log (who, which student, which field, old → new) so the principal can check.
+- Backend: a per-teacher grant (teacher, scope own-class / class list, can_edit_parent) checked on the student and parent update endpoints; class-teacher default comes from SchoolClass.class_teacher_id.
+- Open question for Javed: if the class teacher changes mid-year, does the old teacher lose access at once? (Suggested: yes, the access follows the class.)
