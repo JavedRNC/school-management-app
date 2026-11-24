@@ -1,4 +1,5 @@
 """Platform admin: dashboard, schools, subscription, users, payments, plans, announcements, app updates, requests, activity."""
+import pytest
 import datetime as dt
 import time
 import random
@@ -15,49 +16,63 @@ def open_school(page, school, section=None):
         tab(page, section)
 
 
+@pytest.mark.tc("TC-P-045", "Admin dashboard numbers come from the server")
+@pytest.mark.smoke
+@pytest.mark.regression
 def test_dashboard_numbers_come_from_the_server(admin_page, admin, school):
     page = admin_page
     go(page, "/admin")
     heading(page, "Platform dashboard")
     ov = ok(call("GET", "/admin/overview", admin["token"]))
+    # TC-P-045.1 — School count matches; the chart is drawn
     page.locator(".stat", has_text="Registered schools").get_by_text(str(ov["schools"]), exact=True).wait_for()
     page.locator(".stat", has_text="Students").first.wait_for()
     page.locator("svg.chart").first.wait_for()
 
 
+@pytest.mark.tc("TC-P-046", "Schools list: search, filter, sort and export")
+@pytest.mark.regression
 def test_schools_list_search_filter_sort_and_export(admin_page, school):
     page = admin_page
     go(page, "/admin/schools")
     heading(page, "Schools")
+    # TC-P-046.1 — Search finds the school and is kept in the address
     page.get_by_label("Search").fill(SCHOOL_CODE)
     page.get_by_role("link", name="E2E Test School").wait_for()
     page.get_by_text("1 school match").wait_for()
     assert "q=E2EQA1" in page.url, "the search is kept in the address so the list can be shared or reloaded"
+    # TC-P-046.2 — Status filter and a search with no match say 'No school matches'
     page.get_by_label("Status").select_option("suspended")
     page.get_by_text("No school matches").wait_for()
     page.get_by_label("Status").select_option("")
     page.get_by_label("Search").fill("zzzz-no-such-school")
     page.get_by_text("No school matches").wait_for()
     page.get_by_label("Search").fill("")
+    # TC-P-046.3 — Sorting by name
     header = page.get_by_role("columnheader", name="School")
     header.get_by_role("button").click()
     page.locator('th[aria-sort="descending"]').wait_for()
+    # TC-P-046.4 — Export downloads .xlsx
     with page.expect_download() as dl:
         page.get_by_role("button", name="Export this list").click()
     assert dl.value.suggested_filename.endswith(".xlsx")
 
 
+@pytest.mark.tc("TC-P-047", "Add school: field checks and a used code")
+@pytest.mark.regression
 def test_add_school_form_checks_fields_and_refuses_a_used_code(admin_page, school):
     page = admin_page
     go(page, "/admin/schools")
     page.get_by_role("button", name="Add school").click()
     form = dialog(page)
     form.get_by_label("Temporary password").fill("short")
+    # TC-P-047.1 — Code letters only; every required field shows its error
     form.get_by_label("School code").fill("a!")                                   # too short; the "!" is dropped as you type
     assert form.get_by_label("School code").input_value() == "A"
     form.get_by_role("button", name="Add school").click()
     for message in ("3 to 20 letters, digits or hyphens", "Enter the school name", "Enter the principal's name", "At least 8 characters"):
         form.get_by_role("alert").filter(has_text=message).wait_for()
+    # TC-P-047.2 — A code already in use is refused and the form keeps what was typed
     form.get_by_label("School code").fill(SCHOOL_CODE.lower())
     form.get_by_label("School name").fill("Copy Of The Test School")
     form.get_by_label("Principal's name").fill("Someone Else")
@@ -67,6 +82,9 @@ def test_add_school_form_checks_fields_and_refuses_a_used_code(admin_page, schoo
     assert form.get_by_label("School name").input_value() == "Copy Of The Test School", "the form keeps what was typed"
 
 
+@pytest.mark.tc("TC-P-048", "Add a school and its principal's first sign-in (local only)")
+@pytest.mark.sanity
+@pytest.mark.regression
 @local_only
 def test_add_school_and_first_sign_in_of_its_principal(admin_page, page):
     code = f"N{TAG}"
@@ -78,11 +96,12 @@ def test_add_school_and_first_sign_in_of_its_principal(admin_page, page):
     form.get_by_label("Principal's name").fill("Kavita Rao")
     form.get_by_role("button", name="Add school").click()
     made = dialog(admin_page)
+    # TC-P-048.1 — The school is added and a one-time password shown
     made.get_by_role("heading", name="School added").wait_for()
     password = re.search(r"Password: (\S+)", made.locator(".cred").inner_text()).group(1)
     made.get_by_role("button", name="Open the school").click()
     heading(admin_page, f"New School {TAG}")
-    # the new principal signs in with the one-time password and must choose their own before anything else
+    # TC-P-048.2 — The principal must choose a password before anything else
     sign_in(page, code, "principal", password)
     page.wait_for_url(re.compile(r"#/account$"))
     assert page.get_by_role("navigation").count() == 0, "no menu until the password is changed"
@@ -96,18 +115,22 @@ def test_add_school_and_first_sign_in_of_its_principal(admin_page, page):
     heading(page, f"New School {TAG}")
 
 
+@pytest.mark.tc("TC-P-049", "Admin: school details are saved")
+@pytest.mark.regression
 def test_school_details_are_saved(admin_page, admin, school):
     page = admin_page
     open_school(page, school)
     note = f"e2e-run {TAG} {int(time.time())} checked"                            # keeps the marker that says this run is using the school
     page.get_by_label("Private notes (only admins see these)").fill(note)
     page.get_by_label("City / town").fill("Ranchi")
+    # TC-P-049.1 — Notes, city and PIN (digits only) are saved
     page.get_by_label("PIN code").fill("83400x1")                                  # letters are dropped
     assert page.get_by_label("PIN code").input_value() == "834001"
     page.get_by_role("button", name="Save details").click()
     toast(page, "School details saved")
     assert ok(call("GET", f"/admin/schools/{school['id']}", admin["token"]))["admin_notes"] == note
     assert ok(call("GET", f"/admin/schools/{school['id']}/details", admin["token"]))["pin"] == "834001"
+    # TC-P-049.2 — An empty name is never sent or saved
     page.get_by_label("School name").fill("")
     page.get_by_role("alert").filter(has_text="Enter the school name").wait_for()
     puts = []
@@ -118,17 +141,22 @@ def test_school_details_are_saved(admin_page, admin, school):
     assert ok(call("GET", f"/admin/schools/{school['id']}", admin["token"]))["name"] == "E2E Test School", "an empty name is never saved"
 
 
+@pytest.mark.tc("TC-P-050", "Suspending a school blocks sign-in until lifted")
+@pytest.mark.sanity
+@pytest.mark.regression
 def test_suspending_a_school_blocks_sign_in_until_lifted(admin_page, admin, school):
     page = admin_page
     open_school(page, school)
     try:
         page.get_by_role("button", name="Suspend school").click()
+        # TC-P-050.1 — Suspended: new sign-ins and open sessions are refused
         confirm(page, "Suspend school")
         toast(page, "School suspended")
         page.get_by_role("heading", name="This school is suspended").wait_for()
         status, data = login(SCHOOL_CODE, "principal", PRINCIPAL_PW)
         assert status == 403 and "suspended" in data["detail"]
         assert call("GET", "/school/me", school["principal"]["token"])[0] in (401, 403), "people already signed in are stopped too"
+        # TC-P-050.2 — Lifting the suspension allows sign-in again
         page.get_by_role("button", name="Lift suspension").click()
         confirm(page, "Lift suspension")
         toast(page, "Suspension lifted")
@@ -137,14 +165,18 @@ def test_suspending_a_school_blocks_sign_in_until_lifted(admin_page, admin, scho
     assert login(SCHOOL_CODE, "principal", PRINCIPAL_PW)[0] == 200
 
 
+@pytest.mark.tc("TC-P-051", "Turning a feature off removes it from the school")
+@pytest.mark.regression
 def test_turning_a_feature_off_removes_it_from_the_schools_portal(admin_page, admin, school, browser):
     page = admin_page
     open_school(page, school, "Plan & subscription")
     try:
+        # TC-P-051.1 — Discount must be 0 to 100
         page.get_by_label("Discount (%)").fill("150")
         page.get_by_role("alert").filter(has_text="Discount must be 0 to 100").wait_for()
         assert page.get_by_role("button", name="Save subscription").is_disabled()
         page.get_by_label("Discount (%)").fill("0")
+        # TC-P-051.2 — Fees is switched off; Core can't be
         page.get_by_role("switch", name="Choose features by hand for this school").click()
         fees = page.get_by_role("button", name="Fees, receipts & UPI payments")
         assert fees.get_attribute("aria-pressed") == "true"
@@ -157,7 +189,7 @@ def test_turning_a_feature_off_removes_it_from_the_schools_portal(admin_page, ad
         me = ok(call("GET", "/school/me", school["principal"]["token"]))
         assert "fees" not in me["modules"] and "core" in me["modules"]
         assert call("GET", "/fees/summary", school["principal"]["token"])[0] == 403
-        # the principal's portal: no Fees in the menu, and the address typed by hand explains why
+        # TC-P-051.3 — The principal's menu has no Fees and the page explains why
         from conftest import _open
         ctx, pp = _open(browser, school["principal"])
         try:
@@ -173,6 +205,8 @@ def test_turning_a_feature_off_removes_it_from_the_schools_portal(admin_page, ad
     assert "fees" in ok(call("GET", "/school/me", school["principal"]["token"]))["modules"]
 
 
+@pytest.mark.tc("TC-P-052", "Recording a subscription payment")
+@pytest.mark.regression
 def test_recording_a_payment_extends_the_paid_until_date(admin_page, admin, school):
     page = admin_page
     sid = school["id"]
@@ -180,6 +214,7 @@ def test_recording_a_payment_extends_the_paid_until_date(admin_page, admin, scho
     open_school(page, school, "Payments")
     page.get_by_role("button", name="Record a payment").click()
     form = dialog(page)
+    # TC-P-052.1 — Amount required; period end before start is refused
     form.get_by_label("Amount (₹)").fill("")
     assert form.get_by_role("button", name="Record payment").is_disabled()
     form.get_by_label("Amount (₹)").fill("4500")
@@ -194,6 +229,7 @@ def test_recording_a_payment_extends_the_paid_until_date(admin_page, admin, scho
         form.get_by_label("Amount (₹)").fill("1")
         form.get_by_role("switch", name="Extend the paid-until date").click()
     form.get_by_role("button", name="Record payment").click()
+    # TC-P-052.2 — The payment is listed and the paid-until date moves (not on the shared server)
     toast(page, "Payment recorded")
     page.locator("tr", has_text=f"UTR{TAG}").get_by_text("₹1" if REMOTE else "₹4,500", exact=True).wait_for()
     after = ok(call("GET", f"/admin/schools/{sid}", admin["token"]))["valid_until"]
@@ -203,6 +239,9 @@ def test_recording_a_payment_extends_the_paid_until_date(admin_page, admin, scho
         assert after and (before is None or after > before)
 
 
+@pytest.mark.tc("TC-P-053", "Admin and school users: privacy without support access")
+@pytest.mark.sanity
+@pytest.mark.regression
 def test_users_are_protected_without_support_access_and_manageable_with_it(admin_page, admin, school):
     page = admin_page
     t = school["principal"]["token"]
@@ -211,7 +250,7 @@ def test_users_are_protected_without_support_access_and_manageable_with_it(admin
     open_school(page, school, "Users")
     page.get_by_role("button", name="Show users").click()
     page.locator("td.primary-cell", has_text="Asha Tester").wait_for()
-    # the principal can always be helped; what is hidden is locked and is never sent back to the server
+    # TC-P-053.1 — The principal can be edited; hidden fields are never sent
     page.get_by_role("button", name="Edit Asha Tester").click()
     form = dialog(page)
     assert form.get_by_label("Phone").is_disabled()
@@ -223,13 +262,14 @@ def test_users_are_protected_without_support_access_and_manageable_with_it(admin
     page.get_by_label("Role").select_option("parent")
     row = page.locator("tr", has_text=f"Parent Masked {TAG}")
     row.wait_for()
+    # TC-P-053.2 — A parent's mobile is hidden; adding is refused by the screen and the server
     assert mobile not in row.inner_text(), "a parent's mobile number is hidden from the admin"
     assert row.get_by_role("button").count() == 0 and page.get_by_role("button", name="Add parent").count() == 0
     status, _ = call("POST", f"/admin/schools/{school['id']}/users", admin["token"], {"name": "Sneaky", "login_id": f"X{TAG}", "password": "Sneaky#123", "role": "teacher"})
     assert status == 403, "the server refuses too, not just the screen"
     tab(page, "Import & export")
     page.get_by_text("The school has not allowed support access").wait_for()
-    # the principal allows support for 24 hours
+    # TC-P-053.3 — With support access the admin adds a teacher, switches it off and on
     ok(call("POST", "/school/support-access", t, query={"hours": 24}))
     try:
         page.reload()
@@ -264,6 +304,8 @@ def test_users_are_protected_without_support_access_and_manageable_with_it(admin
         ok(call("DELETE", "/school/support-access", t))
 
 
+@pytest.mark.tc("TC-P-054", "Plans: create once and edit")
+@pytest.mark.regression
 def test_plan_can_be_created_once_and_edited(admin_page, admin):
     page = admin_page
     go(page, "/admin/plans")
@@ -272,6 +314,7 @@ def test_plan_can_be_created_once_and_edited(admin_page, admin):
     if not any(p["name"] == "E2E Plan" for p in ok(call("GET", "/admin/plans", admin["token"]))):
         page.get_by_role("button", name="New plan").click()
         form = dialog(page)
+        # TC-P-054.1 — A plan needs a price or must be free
         form.get_by_label("Plan name").fill("E2E Plan")
         form.get_by_label("Price per student a month (₹)").fill("0")
         form.get_by_role("alert").filter(has_text="Enter the price per student, or mark the plan as free").wait_for()
@@ -280,6 +323,7 @@ def test_plan_can_be_created_once_and_edited(admin_page, admin):
         form.get_by_role("button", name="Add plan").click()
         toast(page, "E2E Plan plan added")
     price = random.randint(10, 99)
+    # TC-P-054.2 — Price and features are edited and saved
     page.get_by_role("button", name="Edit the E2E Plan plan").click()
     form = dialog(page)
     form.get_by_label("Price per student a month (₹)").fill(str(price))
@@ -293,6 +337,8 @@ def test_plan_can_be_created_once_and_edited(admin_page, admin):
     page.locator("section.card", has_text="E2E Plan").get_by_text(f"₹{price}").wait_for()
 
 
+@pytest.mark.tc("TC-P-055", "Announcement for every school")
+@pytest.mark.regression
 def test_announcement_for_every_school(admin_page, admin):
     page = admin_page
     go(page, "/admin/banners")
@@ -304,10 +350,12 @@ def test_announcement_for_every_school(admin_page, admin):
     form.get_by_label("Colour").select_option("red")
     form.get_by_label("Show until (optional)").fill(TODAY.isoformat())             # gone by tomorrow even if this run is cut short
     form.get_by_role("button", name="Show banner").click()
+    # TC-P-055.1 — An announcement goes live
     toast(page, "Banner is live")
     try:
         card = page.locator(".tile", has_text=f"Maintenance tonight {TAG}")
         card.get_by_text("Showing now").wait_for()
+        # TC-P-055.2 — It is edited and then removed
         card.get_by_role("button", name=f"Edit Maintenance tonight {TAG}").click()
         dialog(page).get_by_label("Message (optional)").fill("Postponed to tomorrow.")
         dialog(page).get_by_role("button", name="Save changes").click()
@@ -323,6 +371,8 @@ def test_announcement_for_every_school(admin_page, admin):
                 call("DELETE", f"/admin/banners/{b['id']}", admin["token"])
 
 
+@pytest.mark.tc("TC-P-056", "App update settings")
+@pytest.mark.regression
 def test_app_update_settings_validate_and_save(admin_page, admin):
     page = admin_page
     old = ok(call("GET", "/admin/app-version", admin["token"]))
@@ -330,10 +380,12 @@ def test_app_update_settings_validate_and_save(admin_page, admin):
     heading(page, "App updates")
     try:
         link = page.get_by_label("Download link (empty = the usual link)")
+        # TC-P-056.1 — The download link must be https
         link.fill("http://example.com/app.apk")
         page.get_by_role("alert").filter(has_text="The download link must start with https://").wait_for()
         assert page.get_by_role("button", name="Save update settings").is_disabled()
         link.fill(old["url"])
+        # TC-P-056.2 — The oldest allowed build can't be above the newest
         page.get_by_label("Oldest build still allowed").fill("999999")
         page.get_by_role("alert").filter(has_text="can't be above the newest build").wait_for()
         assert page.get_by_role("button", name="Save update settings").is_disabled()
@@ -341,6 +393,7 @@ def test_app_update_settings_validate_and_save(admin_page, admin):
         message = f"Checked by run {TAG}"
         page.get_by_label("Message shown with the update (optional)").fill(message)
         page.get_by_role("button", name="Save update settings").click()
+        # TC-P-056.3 — The message is saved and the app reads it
         toast(page, "Update settings saved")
         assert ok(call("GET", "/admin/app-version", admin["token"]))["message"] == message
         assert ok(call("GET", "/app/version"))["message"] == message, "the app reads the same message"
@@ -348,13 +401,18 @@ def test_app_update_settings_validate_and_save(admin_page, admin):
         ok(call("PUT", "/admin/app-version", admin["token"], {k: old[k] for k in ("auto_latest", "latest_build", "min_build", "message", "url")}))
 
 
+@pytest.mark.tc("TC-P-057", "School registration request: send, check status, reject")
+@pytest.mark.sanity
+@pytest.mark.regression
 def test_registration_request_is_reviewed_and_rejected_with_a_reason(page, admin_page, admin):
     mobile = "98" + "".join(random.choices("0123456789", k=8))
     name = f"Lotus Valley School {TAG}"
     go(page, "/register")
+    # TC-P-057.1 — An empty form shows errors and sends nothing
     page.get_by_role("button", name="Send request").click()                       # empty form: errors, nothing sent
     page.get_by_text("Enter the 6-digit PIN code.").wait_for()
     page.get_by_text("Please tick both boxes to send the request.").wait_for()
+    # TC-P-057.2 — A filled form gives a PRN reference
     page.get_by_label("School name").fill(name)
     page.get_by_label("Registration / affiliation / UDISE number").fill(f"BR-{TAG}")
     page.get_by_label("Address").fill("45 College Road")
@@ -370,13 +428,13 @@ def test_registration_request_is_reviewed_and_rejected_with_a_reason(page, admin
     page.get_by_role("button", name="Send request").click()
     ref = page.get_by_test_id("reference").inner_text()
     assert re.fullmatch(r"PRN-\d{4}-[A-Z2-9]{8}", ref)
-    # the status page needs the reference AND the mobile number used
+    # TC-P-057.3 — Status needs the reference and the same mobile
     go(page, "/register/status")
     page.get_by_label("Reference number").fill(ref)
     page.get_by_label("Mobile number").fill("9000000000")
     page.get_by_role("button", name="Check status").click()
     page.get_by_text("No request matches").wait_for()
-    # admin: note, then reject (a reason is required)
+    # TC-P-057.4 — Admin adds a note and rejects with a reason; the school sees 'Rejected'
     go(admin_page, "/admin/requests")
     admin_page.get_by_label("Search").fill(f"BR-{TAG}")
     admin_page.get_by_role("link", name=name).click()
@@ -393,16 +451,20 @@ def test_registration_request_is_reviewed_and_rejected_with_a_reason(page, admin
     page.get_by_label("Mobile number").fill(mobile)
     page.get_by_role("button", name="Check status").click()
     page.get_by_text("Rejected", exact=True).wait_for()
+    # TC-P-057.5 — The request is in the admin activity log
     go(admin_page, "/admin/audit")
     heading(admin_page, "Activity log")
     admin_page.locator("tr", has_text=ref).first.wait_for()                       # this very request is in the trail
     page.problems.clear()                                                          # the 404 for the wrong mobile number is expected
 
 
+@pytest.mark.tc("TC-P-058", "Ctrl+K go-to box")
+@pytest.mark.regression
 def test_keyboard_go_to_box_jumps_between_pages(admin_page):
     page = admin_page
     go(page, "/admin")
     heading(page, "Platform dashboard")
+    # TC-P-058.1 — Typing finds a page and Enter opens it
     page.keyboard.press("Control+k")
     box = page.get_by_role("dialog", name="Go to a page")
     box.get_by_role("combobox").fill("pric")
@@ -410,6 +472,7 @@ def test_keyboard_go_to_box_jumps_between_pages(admin_page):
     page.keyboard.press("Enter")
     heading(page, "Plans & pricing")
     page.keyboard.press("Control+k")
+    # TC-P-058.2 — No match says so; Escape closes the box
     page.get_by_role("dialog", name="Go to a page").get_by_role("combobox").fill("qqqq")
     page.get_by_text('No page matches "qqqq"').wait_for()
     page.keyboard.press("Escape")

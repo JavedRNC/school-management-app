@@ -1,4 +1,5 @@
 """Principal: fees — setup, charges, collecting with a receipt, cancelling a receipt, one-time charges, UPI payments to check."""
+import pytest
 import datetime as dt
 import random
 import re
@@ -16,15 +17,20 @@ def open_student(page, name):
     return dialog(page)
 
 
+@pytest.mark.tc("TC-P-022", "Fee setup is checked and saved")
+@pytest.mark.sanity
+@pytest.mark.regression
 def test_fee_setup_validates_and_saves(principal_page, school, seeded):
     page = principal_page
     go(page, "/school/fees")
     tab(page, "Fee setup")
     upi = page.get_by_label("School UPI ID")
+    # TC-P-022.1 — A wrong UPI ID is refused
     upi.fill("not a upi id")
     page.get_by_role("alert").filter(has_text="It should look like schoolname@bank").wait_for()
     assert page.get_by_role("button", name="Save fee setup").is_disabled()
     upi.fill("e2eschool@sbi")
+    # TC-P-022.2 — Monthly fee, due day, receipt prefix and a class-specific fee are saved
     page.get_by_label("Monthly fee per student (₹)").fill("1200")
     page.get_by_label("Due on day of month").fill("10")
     page.get_by_label("Receipt number starts with").fill("E2E")
@@ -36,12 +42,16 @@ def test_fee_setup_validates_and_saves(principal_page, school, seeded):
     assert cfg["monthly_amount"] == 1200 and cfg["upi_id"] == "e2eschool@sbi" and mine["amount"] == 1500 and mine["custom"] is True
 
 
+@pytest.mark.tc("TC-P-023", "Charge, part payment, receipt, print and cancel")
+@pytest.mark.smoke
+@pytest.mark.sanity
+@pytest.mark.regression
 def test_add_charge_collect_part_payment_print_receipt_and_cancel_it(principal_page, school, seeded):
     page = principal_page
     t = school["principal"]["token"]
     sid = seeded["students"][0]["id"]
     panel = open_student(page, f"Aman Verma {TAG}")
-    # a one-off charge for this student
+    # TC-P-023.1 — Add a one-off charge for a student
     panel.get_by_role("button", name="Add a charge").click()
     assert panel.get_by_role("button", name="Add charge").is_disabled()
     panel.get_by_label("What is it for?").fill(f"Lab fee {TAG}")
@@ -49,7 +59,7 @@ def test_add_charge_collect_part_payment_print_receipt_and_cancel_it(principal_p
     panel.get_by_role("button", name="Add charge").click()
     toast(page, "Charge added")
     panel.get_by_text(f"Lab fee {TAG}").wait_for()
-    # collect: more than the dues is refused before anything is sent
+    # TC-P-023.2 — Collecting more than the dues is refused
     panel.get_by_role("button", name="Collect fee").click()
     due = sum(i["balance"] for i in ok(call("GET", f"/fees/students/{sid}", t))["items"])
     amount = panel.get_by_label("Amount received (₹)")
@@ -57,7 +67,7 @@ def test_add_charge_collect_part_payment_print_receipt_and_cancel_it(principal_p
     amount.fill(str(due + 500))
     panel.get_by_role("alert").filter(has_text="More than the dues selected").wait_for()
     assert panel.get_by_role("button", name="Save and issue receipt").is_disabled()
-    # a cheque needs its number
+    # TC-P-023.3 — A cheque needs its number; the receipt shows the amount in words
     amount.fill("300")
     panel.get_by_label("Paid by").select_option("cheque")
     panel.get_by_role("alert").filter(has_text="Enter the reference number").wait_for()
@@ -68,6 +78,7 @@ def test_add_charge_collect_part_payment_print_receipt_and_cancel_it(principal_p
     receipt.get_by_role("heading", name=re.compile("^Receipt ")).wait_for()
     receipt.get_by_text("Rupees Three Hundred Only").wait_for()
     receipt.get_by_text(f"Aman Verma {TAG}").first.wait_for()
+    # TC-P-023.4 — Printing shows the receipt alone
     page.evaluate("window.print = () => {}")                                      # printing shows the receipt alone, not the page behind it
     receipt.get_by_role("button", name="Print or save as PDF").click()
     page.emulate_media(media="print")
@@ -75,11 +86,12 @@ def test_add_charge_collect_part_payment_print_receipt_and_cancel_it(principal_p
     page.evaluate("window.dispatchEvent(new Event('afterprint'))")
     page.emulate_media(media="screen")
     assert page.locator("#print-root").count() == 0
+    # TC-P-023.5 — Outstanding and payment details match the server
     detail = ok(call("GET", f"/fees/students/{sid}", t))
     assert detail["totals"]["outstanding"] == due - 300
     pay = [p for p in detail["payments"] if p["status"] == "confirmed"][0]
     assert pay["mode"] == "cheque" and pay["reference"] == "004512" and pay["amount"] == 300
-    # cancelling needs a reason; afterwards the dues are open again and the receipt is stamped
+    # TC-P-023.6 — Cancelling a receipt needs a reason, reopens the dues and can't be done twice
     receipt.get_by_role("button", name="Cancel receipt").click()
     ask = dialog(page)
     assert ask.get_by_role("button", name="Cancel receipt").is_disabled()
@@ -92,6 +104,8 @@ def test_add_charge_collect_part_payment_print_receipt_and_cancel_it(principal_p
     assert call("POST", f"/fees/payments/{pay['id']}/cancel", t, {"reason": "again"})[0] == 400
 
 
+@pytest.mark.tc("TC-P-024", "A charge can be reduced but not below what is paid")
+@pytest.mark.regression
 def test_charge_can_be_reduced_but_not_below_what_is_paid(principal_page, school, seeded):
     page = principal_page
     t = school["principal"]["token"]
@@ -101,9 +115,11 @@ def test_charge_can_be_reduced_but_not_below_what_is_paid(principal_page, school
     panel = open_student(page, f"Bina Das {TAG}")
     panel.get_by_role("button", name=f"Change amount of Uniform {TAG}").click()
     box = dialog(page)
+    # TC-P-024.1 — Reducing below the paid amount is refused
     box.get_by_label("New amount (₹)").fill("300")
     box.get_by_role("alert").filter(has_text="₹400 is already paid against this charge").wait_for()
     assert box.get_by_role("button", name="Save").is_disabled()
+    # TC-P-024.2 — Reducing with a reason is saved
     box.get_by_label("New amount (₹)").fill("700")
     box.get_by_label("Reason").fill("Sibling concession")
     box.get_by_role("button", name="Save").click()
@@ -112,6 +128,8 @@ def test_charge_can_be_reduced_but_not_below_what_is_paid(principal_page, school
     assert got["amount"] == 700 and got["balance"] == 300
 
 
+@pytest.mark.tc("TC-P-025", "One-time charge for chosen classes")
+@pytest.mark.regression
 def test_one_time_charge_for_chosen_classes_shows_who_pays_first(principal_page, school, seeded):
     page = principal_page
     go(page, "/school/fees")
@@ -119,12 +137,14 @@ def test_one_time_charge_for_chosen_classes_shows_who_pays_first(principal_page,
     page.get_by_role("button", name="New charge").click()
     form = dialog(page)
     check = form.get_by_role("button", name="Check who is charged")
+    # TC-P-025.1 — Check is off until title, amount and classes are chosen
     assert check.is_disabled()
     form.get_by_label("What is it for?").fill(f"Picnic {TAG}")
     form.get_by_label("Amount per student (₹)").fill("250")
     form.get_by_label("Who pays").select_option("classes")
     assert check.is_disabled(), "no class chosen yet"
     form.get_by_role("button", name=f"6-{TAG}", exact=True).click()
+    # TC-P-025.2 — The number of students charged is shown before charging
     check.click()
     form.get_by_role("status").filter(has_text=re.compile(r"\d+ students will be charged")).wait_for()
     count = int(re.search(r"(\d+) students will be charged", form.get_by_role("status").inner_text()).group(1))
@@ -133,12 +153,16 @@ def test_one_time_charge_for_chosen_classes_shows_who_pays_first(principal_page,
     toast(page, f"Charged {count} students")
     card = page.locator(".tile", has_text=f"Picnic {TAG}")
     card.get_by_text(f"0 of {count} paid").wait_for()
+    # TC-P-025.3 — The charge is removed
     card.get_by_role("button", name=f"Remove Picnic {TAG}").click()
     confirm(page, "Remove")
     toast(page, "Charge removed")
     card.wait_for(state="detached")
 
 
+@pytest.mark.tc("TC-P-026", "UPI payments from parents: confirm, correct, reject")
+@pytest.mark.sanity
+@pytest.mark.regression
 def test_upi_payment_from_a_parent_is_confirmed_corrected_or_rejected(principal_page, school, seeded):
     page = principal_page
     t = school["principal"]["token"]
@@ -157,10 +181,12 @@ def test_upi_payment_from_a_parent_is_confirmed_corrected_or_rejected(principal_
     go(page, "/school/fees")
     tab(page, "UPI payments to check")
     first = page.locator(".tile", has_text=f"UTR {utr1}")
+    # TC-P-026.1 — Confirming a UPI payment issues a receipt
     first.get_by_role("button", name="Money received — confirm").click()
     toast(page, "Payment confirmed and receipt issued")
     first.wait_for(state="detached")
     second = page.locator(".tile", has_text=f"UTR {utr2}")
+    # TC-P-026.2 — Rejecting needs a reason shown to the parent
     second.get_by_role("button", name="Not received").click()
     ask = dialog(page)
     assert ask.get_by_role("button", name="Reject payment").is_disabled()          # a reason is required
@@ -168,7 +194,7 @@ def test_upi_payment_from_a_parent_is_confirmed_corrected_or_rejected(principal_
     ask.get_by_role("button", name="Reject payment").click()
     toast(page, "Payment rejected")
     second.wait_for(state="detached")
-    # the bank shows a different amount than the parent typed
+    # TC-P-026.3 — A different amount received can be confirmed
     third = page.locator(".tile", has_text=f"UTR {utr3}")
     third.get_by_role("button", name=f"A different amount was received from Chirag Rao {TAG}").click()
     fix = dialog(page)
@@ -179,12 +205,15 @@ def test_upi_payment_from_a_parent_is_confirmed_corrected_or_rejected(principal_
     toast(page, "Payment confirmed and receipt issued")
     pays = {p["reference"]: p for p in ok(call("GET", f"/fees/students/{kid['id']}", t))["payments"]}
     assert pays[utr1]["status"] == "confirmed" and pays[utr2]["status"] == "rejected" and pays[utr3]["status"] == "confirmed" and pays[utr3]["amount"] == 80
+    # TC-P-026.4 — Rejected and confirmed lists show the right payments
     page.get_by_label("Show").select_option("rejected")
     page.locator(".tile", has_text=f"UTR {utr2}").get_by_text("Not in our bank statement").wait_for()
     page.get_by_label("Show").select_option("confirmed")
     page.locator(".tile", has_text=f"UTR {utr3}").get_by_text("₹80").wait_for()
 
 
+@pytest.mark.tc("TC-P-027", "Receipts list filters")
+@pytest.mark.regression
 def test_receipts_list_filters_by_date_and_mode(principal_page, school, seeded):
     page = principal_page
     t = school["principal"]["token"]
@@ -196,26 +225,31 @@ def test_receipts_list_filters_by_date_and_mode(principal_page, school, seeded):
     ok(call("POST", f"/fees/payments/{void['id']}/cancel", t, {"reason": "Entered twice"}))
     go(page, "/school/fees")
     tab(page, "Receipts")
+    # TC-P-027.1 — Filter by payment mode
     page.get_by_label("Paid by").select_option("bank")
     row = page.locator("tr", has_text=f"Bina Das {TAG}").first
     row.get_by_text("Bank transfer").wait_for()
     page.get_by_label("Paid by").select_option("online")
     page.get_by_text("No receipts in these dates").wait_for()
     page.get_by_label("Paid by").select_option("")
+    # TC-P-027.2 — Cancelled receipts show the reason
     page.get_by_label("Show").select_option("cancelled")
     page.get_by_role("link", name=void["receipt_no"]).click()
     dialog(page).get_by_text("CANCELLED", exact=True).wait_for()
     dialog(page).get_by_text("Entered twice").wait_for()
 
 
+@pytest.mark.tc("TC-P-028", "Fee overview numbers and safe monthly billing")
+@pytest.mark.regression
 def test_overview_numbers_match_the_server_and_month_billing_is_safe_to_repeat(principal_page, school, seeded):
     page = principal_page
     t = school["principal"]["token"]
     go(page, "/school/fees")
     heading(page, "Fees")
     s = ok(call("GET", "/fees/summary", t))
+    # TC-P-028.1 — Overview numbers match the server
     page.locator(".stat", has_text="Outstanding").get_by_text(f"{s['students_with_dues']} students").wait_for()
-    # bill next month by hand; a second time changes nothing (an earlier run may already have billed it for older students)
+    # TC-P-028.2 — Bill next month; the same month again charges nobody twice
     nxt = (TODAY.replace(day=1) + dt.timedelta(days=32)).strftime("%Y-%m")
     expected = ok(call("POST", "/fees/generate", t, {"period": nxt, "preview": True}))["new_items"]
     assert expected >= 3, "this run's students are not billed for next month yet"
@@ -233,5 +267,6 @@ def test_overview_numbers_match_the_server_and_month_billing_is_safe_to_repeat(p
     box.get_by_role("heading", name=re.compile("^Bill .* fees")).wait_for()
     box.get_by_text("Everyone is already billed").wait_for()
     assert box.get_by_role("button", name=re.compile(r"^Bill \d+ students")).is_disabled(), "billing the same month twice must not charge anyone twice"
+    # TC-P-028.3 — Billing months ahead is refused
     far = (TODAY.replace(day=1) + dt.timedelta(days=95)).strftime("%Y-%m")
     assert call("POST", "/fees/generate", t, {"period": far})[0] == 400, "nobody can be billed months ahead"

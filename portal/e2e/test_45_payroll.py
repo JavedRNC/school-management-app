@@ -1,4 +1,5 @@
 """Principal: payroll — a salary, the month's payroll, a change for this month, locking, paying, the payslip, undoing a payment."""
+import pytest
 import re
 
 from conftest import SCHOOL_CODE, TAG, TEACHER_PW, TODAY, call, login, ok
@@ -26,6 +27,9 @@ def open_payroll(page, section=None):
         tab(page, section)
 
 
+@pytest.mark.tc("TC-P-029", "Salary form checks and saves")
+@pytest.mark.sanity
+@pytest.mark.regression
 def test_salary_form_checks_what_is_typed_and_saves(principal_page, school, seeded):
     page = principal_page
     name = f"Teacher One {TAG}"
@@ -37,15 +41,18 @@ def test_salary_form_checks_what_is_typed_and_saves(principal_page, school, seed
     box = dialog(page)
     box.get_by_label("Basic pay a month (₹)").fill("25000")
     box.get_by_role("button", name="Add an allowance").click()
+    # TC-P-029.1 — An allowance needs an amount
     box.get_by_label("Allowance 1 name").fill("House rent")
     box.get_by_role("alert").filter(has_text="Enter an amount above 0 for “House rent”").wait_for()
     assert box.get_by_role("button", name="Save salary").is_disabled()
     box.get_by_label("Amount (₹)").first.fill("5000")
     box.get_by_role("button", name="Add a deduction").click()
     box.get_by_label("Deduction 1 name").fill("Provident fund")
+    # TC-P-029.2 — Deductions can't be more than the pay
     box.get_by_label("Amount (₹)").nth(1).fill("90000")
     box.get_by_role("alert").filter(has_text="Deductions can't be more than the pay").wait_for()
     box.get_by_label("Amount (₹)").nth(1).fill("3000")
+    # TC-P-029.3 — Net pay is worked out as you type and saved
     box.get_by_text("₹27,000", exact=True).wait_for()                      # net pay a month, worked out as you type
     box.get_by_role("button", name="Save salary").click()
     toast(page, f"Salary saved for {name}")
@@ -54,6 +61,10 @@ def test_salary_form_checks_what_is_typed_and_saves(principal_page, school, seed
     assert saved["basic"] == 25000 and saved["gross"] == 30000 and saved["net"] == 27000
 
 
+@pytest.mark.tc("TC-P-030", "A month of payroll from preparing to paying")
+@pytest.mark.smoke
+@pytest.mark.sanity
+@pytest.mark.regression
 def test_a_month_of_payroll_from_preparing_to_paying(principal_page, school, seeded):
     page = principal_page
     t = school["principal"]["token"]
@@ -64,6 +75,7 @@ def test_a_month_of_payroll_from_preparing_to_paying(principal_page, school, see
     ok(call("PUT", f"/payroll/staff/{staff[f'T{TAG}Two']['user_id']}", t, {"basic": 20000}))
     tt = teacher_token()
     open_payroll(page)
+    # TC-P-030.1 — Prepare payroll; a draft is not visible to the teacher
     page.get_by_role("button", name="Prepare payroll").click()
     toast(page, f"Payroll for {MONTH} is ready to check")
     heading(page, f"Payroll · {MONTH}")
@@ -71,7 +83,7 @@ def test_a_month_of_payroll_from_preparing_to_paying(principal_page, school, see
     row.get_by_text("₹27,000", exact=True).wait_for()
     assert not [p for p in ok(call("GET", "/payroll/me", tt))["payslips"] if p["month"] == THIS], "a teacher saw a payslip that is still a draft"
 
-    # something for this month only
+    # TC-P-030.2 — Extra payment for this month; unpaid days must be whole or half
     row.get_by_role("button", name=f"Edit {name}'s payslip").click()
     box = dialog(page)
     box.get_by_role("button", name="Add an extra payment").click()
@@ -85,7 +97,7 @@ def test_a_month_of_payroll_from_preparing_to_paying(principal_page, school, see
     toast(page, "Payslip saved")
     row.get_by_text("₹28,000", exact=True).wait_for()
 
-    # lock it: numbers are given and the teacher can see the payslip
+    # TC-P-030.3 — Locking gives payslip numbers and the teacher sees the payslip
     page.get_by_role("button", name="Lock payroll").click()
     confirm(page, "Lock payroll")
     toast(page, "Payroll locked")
@@ -94,7 +106,7 @@ def test_a_month_of_payroll_from_preparing_to_paying(principal_page, school, see
     mine = [p for p in ok(call("GET", "/payroll/me", tt))["payslips"] if p["month"] == THIS]
     assert len(mine) == 1 and mine[0]["net"] == 28000 and mine[0]["slip_no"] and mine[0]["status"] == "unpaid"
 
-    # pay one person, then everyone else
+    # TC-P-030.4 — Pay one person, then everyone; a paid month can't be reopened
     row.get_by_role("button", name=f"Mark {name} as paid").click()
     box = dialog(page)
     box.get_by_label("Paid by").select_option("upi")
@@ -112,7 +124,7 @@ def test_a_month_of_payroll_from_preparing_to_paying(principal_page, school, see
     assert detail[f"T{TAG}One"]["mode"] == "upi" and detail[f"T{TAG}One"]["reference"] == f"UTR{TAG}", "paying everyone overwrote the first payment"
     assert all(p["status"] == "paid" for p in detail.values())
 
-    # the payslip reads right, and undoing a payment needs a reason
+    # TC-P-030.5 — The payslip reads right; undoing a payment needs a reason and is logged
     row.get_by_role("button", name=f"Open {name}'s payslip").click()
     box = dialog(page)
     slip = box.locator("#payslip")
@@ -128,20 +140,24 @@ def test_a_month_of_payroll_from_preparing_to_paying(principal_page, school, see
     log = ok(call("GET", "/school/audit", t))
     assert any(x["action"] == "payroll.payment_undone" and "Paid to the wrong account" in x["detail"] for x in log)
 
-    # back on the list the month shows what is still to pay
+    # TC-P-030.6 — The month list shows what is unpaid; a second payroll for the month is not offered
     page.get_by_role("link", name="← All months").click()
     heading(page, "Payroll")
     page.locator("tr", has_text=MONTH).get_by_text("1 unpaid").wait_for()
     assert page.get_by_role("button", name="Prepare payroll").is_disabled(), "a second payroll for the same month was offered"
 
 
+@pytest.mark.tc("TC-P-031", "Payroll settings")
+@pytest.mark.regression
 def test_payroll_settings_save(principal_page, school, seeded):
     page = principal_page
     open_payroll(page, "Settings")
     prefix = page.get_by_label("Starts with")
+    # TC-P-031.1 — A payslip prefix with spaces is refused
     prefix.fill("has space")
     page.get_by_text("Use up to 12 letters, numbers, - or /").wait_for()
     assert page.get_by_role("button", name="Save settings").is_disabled()
+    # TC-P-031.2 — Prefix and day-pay basis are saved
     prefix.fill("e2e-pay")
     page.get_by_label("One day's pay is").select_option("working")
     page.get_by_role("button", name="Save settings").click()

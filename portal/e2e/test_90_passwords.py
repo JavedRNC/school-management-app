@@ -1,4 +1,5 @@
 """Passwords: an admin resets a principal, the principal must choose a new one, and old sessions stop working. Runs last because it ends the shared session."""
+import pytest
 import re
 import secrets
 
@@ -8,6 +9,9 @@ from helpers import dialog, go, heading, sign_in, tab, toast
 NEW_PW = "Chosen#" + secrets.token_urlsafe(8) + "9x"
 
 
+@pytest.mark.tc("TC-P-073", "Admin resets the principal, who must choose a password")
+@pytest.mark.sanity
+@pytest.mark.regression
 def test_admin_resets_the_principal_who_must_then_choose_a_password(admin_page, page, school):
     old_token = school["principal"]["token"]
     go(admin_page, f"/admin/schools/{school['id']}")
@@ -16,6 +20,7 @@ def test_admin_resets_the_principal_who_must_then_choose_a_password(admin_page, 
     admin_page.get_by_role("button", name="Show users").click()
     admin_page.get_by_role("button", name="Edit Asha Tester").click()
     form = dialog(admin_page)
+    # TC-P-073.1 — A short temporary password is refused; a new one is made
     form.get_by_label("New temporary password (leave empty to keep the current one)").fill("short")
     form.get_by_role("alert").filter(has_text="The password needs at least 8 characters").wait_for()
     assert form.get_by_role("button", name="Save changes").is_disabled()
@@ -24,8 +29,10 @@ def test_admin_resets_the_principal_who_must_then_choose_a_password(admin_page, 
     shared = dialog(admin_page)
     temp = re.search(r"Password: (\S+)", shared.locator(".cred").inner_text()).group(1)
     shared.get_by_role("button", name="Done").click()
+    # TC-P-073.2 — The reset signs the principal out everywhere
     assert call("GET", "/school/me", old_token)[0] == 401, "a reset signs the person out everywhere"
 
+    # TC-P-073.3 — The principal must set a password before any page
     sign_in(page, SCHOOL_CODE, "principal", temp)
     page.wait_for_url(re.compile(r"#/account$"))
     heading(page, "Set a new password")
@@ -33,6 +40,7 @@ def test_admin_resets_the_principal_who_must_then_choose_a_password(admin_page, 
     save = page.get_by_role("button", name="Save new password")
     old, new, again = page.get_by_label("Temporary password"), page.get_by_label("New password", exact=True), page.get_by_label("New password again")
     old.fill(temp)
+    # TC-P-073.4 — Too short, not matching and wrong current password are refused
     new.fill("short1")
     again.fill("short1")
     save.click()
@@ -46,6 +54,7 @@ def test_admin_resets_the_principal_who_must_then_choose_a_password(admin_page, 
     save.click()
     page.get_by_role("alert").first.wait_for()                                     # the server refuses a wrong current password
     assert "#/account" in page.url
+    # TC-P-073.5 — The new password is saved; the temporary one works only once
     old.fill(temp)
     save.click()
     page.wait_for_url(re.compile(r"#/school$"))
@@ -56,6 +65,8 @@ def test_admin_resets_the_principal_who_must_then_choose_a_password(admin_page, 
     page.problems.clear()                                                          # the refused attempt above is expected
 
 
+@pytest.mark.tc("TC-P-074", "Changing your own password keeps this tab signed in")
+@pytest.mark.regression
 def test_changing_your_own_password_keeps_this_tab_signed_in(browser, admin, school):
     # starts from a known password of its own, so it does not depend on the test above
     first = fresh_principal(admin, school["id"])
@@ -63,6 +74,7 @@ def test_changing_your_own_password_keeps_this_tab_signed_in(browser, admin, sch
     school["principal"] = {k: ok(login(SCHOOL_CODE, "principal", NEW_PW))[k] for k in ("token", "user")}
     ctx, page = _open(browser, school["principal"])
     try:
+        # TC-P-074.1 — Wrong current password changes nothing; the change keeps this tab signed in and ends old sessions
         _change_own_password(page, school)
     finally:
         ctx.close()

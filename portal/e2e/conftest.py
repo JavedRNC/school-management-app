@@ -363,3 +363,65 @@ def pytest_runtest_makereport(item, call):
                     pass
             text = (where + seen).replace("%", "%25").replace("\r", "").replace("\n", " / ")
             print(f"\n::error title={item.name}::{text}")
+
+
+# ---------------------------------------------------------------- test case numbers and suites
+# Every test carries @pytest.mark.tc("TC-…", "title") and is in the regression suite; some are also smoke and/or sanity.
+#   python -m pytest e2e -m smoke            only the smoke tests      (-m sanity, -m regression likewise)
+#   python -m pytest e2e --tc TC-P-008       one test case (repeat --tc for more; a prefix such as TC-P-0 works too)
+# The end of every run lists each test case that was executed and its result. The list of all cases is docs/test-cases.md.
+_TC_RESULTS: dict[str, str] = {}
+
+
+def pytest_configure(config):
+    for line in ("smoke: quick check that the product starts, signs in and its main pages open",
+                 "sanity: the main happy path of each module",
+                 "regression: the full suite (every test)",
+                 "tc(id, title): the test case number and title (see docs/test-cases.md)"):
+        config.addinivalue_line("markers", line)
+
+
+def pytest_addoption(parser):
+    parser.addoption("--tc", action="append", default=[], help="run only these test case numbers (TC-P-008, or a prefix)")
+
+
+def _tc_of(item):
+    m = item.get_closest_marker("tc")
+    return m.args[0] if m else None
+
+
+def pytest_collection_modifyitems(config, items):
+    unmarked = [i.nodeid for i in items if not _tc_of(i)]
+    assert not unmarked, f"every Playwright test needs @pytest.mark.tc(...) — missing on: {unmarked}"
+    wanted = config.getoption("--tc")
+    if wanted:
+        keep = [i for i in items if any(_tc_of(i).startswith(w) for w in wanted)]
+        config.hook.pytest_deselected(items=[i for i in items if i not in keep])
+        items[:] = keep
+
+
+def pytest_runtest_logreport(report):
+    item_tc = dict(report.user_properties).get("tc")
+    if not item_tc:
+        return
+    if report.when == "call" or report.outcome != "passed":
+        worst = {"failed": 2, "skipped": 1, "passed": 0}
+        if worst.get(report.outcome, 0) >= worst.get(_TC_RESULTS.get(item_tc, "passed"), 0):
+            _TC_RESULTS[item_tc] = report.outcome
+
+
+def pytest_runtest_setup(item):
+    tc = _tc_of(item)
+    if tc:
+        param = item.callspec.id if hasattr(item, "callspec") else ""
+        item.user_properties.append(("tc", f"{tc} [{param}]" if param else tc))
+
+
+def pytest_terminal_summary(terminalreporter):
+    if not _TC_RESULTS:
+        return
+    terminalreporter.section("test cases executed")
+    for tc in sorted(_TC_RESULTS):
+        terminalreporter.write_line(f"{tc:<40} {_TC_RESULTS[tc]}")
+    counts = {o: list(_TC_RESULTS.values()).count(o) for o in ("passed", "failed", "skipped")}
+    terminalreporter.write_line(f"{len(_TC_RESULTS)} executed · " + " · ".join(f"{n} {o}" for o, n in counts.items() if n))

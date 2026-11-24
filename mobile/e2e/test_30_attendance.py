@@ -55,20 +55,24 @@ def _expect_present(phone, n):
     expect(phone.get_by_label(re.compile(rf"^{n} present, \d+ absent out of"))).to_be_visible()
 
 
+@pytest.mark.tc("TC-A-008", "Attendance screen layout")
+@pytest.mark.sanity
+@pytest.mark.regression
 def test_attendance_screen_layout(phone, sheet):
     _open(phone, sheet)
     rows = sheet["sheet"]["rows"]
+    # TC-A-008.1 — Day stepper shows the day; next day is off for today
     day_label = "Today" if sheet["back"] == 0 else "Yesterday" if sheet["back"] == 1 else None
     if day_label:
         expect(phone.get_by_label(re.compile(f"^{day_label}, "))).to_be_visible()
     if sheet["back"] == 0:
         expect(phone.get_by_role("button", name="Next day")).to_be_disabled()
     expect(phone.get_by_text(sheet["cls"]["name"], exact=True).first).to_be_visible()
-    # summary card: ring + counts, in the theme's green and absent colours
+    # TC-A-008.2 — Present and absent counts match the server
     present = sum(1 for r in rows if r["present"] is not False)
     assert _count(phone, "present") == present
     assert _count(phone, "absent") == len(rows) - present
-    # List is the default view; each student is a switch with name and roll number
+    # TC-A-008.3 — List is the default; each student is a switch with the right colour
     expect(phone.get_by_role("radio", name="List")).to_have_attribute("aria-checked", "true")
     expect(phone.get_by_role("switch")).to_have_count(len(rows))
     first = rows[0]
@@ -76,12 +80,14 @@ def test_attendance_screen_layout(phone, sheet):
     expect(row).to_be_visible()
     pill = row.get_by_text("Present", exact=True) if first["present"] is not False else row.get_by_text("Absent", exact=True)
     assert bg_of(pill) == (CHALK["green"] if first["present"] is not False else CHALK["absent"])
-    # the save bar is pinned at the bottom
+    # TC-A-008.4 — The save bar is pinned at the bottom
     save = phone.get_by_role("button", name=re.compile(r"(Save|Update) attendance$"))
     expect(save).to_be_visible()
     assert save.bounding_box()["y"] > 844 - 160
 
 
+@pytest.mark.tc("TC-A-009", "Tapping students updates the count; bulk buttons")
+@pytest.mark.regression
 def test_tapping_students_updates_the_count_and_bulk_buttons(phone, sheet):
     _open(phone, sheet)
     rows = sheet["sheet"]["rows"]
@@ -89,20 +95,25 @@ def test_tapping_students_updates_the_count_and_bulk_buttons(phone, sheet):
     before = _count(phone, "present")
     sw = phone.get_by_role("switch", name=re.compile(f"^{re.escape(target['name'])}, roll"))
     expect(sw).to_have_attribute("aria-checked", "true")
+    # TC-A-009.1 — Tapping a student flips them and updates the count
     sw.click()
     expect(sw).to_have_attribute("aria-checked", "false")
     _expect_present(phone, before - 1)
     expect(phone.get_by_text("Edited" if any(r["present"] is not None for r in rows) else "Not saved", exact=True)).to_be_visible()
     sw.click()
     _expect_present(phone, before)
+    # TC-A-009.2 — All absent and All present
     phone.get_by_role("button", name="All absent").click()
     _expect_present(phone, 0)
     phone.get_by_role("button", name="All present").click()
     _expect_present(phone, len(rows))
 
 
+@pytest.mark.tc("TC-A-010", "Grid view is remembered on the phone")
+@pytest.mark.regression
 def test_grid_view_is_remembered_on_the_phone(phone, sheet):
     _open(phone, sheet)
+    # TC-A-010.1 — Grid shows tiles, three to a row
     phone.get_by_role("radio", name="Grid").click()
     expect(phone.get_by_role("radio", name="Grid")).to_have_attribute("aria-checked", "true")
     expect(phone.get_by_text("Everyone starts present. Tap a student to mark absent.")).to_be_visible()
@@ -115,14 +126,18 @@ def test_grid_view_is_remembered_on_the_phone(phone, sheet):
     if len(boxes) == 3:
         assert abs(boxes[0]["y"] - boxes[2]["y"]) < 2 and boxes[0]["x"] < boxes[1]["x"] < boxes[2]["x"]
     assert phone.evaluate("localStorage.getItem('attendance_view')") == "grid"
+    # TC-A-010.2 — Grid is still chosen after reload
     phone.reload()
     for _ in range(sheet["back"]):
         phone.get_by_role("button", name="Previous day").click()
     expect(phone.get_by_role("radio", name="Grid")).to_have_attribute("aria-checked", "true")
 
 
+@pytest.mark.tc("TC-A-011", "Previous day and back")
+@pytest.mark.regression
 def test_previous_day_and_back(phone, sheet):
     _open(phone, sheet)
+    # TC-A-011.1 — Previous day shows Yesterday; Next day returns to Today
     phone.get_by_role("button", name="Previous day").click()
     label = "Yesterday" if sheet["back"] == 0 else None
     if label:
@@ -132,6 +147,10 @@ def test_previous_day_and_back(phone, sheet):
         expect(phone.get_by_label(re.compile("^Today, "))).to_be_visible()
 
 
+@pytest.mark.tc("TC-A-012", "Saving attendance reaches the server")
+@pytest.mark.smoke
+@pytest.mark.sanity
+@pytest.mark.regression
 def test_saving_attendance_reaches_the_server(phone, sheet):
     original = _saved_state(sheet)
     try:
@@ -139,6 +158,7 @@ def test_saving_attendance_reaches_the_server(phone, sheet):
         rows = sheet["sheet"]["rows"]
         target = next(r for r in rows if r["present"] is not False)
         phone.get_by_role("switch", name=re.compile(f"^{re.escape(target['name'])}, roll")).click()
+        # TC-A-012.1 — Save shows 'Saved · n present' and the server has the change
         phone.get_by_role("button", name=re.compile(r"(Save|Update) attendance$")).click()
         expect(phone.get_by_text(re.compile(r"^Saved · \d+ present, \d+ absent"))).to_be_visible()
         assert _saved_state(sheet)[target["student_id"]] is False

@@ -50,6 +50,8 @@ jobs:
       - name: Install portal packages
         working-directory: portal
         run: npm ci
+      - name: Test case list is up to date (docs/test-cases.md)
+        run: python tools/test_cases.py --check
       - name: Browser tests (also type-checks and builds the portal)
         working-directory: portal
         # a browser test that fails once is retried once, so a slow runner does not block a release

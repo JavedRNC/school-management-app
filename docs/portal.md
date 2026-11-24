@@ -75,6 +75,10 @@ No existing table was changed. Import/export history is read from the existing `
 - App (Playwright on a web build of the app, default Chalk look): `cd mobile && python -m pytest e2e -q` (needs
   `npm i --no-save --legacy-peer-deps react-native-web@0.21.4 @expo/metro-runtime@58.0.17`). Runs in Checks job "app".
 
+Every Playwright test has a test case number (`@pytest.mark.tc`) and suites (`-m smoke`, `-m sanity`, `-m regression`);
+`--tc TC-P-008` runs one case. The full list with automation status is [docs/test-cases.md](test-cases.md)
+(regenerate with `python tools/test_cases.py`; Checks fails if it is out of date).
+
 What the tests cover (24 Nov):
 
 | Area | API (`backend/tests`) | Portal browser (`portal/e2e`) | App browser (`mobile/e2e`) |

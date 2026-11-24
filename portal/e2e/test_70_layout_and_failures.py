@@ -7,10 +7,12 @@ import pytest
 from conftest import TAG, TODAY, _open, call, ok
 from helpers import dialog, go, heading, no_sideways_scroll, sign_in, tab, toast
 
+# TC-P-059.1 … TC-P-059.n — one run per school page below, numbered in this order
 SCHOOL_PAGES = [("/school", "E2E Test School"), ("/school/people", "People"), ("/school/student-access", "Student data access"), ("/school/classes", "Classes & subjects"), ("/school/timetable", "Timetable"), ("/school/attendance", "Attendance"),
                 ("/school/exams", "Exams & marks"), ("/school/notices", "Notices & homework"), ("/school/calendar", "Calendar"), ("/school/leaves", "Leaves"), ("/school/staff", "Staff attendance"),
                 ("/school/fees", "Fees"), ("/school/transport", "Transport"), ("/school/polls", "Polls & consent forms"), ("/school/banners", "Banners"), ("/school/data", "Import & export"),
                 ("/school/settings", "Settings"), ("/school/activity", "Activity"), ("/account", "Account")]
+# TC-P-060.1 … TC-P-060.n — one run per admin page below, numbered in this order
 ADMIN_PAGES = [("/admin", "Platform dashboard"), ("/admin/schools", "Schools"), ("/admin/requests", "School onboarding requests"), ("/admin/plans", "Plans & pricing"), ("/admin/banners", "Announcements"),
                ("/admin/updates", "App updates"), ("/admin/audit", "Activity log"), ("/account", "Account")]
 
@@ -31,11 +33,17 @@ def check_page(page, path, title):
     assert not unnamed, f"{path}: controls without a name: {unnamed}"
 
 
+@pytest.mark.tc("TC-P-059", "Every school page opens on a phone and names its controls")
+@pytest.mark.smoke
+@pytest.mark.regression
 @pytest.mark.parametrize("path,title", SCHOOL_PAGES, ids=[p for p, _ in SCHOOL_PAGES])
 def test_every_school_page_fits_a_phone_and_names_its_controls(principal_phone, seeded, path, title):
     check_page(principal_phone, path, title)
 
 
+@pytest.mark.tc("TC-P-060", "Every admin page opens on a phone and names its controls")
+@pytest.mark.smoke
+@pytest.mark.regression
 @pytest.mark.parametrize("path,title", ADMIN_PAGES, ids=[p for p, _ in ADMIN_PAGES])
 def test_every_admin_page_fits_a_phone_and_names_its_controls(browser, admin, request, path, title):
     ctx, page = _open(browser, admin, phone=True)
@@ -46,13 +54,17 @@ def test_every_admin_page_fits_a_phone_and_names_its_controls(browser, admin, re
         ctx.close()
 
 
+@pytest.mark.tc("TC-P-061", "Phone menu and full-width forms")
+@pytest.mark.regression
 def test_phone_menu_reaches_every_page_and_forms_fill_the_screen(principal_phone, seeded):
     page = principal_phone
     go(page, "/school")
     heading(page, "E2E Test School")
+    # TC-P-061.1 — On a phone the side menu becomes a bottom bar
     assert not page.locator("aside.side").is_visible(), "the side menu is replaced by the bottom bar on a phone"
     bar = page.locator("nav.bottomnav")
     bar.get_by_role("link", name="People").wait_for()
+    # TC-P-061.2 — More pages opens every page and closes after choosing
     bar.get_by_role("button", name="More pages").click()
     sheet = page.get_by_role("dialog", name="All pages")
     sheet.get_by_role("link", name="Transport").click()
@@ -60,28 +72,33 @@ def test_phone_menu_reaches_every_page_and_forms_fill_the_screen(principal_phone
     sheet.wait_for(state="detached")                                               # the sheet closes after choosing
     go(page, "/school/people")
     page.get_by_role("button", name="Add student").click()
+    # TC-P-061.3 — Forms use the full width; tables become labelled cards
     box = dialog(page).bounding_box()
     assert box["width"] >= 388, "a form uses the whole width of the phone"
     no_sideways_scroll(page)
     page.locator("td[data-label='Login ID']").first.wait_for()                     # tables become labelled cards
 
 
+@pytest.mark.tc("TC-P-062", "Keyboard use: forms and tabs")
+@pytest.mark.regression
 def test_forms_work_from_the_keyboard_and_keep_focus_inside(principal_page, seeded):
     page = principal_page
     go(page, "/school/classes")
     heading(page, "Classes & subjects")
     opener = page.get_by_role("button", name="Add class")
+    # TC-P-062.1 — Enter opens the form with the cursor in the first box
     opener.focus()
     page.keyboard.press("Enter")
     form = dialog(page)
     assert form.get_by_label("Class name").evaluate("e => e === document.activeElement"), "typing can start straight away"
+    # TC-P-062.2 — Tab never leaves the open form; Escape returns focus to the opener
     for _ in range(12):                                                            # Tab never leaves the open form
         page.keyboard.press("Tab")
         assert page.evaluate("document.activeElement.closest('[role=dialog]') !== null")
     page.keyboard.press("Escape")
     form.wait_for(state="detached")
     assert opener.evaluate("e => e === document.activeElement"), "focus returns to the button that opened the form"
-    # tabs move with the arrow keys
+    # TC-P-062.3 — Tabs move with the arrow keys
     page.get_by_role("tab", name="Classes").focus()
     page.keyboard.press("ArrowRight")
     assert page.get_by_role("tab", name="Subjects", exact=True).get_attribute("aria-selected") == "true"
@@ -90,6 +107,8 @@ def test_forms_work_from_the_keyboard_and_keep_focus_inside(principal_page, seed
     assert page.get_by_role("tab", name="Classes", exact=True).get_attribute("aria-selected") == "true"
 
 
+@pytest.mark.tc("TC-P-063", "A server error is explained and Try again recovers")
+@pytest.mark.regression
 def test_a_server_error_is_explained_and_try_again_recovers(principal_page, seeded):
     page = principal_page
     broken = {"on": True}
@@ -102,6 +121,7 @@ def test_a_server_error_is_explained_and_try_again_recovers(principal_page, seed
     page.route(re.compile(r"/classes$"), handler)
     go(page, "/school/classes")
     alert = page.get_by_role("alert").filter(has_text="Internal Server Error")
+    # TC-P-063.1 — A 500 shows the error with Try again, which recovers
     alert.wait_for()
     broken["on"] = False
     alert.get_by_role("button", name="Try again").click()
@@ -109,6 +129,8 @@ def test_a_server_error_is_explained_and_try_again_recovers(principal_page, seed
     page.problems.clear()
 
 
+@pytest.mark.tc("TC-P-064", "Losing the connection while saving keeps the form")
+@pytest.mark.regression
 def test_losing_the_connection_while_saving_keeps_the_form_and_says_so(principal_page, seeded):
     page = principal_page
     go(page, "/school/classes")
@@ -118,15 +140,19 @@ def test_losing_the_connection_while_saving_keeps_the_form_and_says_so(principal
     form.get_by_label("Subject name").fill(f"Offline {TAG}")
     page.route(re.compile(r"/subjects$"), lambda route: route.abort() if route.request.method == "POST" else route.continue_())
     form.get_by_role("button", name="Add subject").click()
+    # TC-P-064.1 — Offline save keeps what was typed and the button ready
     toast(page, "Can't reach the server")
     assert form.get_by_label("Subject name").input_value() == f"Offline {TAG}", "nothing typed is lost"
     assert form.get_by_role("button", name="Add subject").is_enabled(), "the button is ready for another try"
+    # TC-P-064.2 — Back online the same save works
     page.unroute(re.compile(r"/subjects$"))
     form.get_by_role("button", name="Add subject").click()
     toast(page, f"Offline {TAG} added")
     page.problems.clear()
 
 
+@pytest.mark.tc("TC-P-065", "Double-clicking Save creates one record")
+@pytest.mark.regression
 def test_double_clicking_save_sends_one_request_and_creates_one(principal_page, school, seeded):
     page = principal_page
     go(page, "/school/exams")                                                      # two exams with one name are allowed, so a double save would show
@@ -135,6 +161,7 @@ def test_double_clicking_save_sends_one_request_and_creates_one(principal_page, 
     form.get_by_label("Exam name").fill(f"Twice {TAG}")
     posts = []
     page.on("request", lambda r: posts.append(r.url) if r.method == "POST" and r.url.endswith("/exams") else None)
+    # TC-P-065.1 — Only one request is sent and one exam created
     form.get_by_role("button", name="Add exam").dblclick()
     toast(page, f"Twice {TAG} added")
     form.wait_for(state="detached")
@@ -143,6 +170,9 @@ def test_double_clicking_save_sends_one_request_and_creates_one(principal_page, 
     assert names.count(f"Twice {TAG}") == 1
 
 
+@pytest.mark.tc("TC-P-066", "Expired subscription makes the portal read-only")
+@pytest.mark.sanity
+@pytest.mark.regression
 def test_expired_subscription_makes_the_portal_read_only(browser, admin, school, seeded):
     sid = school["id"]
     old = ok(call("GET", f"/admin/schools/{sid}", admin["token"]))
@@ -151,14 +181,18 @@ def test_expired_subscription_makes_the_portal_read_only(browser, admin, school,
     try:
         go(page, "/school/people")
         heading(page, "People")
+        # TC-P-066.1 — People can be seen but not added or removed
         page.get_by_role("note").filter(has_text="changes are switched off until it is renewed").wait_for()
         page.locator("td.primary-cell").first.wait_for()                           # everything can still be seen
         assert page.get_by_role("button", name="Add student").count() == 0 and page.get_by_role("button", name=re.compile("^Remove ")).count() == 0
+        # TC-P-066.2 — The attendance register is locked
         go(page, "/school/attendance")
         page.get_by_label("Class").select_option(label=f"6-{TAG}")
         assert page.get_by_role("button", name=re.compile(rf"^Aman Verma {TAG}: ")).is_disabled()
+        # TC-P-066.3 — The server refuses changes too
         status, data = call("POST", "/subjects", school["principal"]["token"], {"name": f"Blocked {TAG}"})
         assert status in (402, 403), f"the server refuses changes too ({status} {data})"
+        # TC-P-066.4 — Fees and Exams show the read-only note
         for path, title in (("/school/fees", "Fees"), ("/school/exams", "Exams & marks")):
             go(page, path)
             heading(page, title)
@@ -170,6 +204,9 @@ def test_expired_subscription_makes_the_portal_read_only(browser, admin, school,
     assert ok(call("GET", "/school/me", school["principal"]["token"]))["can_write"] is True
 
 
+@pytest.mark.tc("TC-P-067", "Text typed by people is never run as code")
+@pytest.mark.sanity
+@pytest.mark.regression
 def test_text_typed_by_people_is_never_run_as_code(principal_page, school, seeded):
     page = principal_page
     t = school["principal"]["token"]
@@ -179,11 +216,14 @@ def test_text_typed_by_people_is_never_run_as_code(principal_page, school, seede
         go(page, "/school/classes")
         tab(page, "Subjects")
         page.get_by_text(evil[:60]).wait_for()
+        # TC-P-067.1 — An HTML name is shown as text; no script runs
         assert page.evaluate("window.__pwned") is None and page.locator("main img").count() == 0
     finally:
         call("DELETE", f"/subjects/{made['id']}", t)
 
 
+@pytest.mark.tc("TC-P-068", "Escape closes only the top layer")
+@pytest.mark.regression
 def test_escape_closes_only_the_top_layer(principal_page, school, seeded):
     page = principal_page
     t = school["principal"]["token"]
@@ -196,16 +236,22 @@ def test_escape_closes_only_the_top_layer(principal_page, school, seeded):
     panel.get_by_role("button", name=f"Change amount of Badge {TAG}").click()
     box = page.get_by_role("dialog", name=f"Change Badge {TAG}")
     box.get_by_label("Reason").fill("typing here must not move the cursor away")
+    # TC-P-068.1 — Focus stays in the box being typed in
     assert box.get_by_label("Reason").evaluate("e => e === document.activeElement"), "focus stays in the box being typed in"
     page.keyboard.press("Escape")
     box.wait_for(state="detached")
+    # TC-P-068.2 — Escape closes the small box; the panel underneath stays
     panel.get_by_text(f"Badge {TAG}").wait_for()                                   # the panel underneath is still open
     assert page.evaluate("document.body.style.overflow") == "hidden", "the page behind stays still while a panel is open"
     page.keyboard.press("Escape")
     panel.wait_for(state="detached")
+    # TC-P-068.3 — Escape again closes the panel and the page scrolls again
     assert page.evaluate("document.body.style.overflow") == ""
 
 
+@pytest.mark.tc("TC-P-069", "Unsaved attendance is not lost or saved under another day")
+@pytest.mark.sanity
+@pytest.mark.regression
 def test_unsaved_attendance_is_not_lost_or_saved_under_another_day_by_accident(principal_page, school, seeded):
     page = principal_page
     go(page, "/school/attendance")
@@ -216,17 +262,22 @@ def test_unsaved_attendance_is_not_lost_or_saved_under_another_day_by_accident(p
     page.get_by_role("button", name="Previous day").click()
     ask = dialog(page)
     ask.get_by_role("heading", name="Leave without saving?").wait_for()
+    # TC-P-069.1 — Changing day asks first; Cancel keeps the change
     ask.get_by_role("button", name="Cancel").click()
     page.get_by_text("You have changes that are not saved.").wait_for()           # still on the same day with the change kept
     page.get_by_role("button", name="Previous day").click()
+    # TC-P-069.2 — Leave opens the other day fresh
     dialog(page).get_by_role("button", name="Leave", exact=True).click()
     page.get_by_role("button", name="Today").wait_for()                            # now on the earlier day, loaded fresh
     t = school["principal"]["token"]
+    # TC-P-069.3 — The abandoned change reached neither day
     for day in (TODAY, TODAY - dt.timedelta(days=1)):                              # the abandoned change reached neither day
         rows = ok(call("GET", "/attendance", t, query={"class_id": seeded["klass"]["id"], "day": day}))["rows"]
         assert [r["present"] for r in rows if r["name"] == f"Chirag Rao {TAG}"] != [False]
 
 
+@pytest.mark.tc("TC-P-070", "A slow register can't be saved under the wrong day")
+@pytest.mark.regression
 def test_a_slow_register_can_never_be_saved_under_the_day_just_chosen(principal_page, school, seeded):
     page = principal_page
     t = school["principal"]["token"]
@@ -241,15 +292,20 @@ def test_a_slow_register_can_never_be_saved_under_the_day_just_chosen(principal_
     page.route(re.compile(r"/attendance\?"), lambda route: hold.update(route=route))          # the server is slow to send the earlier day
     page.get_by_label("Day", exact=True).fill(earlier.isoformat())
     # while it loads, today's register is gone from the screen and there is nothing to press
+    # TC-P-070.1 — While the other day loads, nothing can be saved
     student.wait_for(state="detached")
     assert page.get_by_role("button", name="Save attendance").count() == 0
     page.wait_for_timeout(300)
     hold["route"].continue_()
     student.wait_for()
+    # TC-P-070.2 — Nothing is saved for the earlier day
     assert not posts
     assert ok(call("GET", "/attendance", t, query={"class_id": seeded["klass"]["id"], "day": earlier}))["marked_by"] is None, "the earlier day is still untouched"
 
 
+@pytest.mark.tc("TC-P-071", "Coordinator: chosen rights and class; no portal")
+@pytest.mark.sanity
+@pytest.mark.regression
 def test_coordinator_is_saved_with_the_chosen_rights_and_cannot_use_the_portal(principal_page, page, school, seeded):
     pp = principal_page
     t = school["principal"]["token"]
@@ -260,6 +316,7 @@ def test_coordinator_is_saved_with_the_chosen_rights_and_cannot_use_the_portal(p
     form.get_by_label("Full name").fill(f"Coord One {TAG}")
     form.get_by_label("Login ID").fill(f"C{TAG}1")
     password = form.get_by_label("Temporary password").input_value()
+    # TC-P-071.1 — A coordinator for one class with no transport access is saved
     form.get_by_role("button", name=f"6-{TAG}", exact=True).click()                # looks after this class only
     form.get_by_role("group", name="Transport", exact=True).get_by_role("button", name="No access").click()
     form.get_by_role("button", name="Add coordinator").click()
@@ -267,10 +324,13 @@ def test_coordinator_is_saved_with_the_chosen_rights_and_cannot_use_the_portal(p
     saved = [u for u in ok(call("GET", "/users", t, query={"role": "coordinator"})) if u["login_id"] == f"C{TAG}1"][0]
     assert saved["scope_class_ids"] == [seeded["klass"]["id"]]
     assert saved["permissions"]["fees"] == "none" and saved["permissions"]["attendance"] == "edit" and saved["permissions"]["transport"] == "none"
+    # TC-P-071.2 — The coordinator is told to use the app
     sign_in(page, "E2EQA1", f"C{TAG}1", password)
     page.get_by_role("alert").filter(has_text="The web portal is for Admin and Principal accounts").wait_for()
 
 
+@pytest.mark.tc("TC-P-072", "New vice principal starts with the usual rights")
+@pytest.mark.regression
 def test_new_vice_principal_starts_with_the_usual_limited_rights(principal_page, school):
     page = principal_page
     go(page, "/school/people")
@@ -278,7 +338,9 @@ def test_new_vice_principal_starts_with_the_usual_limited_rights(principal_page,
     page.get_by_role("button", name="Add vice principal").click()
     form = dialog(page)
     pressed = lambda area, level: form.get_by_role("group", name=area, exact=True).get_by_role("button", name=level, exact=True).get_attribute("aria-pressed")  # noqa: E731
+    # TC-P-072.1 — Fees view, Settings view, People edit by default
     assert pressed("Fees", "View") == "true" and pressed("Settings", "View") == "true" and pressed("People", "Edit") == "true"
     form.get_by_role("group", name="Fees", exact=True).get_by_role("button", name="Edit", exact=True).click()
+    # TC-P-072.2 — Reset to the usual rights undoes a change
     form.get_by_role("button", name="Reset to the usual rights").click()
     assert pressed("Fees", "View") == "true"
