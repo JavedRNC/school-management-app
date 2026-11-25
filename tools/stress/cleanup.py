@@ -7,14 +7,30 @@ which also ends every session still open. Prangan has no "delete a school" actio
 itself stays (one row on the admin's school list, marked Stress Test School); the next run uses it again.
 Safe to run more than once, and also after a run that stopped half-way.
 """
+import time
 from concurrent.futures import ThreadPoolExecutor
 
 from common import SCHOOL_CODE, admin_token, call, ok, principal_session, wait_awake
 
 
+def admin_when_calm(minutes=20):
+    """Right after a rush the server is still working through requests people gave up on, and answers "busy".
+    Waits until the admin can sign in, and says how long the server needed to be usable again."""
+    t0, last = time.time(), None
+    while time.time() - t0 < minutes * 60:
+        try:
+            at = admin_token()
+            print(f"server usable again after {time.time() - t0:.0f}s", flush=True)
+            return at
+        except SystemExit as e:              # 503 busy, or a timeout: try again shortly
+            last = e
+            time.sleep(15)
+    raise SystemExit(f"server still busy after {minutes} min: {last}")
+
+
 def main():
     wait_awake()
-    at = admin_token()
+    at = admin_when_calm()
     found = [s for s in ok(call("GET", "/admin/schools", at)) if s["code"] == SCHOOL_CODE]
     if not found:
         print("no stress school: nothing to clean")

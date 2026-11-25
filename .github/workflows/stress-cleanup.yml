@@ -1,0 +1,30 @@
+# Only the clean-up step of the stress test (tools/stress/cleanup.py): archives the stress school's people and suspends
+# STRESS1 on the TEST (QA) server. For a stress run whose own clean-up could not finish. Push any commit to `stress-cleanup`.
+name: Stress test clean-up (QA)
+
+on:
+  push:
+    branches: [stress-cleanup]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: qa-e2e
+  cancel-in-progress: false
+
+jobs:
+  cleanup:
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Clean up the stress school
+        working-directory: tools/stress
+        env:
+          STRESS_API_URL: https://prangan-api-test.onrender.com
+          STRESS_ADMIN_PASSWORD: ${{ secrets.QA_ADMIN_PASSWORD }}
+        run: python cleanup.py
