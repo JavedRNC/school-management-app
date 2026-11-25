@@ -28,6 +28,8 @@ jobs:
     timeout-minutes: 240
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0     # history tells whether a part of TEST had to be rebuilt for this commit
       - uses: actions/setup-python@v5
         with:
           python-version: "3.12"
@@ -49,7 +51,7 @@ jobs:
           locust -f locustfile.py --headless -u 1500 -r 3 -t 13m --host "$STRESS_API_URL" \
             --csv "$RUNNER_TEMP/rush" --csv-full-history --html "$RUNNER_TEMP/rush.html" --only-summary || true
       - name: Results
-        if: always()
+        if: always() && hashFiles('tools/stress/stress-state.json') != ''
         working-directory: tools/stress
         run: python report.py "$RUNNER_TEMP/rush"
       - name: Clean up the stress school
