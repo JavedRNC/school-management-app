@@ -447,3 +447,39 @@ def test_admin_data_history_and_undo_copy(c):
     f = c.get(f"/admin/schools/{sid}/data/snapshot/file", headers=a)
     assert f.status_code == 200 and f.content[:2] == b"PK"
     c.delete("/school/support-access", headers=p2)
+
+
+@pytest.mark.tc("TC-B-155", "Platform support sees that contact details changed, not the details, until the school allows it")
+@pytest.mark.sanity
+@pytest.mark.regression
+def test_activity_log_hides_contact_details_from_support(c):
+    a, p = admin(c), login(c, "principal")
+    sid = c.get("/school/me", headers=p).json()["id"]
+    c.delete("/school/support-access", headers=p)
+    c.put("/school/settings", json={"share_contact_with_admin": False}, headers=p)
+    kid = c.post("/users", json={"name": "Private Kid", "login_id": "PRIV01", "password": "Start#123", "role": "student",
+                                 "class_id": c.get("/classes", headers=p).json()[0]["id"]}, headers=p).json()
+    c.put(f"/users/{kid['id']}", json={"email": "kid.private@mail.in", "address": "House 9, Secret Street", "dob": "2013-02-03",
+                                       "phone": "9876512345", "name": "Private Kid R"}, headers=p)
+    school_view = c.get("/school/audit", params={"q": "PRIV01"}, headers=p).json()[0]["detail"]
+    assert "kid.private@mail.in" in school_view and "Secret Street" in school_view          # the school itself sees everything
+    seen = next(x["detail"] for x in c.get("/admin/audit", params={"school_id": sid}, headers=a).json() if "PRIV01" in x["detail"])
+    for secret in ("kid.private@mail.in", "Secret Street", "2013-02-03", "9876512345"):
+        assert secret not in seen, secret
+    assert "email changed (hidden)" in seen and "name: Private Kid → Private Kid R" in seen
+    c.post("/school/support-access", params={"hours": 1}, headers=p)                        # with support access it is visible
+    seen = next(x["detail"] for x in c.get("/admin/audit", params={"school_id": sid}, headers=a).json() if "PRIV01" in x["detail"])
+    assert "kid.private@mail.in" in seen
+    c.delete("/school/support-access", headers=p)
+
+
+@pytest.mark.tc("TC-B-156", "Activity search treats % and _ as plain text")
+@pytest.mark.regression
+def test_activity_search_is_literal(c):
+    p = login(c, "principal")
+    for x in c.get("/school/audit", params={"q": "%"}, headers=p).json():                  # "%" finds only text with a real %
+        assert "%" in x["detail"] + x["action"] + x["actor_name"]
+    c.post("/subjects", json={"name": "100% Maths_A"}, headers=p)
+    hits = c.get("/school/audit", params={"q": "100% maths_a"}, headers=p).json()
+    assert hits and all("100% Maths_A" in x["detail"] for x in hits)
+    assert c.get("/school/audit", params={"q": "100_ maths%a"}, headers=p).json() == []

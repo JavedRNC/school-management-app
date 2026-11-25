@@ -162,7 +162,7 @@ def access_out(db: Session, school_id: int) -> dict:
 
 
 def _saved(db: Session, school_id: int) -> StudentEditAccess:
-    row = db.get(StudentEditAccess, school_id)
+    row = db.get(StudentEditAccess, school_id, with_for_update=True)       # two principals saving at once: one waits
     if not row:
         row = StudentEditAccess(school_id=school_id, class_teachers=True, class_teachers_parents=False, grants={})
         db.add(row)
@@ -178,8 +178,12 @@ def get_access(me: User = Depends(principal_only), db: Session = Depends(get_db)
 def set_policy(body: PolicyIn, me: User = Depends(principal_only), db: Session = Depends(get_db)):
     row = _saved(db, me.school_id)
     before = class_teacher_levels(row)
-    students = body.students or ({True: "edit", False: "none"}[body.class_teachers] if body.class_teachers is not None else before["students"])
-    parents = body.parents or ({True: "edit", False: "none"}[body.class_teachers_parents] if body.class_teachers_parents is not None else before["parents"])
+    def legacy(on: bool | None, current: str) -> str:     # the first version's on/off switches: "on" keeps a higher level
+        if on is None:
+            return current
+        return ("edit" if current == "none" else current) if on else "none"
+    students = body.students or legacy(body.class_teachers, before["students"])
+    parents = body.parents or legacy(body.class_teachers_parents, before["parents"])
     if students == "none":
         parents = "none"                                   # parents are reached through the class's students
     row.class_teachers = students != "none"
@@ -270,6 +274,30 @@ class ParentNew(BaseModel):
     email: str = Field(default="", max_length=200)
 
 
+def _norm(name: str) -> str:
+    return " ".join(re.sub(r"^(mr|mrs|ms|shri|smt|dr)\.?\s+", "", name.strip().lower()).split())
+
+
+def _flush_or_409(db: Session, msg: str, commit: bool = False) -> None:
+    """Two requests at once can both pass the checks above; the database then refuses the second, shown as a 409."""
+    from sqlalchemy.exc import IntegrityError
+    try:
+        db.commit() if commit else db.flush()
+    except IntegrityError:
+        db.rollback()
+        raise HTTPException(409, msg)
+
+
+def drop_grant(db: Session, school_id: int, teacher: User, me: User) -> None:
+    """A teacher who leaves loses any extra access; it doesn't come back if the account is restored."""
+    row = db.get(StudentEditAccess, school_id)
+    if row and str(teacher.id) in (row.grants or {}):
+        grants = dict(row.grants)
+        grants.pop(str(teacher.id))
+        row.grants, row.updated_at = grants, utcnow()
+        audit(db, me, "student_access.removed", f"{teacher.name} ({teacher.login_id}): left the school → no extra access")
+
+
 def _person(u: User, fields) -> dict:
     return {"id": u.id, "login_id": u.login_id, **{f: getattr(u, f) for f in fields}}
 
@@ -331,6 +359,8 @@ def add_student(body: StudentNew, me: User = Depends(teacher_only), db: Session 
         raise HTTPException(400, "Admission no. can use letters, numbers and . _ / - only")
     if data["blood_group"] not in BLOOD:
         raise HTTPException(400, "Pick a valid blood group")
+    if data["dob"] and data["dob"] > date.today():
+        raise HTTPException(400, "Date of birth can't be in the future")
     login_free(db, me.school_id, data["login_id"])
     school = get_school(db, me)
     if school.max_students and student_count(db, me.school_id) >= school.max_students:
@@ -338,9 +368,9 @@ def add_student(body: StudentNew, me: User = Depends(teacher_only), db: Session 
     pw = _temp_password(data["login_id"])
     u = User(school_id=me.school_id, role=Role.student, password_hash=hash_password(pw), must_change_password=True, **data)
     db.add(u)
-    db.flush()
+    _flush_or_409(db, f"Admission no. “{u.login_id}” is already used in this school")
     audit(db, me, "user.created", f"student {u.name} ({u.login_id}) in {_active_classes(db, me.school_id)[u.class_id].name} · by teacher")
-    db.commit()
+    _flush_or_409(db, f"Admission no. “{u.login_id}” is already used in this school", commit=True)
     return {"student": {**_person(u, STUDENT_FIELDS), "class_id": u.class_id}, "credentials": _creds(db, me, u, pw)}
 
 
@@ -364,7 +394,10 @@ def add_parent(sid: int, body: ParentNew, me: User = Depends(teacher_only), db: 
         if existing.role != Role.parent or not existing.active:
             raise HTTPException(409, "This mobile number already belongs to another account in the school. Ask the principal.")
         if db.scalar(select(ParentLink.id).where(ParentLink.parent_id == existing.id, ParentLink.student_id == s.id)):
-            raise HTTPException(409, f"{existing.name} is already linked to {s.name}")
+            raise HTTPException(409, "This parent is already linked to this student")
+        # linking gives the parent this child's data, so the teacher must already know who it is: the name must match
+        if _norm(existing.name) != _norm(name):
+            raise HTTPException(409, "This mobile number already has a parent account under another name. Check the name, or ask the principal to link it.")
         parent = existing
     else:
         login_free(db, me.school_id, mobile)
@@ -372,15 +405,16 @@ def add_parent(sid: int, body: ParentNew, me: User = Depends(teacher_only), db: 
         parent = User(school_id=me.school_id, role=Role.parent, login_id=mobile, name=name, phone=mobile, email=email,
                       password_hash=hash_password(pw), must_change_password=True)
         db.add(parent)
-        db.flush()
+        _flush_or_409(db, "This mobile number is already used in this school")
     db.add(ParentLink(school_id=me.school_id, parent_id=parent.id, student_id=s.id, relation=body.relation))
     if pw:
         audit(db, me, "user.created", f"parent {parent.name} ({parent.login_id}) for {s.name} ({s.login_id}) · by teacher")
     else:
         audit(db, me, "user.updated", f"parent {parent.name} ({parent.login_id}) linked to {s.name} ({s.login_id}) as {body.relation} · by teacher")
-    db.commit()
-    return {"parent": {**_person(parent, PARENT_FIELDS), "relation": body.relation}, "linked_existing": pw is None,
-            "credentials": _creds(db, me, parent, pw) if pw else None}
+    _flush_or_409(db, "This parent is already linked to this student", commit=True)
+    # an account that already existed: confirm the link only, without showing that parent's contact details
+    shown = {**_person(parent, PARENT_FIELDS), "relation": body.relation} if pw else {"id": parent.id, "name": parent.name, "relation": body.relation}
+    return {"parent": shown, "linked_existing": pw is None, "credentials": _creds(db, me, parent, pw) if pw else None}
 
 
 @router.put("/my-students/parents/{pid}")
@@ -390,7 +424,8 @@ def edit_parent(pid: int, body: ParentEdit, me: User = Depends(teacher_only), db
     if not p or p.school_id != me.school_id or p.role != Role.parent or not p.active:
         raise HTTPException(404, "Parent not found")
     kids = list(db.scalars(select(User).join(ParentLink, ParentLink.student_id == User.id).where(ParentLink.parent_id == pid, User.active.is_(True))))
-    if not any(k.class_id in acc and acc[k.class_id]["parents"] != "none" for k in kids):
+    # a parent shared with a class this teacher has no parent access to stays with the principal (or that class's teacher)
+    if not kids or not all(k.class_id in acc and acc[k.class_id]["parents"] != "none" for k in kids):
         raise HTTPException(403, "The principal hasn't allowed you to edit this parent's details")
     data = body.model_dump(exclude_unset=True)
     if data.get("name") is None:
@@ -421,6 +456,8 @@ def edit_student(sid: int, body: StudentEdit, me: User = Depends(teacher_only), 
         data.pop("name", None)
     if "blood_group" in data and (data["blood_group"] or "") not in BLOOD:
         raise HTTPException(400, "Pick a valid blood group")
+    if data.get("dob") and data["dob"] > date.today():
+        raise HTTPException(400, "Date of birth can't be in the future")
     for k in ("phone", "email", "address", "blood_group"):
         if k in data and data[k] is None:
             data[k] = ""

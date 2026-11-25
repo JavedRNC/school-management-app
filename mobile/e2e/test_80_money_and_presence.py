@@ -115,20 +115,28 @@ def test_parent_asks_leave_for_a_child(phone):
     assert not phone.errors, phone.errors  # type: ignore[attr-defined]
 
 
-@pytest.mark.tc("TC-A-033", "A location that jumps while checking in is refused as fake")
+@pytest.mark.tc("TC-A-033", "A location the phone marks as fake is refused, shown and logged")
 @pytest.mark.sanity
 @pytest.mark.regression
-def test_a_jumping_location_is_refused(browser):
+def test_a_fake_location_is_refused(browser):
+    """A browser can't run a fake-GPS app, so the test marks the readings the way Android marks a mock app's readings."""
     tok = token_for("T004")
     _, before = call("GET", "/staff-attendance/me", tok)
-    if ((before.get("today") or {}).get("record") or {}).get("check_in_at"):
-        pytest.skip("T004 already checked in today")
+    assert not ((before.get("today") or {}).get("record") or {}).get("check_in_at"), "T004 must not be checked in yet"
     ctx = browser.new_context(viewport={"width": 390, "height": 844}, timezone_id="Asia/Kolkata", locale="en-IN",
                               geolocation=SCHOOL_GATE, permissions=["geolocation"])
     page = ctx.new_page()
     page.set_default_timeout(15000)
+    sent = []
+
+    def mark_as_mock(route):
+        body = json.loads(route.request.post_data or "{}")
+        body["samples"] = [{**f, "mocked": True} for f in body.get("samples") or []] or body.get("samples")
+        sent.append(body)
+        route.continue_(post_data=json.dumps(body))
     try:
         from conftest import WEB, dismiss_popups
+        page.route("**/staff-attendance/check-in", mark_as_mock)
         page.goto(WEB + "/")
         boxes = page.get_by_role("textbox")
         expect(boxes.first).to_be_visible()
@@ -138,11 +146,10 @@ def test_a_jumping_location_is_refused(browser):
         page.get_by_role("button", name="Sign in", exact=True).click()
         page.wait_for_url(lambda u: "/teacher" in u, timeout=20000)
         dismiss_popups(page)
-        # TC-A-033.1 — While the app takes its readings the phone "moves" 2 km in a second: the app is told it's a fake location
+        # TC-A-033.1 — The app sends its readings; marked as a mock app's, the check-in is refused with a clear message
         page.get_by_role("button", name="Check in").first.click()
-        page.wait_for_timeout(1300)
-        ctx.set_geolocation({"latitude": SCHOOL_GATE["latitude"] + 0.018, "longitude": SCHOOL_GATE["longitude"], "accuracy": 12})
         expect(page.get_by_text("A fake-location app seems to be on. Turn it off to check in.").first).to_be_visible(timeout=20000)
+        assert sent and sent[0]["samples"], "the app sends its GPS readings (a browser gives one; a phone several)"
         # TC-A-033.2 — Nothing is recorded and the attempt is in the principal's activity log
         _, after = call("GET", "/staff-attendance/me", tok)
         assert not ((after.get("today") or {}).get("record") or {}).get("check_in_at")

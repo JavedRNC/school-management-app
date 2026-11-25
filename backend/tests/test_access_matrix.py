@@ -33,6 +33,21 @@ READS = {
                                 "/fees/students", "/fees/summary", "/leaves/today", "/payroll/me", "/school/audit", "/staff-attendance/day",
                                 "/staff-attendance/me", "/staff-attendance/report", "/transport/overview", "/transport/students", "/users"},
 }
+# Write endpoints each role gets past the sign-in and permission check on (the endpoint itself then decides, e.g. "only
+# your own leave"). An endpoint appearing here for a role that shouldn't have it fails the test below.
+ANYONE_SIGNED_IN = {"POST /auth/consent", "POST /auth/password", "POST /leaves", "POST /leaves/{lid}/cancel", "POST /leaves/{lid}/decide",
+                    "POST /polls/{pid}/respond", "POST /push/register", "POST /push/unregister"}
+STAFF_WRITES = {"POST /attendance", "POST /marks", "POST /posts", "PUT /posts/{pid}", "DELETE /posts/{pid}",
+                "POST /staff-attendance/check-in", "POST /staff-attendance/check-out"}
+WRITES = {
+    "student": ANYONE_SIGNED_IN | {"POST /fees/me/claim"},
+    "parent": ANYONE_SIGNED_IN | {"POST /fees/me/claim"},
+    "teacher": ANYONE_SIGNED_IN | STAFF_WRITES | {"POST /my-students", "PUT /my-students/{sid}", "POST /my-students/{sid}/parents",
+                                                  "PUT /my-students/parents/{pid}"},
+    "coordinator": ANYONE_SIGNED_IN | STAFF_WRITES | {"POST /banners", "PUT /banners/{bid}", "DELETE /banners/{bid}", "POST /exams",
+                                                      "PUT /exams/{exam_id}", "DELETE /exams/{exam_id}", "POST /polls", "POST /polls/{pid}/close",
+                                                      "DELETE /polls/{pid}"},
+}
 # The only change a student or parent can make with an empty request (the privacy notice they accept at first sign-in).
 STUDENT_WRITES_OK = {"POST /auth/consent"}
 # Paid modules that the Basic plan (DEMO02) does not have, and an endpoint of each.
@@ -134,6 +149,15 @@ def test_each_role_reads_exactly_what_it_should(sweep, role):
 def test_students_and_parents_cannot_change_school_data(sweep, role):
     changed = sorted(k for k, v in sweep.items() if not k.startswith("GET ") and v[role] < 300 and k not in PUBLIC | STUDENT_WRITES_OK)
     assert not changed, f"{role} got a success from: {changed}"
+
+
+@pytest.mark.tc("TC-B-154", "Each role gets past the permission check on exactly its own write endpoints")
+@pytest.mark.regression
+@pytest.mark.parametrize("role", sorted(WRITES))
+def test_each_role_writes_exactly_where_it_should(sweep, role):
+    got = {k for k, v in sweep.items() if not k.startswith("GET ") and v[role] not in (401, 403) and k not in PUBLIC}
+    assert got - WRITES[role] == set(), f"{role} now also gets past the permission check of: {sorted(got - WRITES[role])}"
+    assert WRITES[role] - got == set(), f"{role} is now refused by: {sorted(WRITES[role] - got)}"
 
 
 @pytest.mark.tc("TC-B-133", "Admin endpoints are for the platform admin only")

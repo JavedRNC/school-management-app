@@ -65,6 +65,8 @@ def test_class_teacher_edits_own_class_only(c):
     assert r.status_code == 200
     me = next(u for u in c.get("/users", params={"role": "student"}, headers=p).json() if u["id"] == own["id"])
     assert me["login_id"] == own["login_id"] and me["class_id"] == own["class_id"]
+    student_login = c.post("/auth/login", json={"school_code": "DEMO01", "login_id": own["login_id"], "password": "abcdef12"})
+    assert student_login.status_code == 401, "the password sent through the teacher door was not set"
     # parents are off by default
     pid = next(u for u in c.get("/users", params={"role": "student"}, headers=p).json() if u["id"] == own["id"])["parent_ids"][0]
     assert c.put(f"/my-students/parents/{pid}", json={"phone": "1"}, headers=t1).status_code == 403

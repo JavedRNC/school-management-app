@@ -31,6 +31,20 @@ def c():
         yield client
 
 
+@pytest.fixture(autouse=True)
+def back_to_defaults(c):
+    """Every test starts and ends with the defaults, so one failing test can't change the next one."""
+    def reset():
+        for code in ("DEMO01", "DEMO02"):
+            p = login(c, "principal", code=code)
+            c.put("/student-access/policy", json={"students": "edit", "parents": "none"}, headers=p)
+            for g in c.get("/student-access", headers=p).json()["grants"]:
+                c.delete(f"/student-access/teachers/{g['teacher_id']}", headers=p)
+    reset()
+    yield
+    reset()
+
+
 def raw(c, lid, pw, code="DEMO01"):
     return c.post("/auth/login", json={"school_code": code, "login_id": lid, "password": pw})
 
@@ -167,7 +181,7 @@ def test_student_limit_applies(c):
         policy(c, p, "edit", "none")
 
 
-@pytest.mark.tc("TC-B-142", "Parents: edit only, then add a new parent or link an existing one")
+@pytest.mark.tc("TC-B-142", "Parents: edit only, then add a new parent or link an existing one by name and mobile")
 @pytest.mark.sanity
 @pytest.mark.regression
 def test_parents_edit_and_add(c):
@@ -176,9 +190,10 @@ def test_parents_edit_and_add(c):
     policy(c, p, "edit", "edit")
     mine = c.get("/my-students", headers=t1).json()
     assert mine["can_edit_parents"] and not mine["can_add_parents"]
-    with_parent = next(s for s in mine["students"] if s["parents"])
-    par = with_parent["parents"][0]
-    assert c.put(f"/my-students/parents/{par['id']}", json={"email": "dad@example.com"}, headers=t1).json()["email"] == "dad@example.com"
+    parents = {u["id"]: u for u in c.get("/users", params={"role": "parent"}, headers=p).json()}
+    in_class = {s["id"] for s in mine["students"]}
+    own = next(par for s in mine["students"] for par in s["parents"] if set(parents[par["id"]]["children_ids"]) <= in_class)
+    assert c.put(f"/my-students/parents/{own['id']}", json={"email": "dad@example.com"}, headers=t1).json()["email"] == "dad@example.com"
     lonely = c.post("/users", json={"name": "No Parent Yet", "login_id": "NOPAR1", "password": "Start#123", "role": "student",
                                     "class_id": cls["id"]}, headers=p).json()
     assert c.post(f"/my-students/{lonely['id']}/parents", json={"name": "Mum", "mobile": "9811100002"}, headers=t1).status_code == 403
@@ -189,25 +204,79 @@ def test_parents_edit_and_add(c):
     out = r.json()
     assert out["linked_existing"] is False and out["credentials"]["login_id"] == "9811100002" and out["parent"]["relation"] == "Mother"
     assert raw(c, "9811100002", out["credentials"]["password"]).json()["user"]["must_change_password"] is True
-    # the same mobile for a second child links the same account (no new password)
+    # the same mobile for a second child links the same account (no new password) — only with the right name
     second = c.post("/users", json={"name": "Sibling", "login_id": "NOPAR2", "password": "Start#123", "role": "student",
                                     "class_id": cls["id"]}, headers=p).json()
-    again = c.post(f"/my-students/{second['id']}/parents", json={"name": "Whatever", "mobile": "9811100002", "relation": "Mother"}, headers=t1).json()
+    wrong = c.post(f"/my-students/{second['id']}/parents", json={"name": "Somebody Else", "mobile": "9811100002", "relation": "Mother"}, headers=t1)
+    assert wrong.status_code == 409 and "another name" in wrong.json()["detail"]
+    again = c.post(f"/my-students/{second['id']}/parents", json={"name": "  meena   DEVI ", "mobile": "9811100002", "relation": "Mother"}, headers=t1).json()
     assert again["linked_existing"] is True and again["credentials"] is None and again["parent"]["id"] == out["parent"]["id"]
+    assert set(again["parent"]) == {"id", "name", "relation"}, "an existing parent's contact details are not shown"
     parent = next(u for u in c.get("/users", params={"role": "parent"}, headers=p).json() if u["login_id"] == "9811100002")
     assert sorted(parent["children_ids"]) == sorted([lonely["id"], second["id"]]) and parent["name"] == "Meena Devi"
     # refusals
     sid = lonely["id"]
     cases = [({"name": "X", "mobile": "12345"}, 422), ({"name": "X", "mobile": "1234567890"}, 400),
              ({"name": "X", "mobile": "9811100003", "relation": "Uncle"}, 400), ({"name": " ", "mobile": "9811100003"}, 400),
-             ({"name": "Meena", "mobile": "9811100002", "relation": "Mother"}, 409)]          # already linked
+             ({"name": "Meena Devi", "mobile": "9811100002", "relation": "Mother"}, 409)]          # already linked
     for body, want in cases:
         assert c.post(f"/my-students/{sid}/parents", json=body, headers=t1).status_code == want, body
     c.post("/users", json={"name": "Mobile Teacher", "login_id": "9811100009", "password": "Start#123", "role": "teacher"}, headers=p)
-    assert c.post(f"/my-students/{sid}/parents", json={"name": "X", "mobile": "9811100009"}, headers=t1).status_code == 409   # a teacher's account
+    assert c.post(f"/my-students/{sid}/parents", json={"name": "Mobile Teacher", "mobile": "9811100009"}, headers=t1).status_code == 409
+    gone = c.post("/users", json={"name": "Gone Parent", "login_id": "9811100010", "password": "Start#123", "role": "parent"}, headers=p).json()
+    c.delete(f"/users/{gone['id']}", headers=p)
+    assert c.post(f"/my-students/{sid}/parents", json={"name": "Gone Parent", "mobile": "9811100010"}, headers=t1).status_code == 409   # removed account
     acts = [a["detail"] for a in c.get("/school/audit", params={"group": "people", "q": "9811100002"}, headers=p).json()]
     assert any("linked to Sibling" in d for d in acts) and any(d.startswith("parent Meena Devi") and "by teacher" in d for d in acts)
-    policy(c, p, "edit", "none")
+    assert out["credentials"]["password"] not in str(acts)
+
+
+@pytest.mark.tc("TC-B-151", "A parent shared with a class the teacher can't reach stays with the principal")
+@pytest.mark.regression
+def test_shared_parent_is_not_editable(c):
+    p, t1 = login(c, "principal"), login(c, "T001")
+    policy(c, p, "edit", "edit")
+    mine = c.get("/my-students", headers=t1).json()
+    in_class = {s["id"] for s in mine["students"]}
+    parents = c.get("/users", params={"role": "parent"}, headers=p).json()
+    shared = next(u for u in parents if set(u["children_ids"]) & in_class and set(u["children_ids"]) - in_class)   # demo: siblings in two classes
+    assert c.put(f"/my-students/parents/{shared['id']}", json={"name": "Renamed"}, headers=t1).status_code == 403
+    other_school_parent = 999999
+    assert c.put(f"/my-students/parents/{other_school_parent}", json={"name": "X"}, headers=t1).status_code == 404
+    lonely_parent = c.post("/users", json={"name": "No Child", "login_id": "9811100011", "password": "Start#123", "role": "parent"}, headers=p).json()
+    assert c.put(f"/my-students/parents/{lonely_parent['id']}", json={"name": "X"}, headers=t1).status_code == 403
+
+
+@pytest.mark.tc("TC-B-152", "Dates of birth in the future are refused")
+@pytest.mark.regression
+def test_future_birthdays_are_refused(c):
+    from datetime import date, timedelta
+    p, t1 = login(c, "principal"), login(c, "T001")
+    policy(c, p, "add", "none")
+    cls = own_class(c, p, t1)
+    soon = (date.today() + timedelta(days=3)).isoformat()
+    assert c.post("/my-students", json=student_body(cls["id"], "FUT01", dob=soon), headers=t1).status_code == 400
+    sid = c.get("/my-students", headers=t1).json()["students"][0]["id"]
+    assert c.put(f"/my-students/{sid}", json={"dob": soon}, headers=t1).status_code == 400
+
+
+@pytest.mark.tc("TC-B-153", "A teacher who leaves loses their extra access for good")
+@pytest.mark.regression
+def test_grant_goes_when_the_teacher_leaves(c):
+    p = login(c, "principal")
+    cls = c.get("/classes", headers=p).json()
+    t = c.post("/users", json={"name": "Leaving Teacher", "login_id": "LEAVE1", "password": "Start#123", "role": "teacher"}, headers=p).json()
+    c.put(f"/student-access/teachers/{t['id']}", json={"classes": [cls[0]["id"]], "students": "add"}, headers=p)
+    assert c.delete(f"/users/{t['id']}", headers=p).status_code == 200
+    c.put(f"/users/{t['id']}", json={"active": True}, headers=p)                       # restored later
+    assert all(g["teacher_id"] != t["id"] for g in c.get("/student-access", headers=p).json()["grants"])
+    from app.db import SessionLocal
+    from app.models import StudentEditAccess
+    with SessionLocal() as db:
+        sid = c.get("/school/me", headers=p).json()["id"]
+        assert str(t["id"]) not in (db.get(StudentEditAccess, sid).grants or {})
+    log = c.get("/school/audit", params={"group": "people", "q": "left the school"}, headers=p).json()
+    assert log and log[0]["action"] == "student_access.removed"
 
 
 @pytest.mark.tc("TC-B-143", "Any teacher can be given chosen classes with their own levels")
@@ -262,6 +331,10 @@ def test_policy_rules(c):
     assert c.put("/student-access/policy", json={"students": "all"}, headers=p).status_code == 422
     out = c.put("/student-access/policy", json={"class_teachers": True, "class_teachers_parents": True}, headers=p).json()
     assert out["class_teachers"] == {"students": "edit", "parents": "edit"}
+    policy(c, p, "add", "add")
+    out = c.put("/student-access/policy", json={"class_teachers": True, "class_teachers_parents": True}, headers=p).json()
+    assert out["class_teachers"] == {"students": "add", "parents": "add"}, "an older app's on/off switches never lower a level"
+    policy(c, p, "edit", "edit")
     assert c.put("/student-access/policy", json={"students": "add"}, headers=p).json()["class_teachers"] == {"students": "add", "parents": "edit"}
     log = c.get("/school/audit", params={"group": "people", "q": "class teachers"}, headers=p).json()
     assert any("edit students → add and edit students" in x["detail"] for x in log)

@@ -498,6 +498,9 @@ class Importer:
                 self.warnings.insert(0, f"This file has no payroll (only a backup downloaded by the principal has it). Replace deletes "
                                         f"the school's payroll: {pay} salaries and {runs} months of payslips. It stays in the undo backup "
                                         "saved before Replace, but print or save the payslips you need first.")
+            if self.db.get(M.StudentEditAccess, self.sid):
+                self.warnings.append("Teachers' access to student and parent data goes back to the default (class teachers edit "
+                                     "their own class); set it again in Student data access after Replace.")
             self.wipe()
         self.refresh()
         pr = next((u for u in self.users.values() if u.role == Role.principal and u.active), None)

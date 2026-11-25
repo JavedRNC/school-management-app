@@ -355,6 +355,14 @@ def record_payment(sid: int, body: PaymentIn, me: User = Depends(admin_only), db
 
 # ---------------------------------------------------------------- audit
 _PHONE = re.compile(r"(?<!\d)\d{10,13}(?!\d)")
+# "email: a@b.in → c@d.in" / "address: … → …" / "date of birth: … → …" in the activity text (see auth.changes)
+_CONTACT = re.compile(r"\b(phone|mobile number|email|address|date of birth): [^;]*?(?=; |$)")
+
+
+def hide_contact(text: str) -> str:
+    """What platform support may see of an activity entry while the school hasn't opened its contact details."""
+    text = _CONTACT.sub(lambda m: f"{m.group(1)} changed (hidden)", text)
+    return _PHONE.sub(lambda m: mask_phone(m.group(0)), text)
 
 
 @router.get("/audit", response_model=list[AuditOut])
@@ -366,7 +374,7 @@ def platform_audit(school_id: int | None = None, me: User = Depends(admin_only),
     out = []
     for a in db.scalars(q):
         o = AuditOut.model_validate(a)
-        if a.school_id and a.school_id not in open_schools:      # phone numbers inside the text stay hidden like everywhere else
-            o.detail = _PHONE.sub(lambda m: mask_phone(m.group(0)), o.detail or "")
+        if a.school_id and a.school_id not in open_schools:      # contact details inside the text stay hidden like everywhere else
+            o.detail = hide_contact(o.detail or "")
         out.append(o)
     return out

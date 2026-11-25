@@ -19,16 +19,16 @@ suites on every push to `dev`.
 
 | | Count |
 |---|---|
-| Automated test cases | 257 |
-| — API | 150 |
+| Automated test cases | 263 |
+| — API | 156 |
 | — Portal | 74 |
 | — Android app | 33 |
-| Automated sub-cases inside them | 344 |
+| Automated sub-cases inside them | 348 |
 | Smoke | 33 |
-| Sanity | 116 |
-| Regression | 257 |
+| Sanity | 117 |
+| Regression | 263 |
 | Not automated yet | 7 |
-| **Total cases in this list** | **608** |
+| **Total cases in this list** | **618** |
 
 ## API (backend, pytest)
 
@@ -194,15 +194,25 @@ suites on every push to `dev`.
 | **TC-B-139** | **Class teachers allowed to add: a new student gets a temporary password** | Smoke, Sanity, Regression | Automated | `backend/tests/test_teacher_people.py::test_class_teacher_adds_a_student` |
 | **TC-B-140** | **Adding a student: every refusal** | Sanity, Regression | Automated | `backend/tests/test_teacher_people.py::test_add_student_refusals` |
 | **TC-B-141** | **The plan's student limit also applies to teachers** | Regression | Automated | `backend/tests/test_teacher_people.py::test_student_limit_applies` |
-| **TC-B-142** | **Parents: edit only, then add a new parent or link an existing one** | Sanity, Regression | Automated | `backend/tests/test_teacher_people.py::test_parents_edit_and_add` |
+| **TC-B-142** | **Parents: edit only, then add a new parent or link an existing one by name and mobile** | Sanity, Regression | Automated | `backend/tests/test_teacher_people.py::test_parents_edit_and_add` |
 | **TC-B-143** | **Any teacher can be given chosen classes with their own levels** | Sanity, Regression | Automated | `backend/tests/test_teacher_people.py::test_grants_with_levels` |
 | **TC-B-144** | **Own class and a grant together: the higher level wins** | Regression | Automated | `backend/tests/test_teacher_people.py::test_levels_combine` |
 | **TC-B-145** | **Policy rules: no parents without students, old switches still accepted, logged** | Regression | Automated | `backend/tests/test_teacher_people.py::test_policy_rules` |
 | **TC-B-146** | **Another school's teacher and principal can't reach these students** | Regression | Automated | `backend/tests/test_teacher_people.py::test_other_school_is_kept_out` |
-| **TC-B-147** | **Fake locations are refused and logged** | Smoke, Sanity, Regression | Automated | `backend/tests/test_gps.py::test_fake_locations_are_refused` |
-| **TC-B-148** | **Real readings check in cleanly, even with normal GPS corrections** | Sanity, Regression | Automated | `backend/tests/test_gps.py::test_real_readings_check_in` |
-| **TC-B-149** | **Doubtful readings are let through and shown to the principal** | Sanity, Regression | Automated | `backend/tests/test_gps.py::test_doubtful_readings_are_flagged` |
-| **TC-B-150** | **Too many readings and bad values are refused** | Regression | Automated | `backend/tests/test_gps.py::test_reading_limits` |
+| **TC-B-147** | **A location the phone marks as fake is refused and logged** | Smoke, Sanity, Regression | Automated | `backend/tests/test_gps.py::test_fake_locations_are_refused` |
+| **TC-B-148** | **Real readings check in cleanly, including normal GPS corrections** | Sanity, Regression | Automated | `backend/tests/test_gps.py::test_real_readings_check_in` |
+| **TC-B-149** | **Odd signs let the check-in through and leave a note for the principal** | Sanity, Regression | Automated | `backend/tests/test_gps.py::test_doubtful_readings_are_noted` |
+| **TC-B-150** | **Bad reading values are refused before any check** | Regression | Automated | `backend/tests/test_gps.py::test_reading_limits` |
+| **TC-B-151** | **A parent shared with a class the teacher can't reach stays with the principal** | Regression | Automated | `backend/tests/test_teacher_people.py::test_shared_parent_is_not_editable` |
+| **TC-B-152** | **Dates of birth in the future are refused** | Regression | Automated | `backend/tests/test_teacher_people.py::test_future_birthdays_are_refused` |
+| **TC-B-153** | **A teacher who leaves loses their extra access for good** | Regression | Automated | `backend/tests/test_teacher_people.py::test_grant_goes_when_the_teacher_leaves` |
+| **TC-B-154** | **Each role gets past the permission check on exactly its own write endpoints** | Regression | Automated | `backend/tests/test_access_matrix.py::test_each_role_writes_exactly_where_it_should` |
+| TC-B-154.1 | ↳ coordinator | Regression | Automated (in TC-B-154) | ″ |
+| TC-B-154.2 | ↳ parent | Regression | Automated (in TC-B-154) | ″ |
+| TC-B-154.3 | ↳ student | Regression | Automated (in TC-B-154) | ″ |
+| TC-B-154.4 | ↳ teacher | Regression | Automated (in TC-B-154) | ″ |
+| **TC-B-155** | **Platform support sees that contact details changed, not the details, until the school allows it** | Sanity, Regression | Automated | `backend/tests/test_endpoints.py::test_activity_log_hides_contact_details_from_support` |
+| **TC-B-156** | **Activity search treats % and _ as plain text** | Regression | Automated | `backend/tests/test_endpoints.py::test_activity_search_is_literal` |
 
 ## Portal (web, Admin + Principal — Playwright)
 
@@ -642,8 +652,8 @@ suites on every push to `dev`.
 | **TC-A-032** | **Class teacher adds a parent for a student (F40)** | Sanity, Regression | Automated | `mobile/e2e/test_50_student_details.py::test_class_teacher_adds_a_parent` |
 | TC-A-032.1 | ↳ Opening a student shows their parents and 'Add parent' | Sanity, Regression | Automated (in TC-A-032) | ″ |
 | TC-A-032.2 | ↳ A wrong mobile is refused; a right one creates the parent and shows the sign-in details | Sanity, Regression | Automated (in TC-A-032) | ″ |
-| **TC-A-033** | **A location that jumps while checking in is refused as fake** | Sanity, Regression | Automated | `mobile/e2e/test_80_money_and_presence.py::test_a_jumping_location_is_refused` |
-| TC-A-033.1 | ↳ While the app takes its readings the phone "moves" 2 km in a second: the app is told it's a fake location | Sanity, Regression | Automated (in TC-A-033) | ″ |
+| **TC-A-033** | **A location the phone marks as fake is refused, shown and logged** | Sanity, Regression | Automated | `mobile/e2e/test_80_money_and_presence.py::test_a_fake_location_is_refused` |
+| TC-A-033.1 | ↳ The app sends its readings; marked as a mock app's, the check-in is refused with a clear message | Sanity, Regression | Automated (in TC-A-033) | ″ |
 | TC-A-033.2 | ↳ Nothing is recorded and the attempt is in the principal's activity log | Sanity, Regression | Automated (in TC-A-033) | ″ |
 
 ## Not automated yet

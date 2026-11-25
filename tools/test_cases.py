@@ -1,4 +1,4 @@
-"""Builds docs/test-cases.md from the Playwright tests, so the list never drifts from the code.
+"""Builds docs/test-cases.md from the tests themselves (API, portal, app), so the list never drifts from the code.
 
     python tools/test_cases.py           write docs/test-cases.md
     python tools/test_cases.py --check   fail if docs/test-cases.md is out of date (used by CI)
@@ -167,6 +167,9 @@ def render(groups) -> str:
 
 
 if __name__ == "__main__":
+    extra = [a for a in sys.argv[1:] if a != "--check"]
+    if extra:
+        raise SystemExit(f"unknown argument(s): {' '.join(extra)}\n" + __doc__)
     doc = render(collect())
     target = ROOT / "docs/test-cases.md"
     if "--check" in sys.argv:

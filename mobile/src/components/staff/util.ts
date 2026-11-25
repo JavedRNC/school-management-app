@@ -59,19 +59,22 @@ const toFix = (p: Location.LocationObject): Fix => ({
   lat: p.coords.latitude, lng: p.coords.longitude, accuracy: p.coords.accuracy ?? null, mocked: p.mocked === true, t: p.timestamp,
 });
 
-/** Up to `n` fresh readings about a second apart (stops early after `ms`). */
+/** Up to `n` fresh readings about a second apart (stops early after `ms`). The watch is always stopped afterwards. */
 async function watchFixes(n: number, ms: number): Promise<Fix[]> {
   const out: Fix[] = [];
+  let finished = false;
   let sub: Location.LocationSubscription | null = null;
   await new Promise<void>((resolve) => {
-    const done = setTimeout(resolve, ms);
+    const finish = () => { if (!finished) { finished = true; clearTimeout(timer); resolve(); } };
+    const timer = setTimeout(finish, ms);
     Location.watchPositionAsync({ accuracy: Location.Accuracy.High, timeInterval: 1000, distanceInterval: 0 }, (p) => {
+      if (finished) return;
       out.push(toFix(p));
-      if (out.length >= n) {
-        clearTimeout(done);
-        resolve();
-      }
-    }).then((s) => { sub = s; }).catch(() => { clearTimeout(done); resolve(); });
+      if (out.length >= n) finish();
+    }).then((s) => {
+      if (finished) s.remove();          // the time ran out before the watch even started: stop it at once
+      else sub = s;
+    }).catch(finish);
   });
   (sub as Location.LocationSubscription | null)?.remove();
   return out;
@@ -87,9 +90,10 @@ async function rootedPhone(): Promise<boolean> {
 }
 
 /**
- * Ask permission (once) and read the position a few times, a second apart. A reading the phone itself marks as coming from
- * a mock-location app stops the check-in here; the server checks the readings again (mock flags, perfect accuracy, jumps
- * no person could make) and keeps blocked attempts in the activity log. Location is used only for this check-in.
+ * Ask permission (once) and read the position a few times, a second apart. A reading that Android marks as coming from a
+ * mock-location app stops the check-in here, and the server refuses it too and logs the attempt. Other odd signs (a rooted
+ * phone, no accuracy, a jump) only add a note for the principal. This stops the usual fake-GPS apps; it cannot stop a
+ * modified app on a rooted phone. Location is used only for this check-in.
  */
 export async function readPosition(): Promise<Reading> {
   const perm = await Location.requestForegroundPermissionsAsync();

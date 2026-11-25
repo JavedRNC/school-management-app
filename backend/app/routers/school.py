@@ -332,6 +332,9 @@ def update_user(user_id: int, body: UserUpdate, me: User = Depends(require_area(
         data.pop("scope_class_ids", None)
     if "active" in data:
         u.archived_at = None if data["active"] else (utcnow() if u.active or not u.archived_at else u.archived_at)   # keep the day they first left
+        if data["active"] is False and u.role == Role.teacher:
+            from .student_access import drop_grant
+            drop_grant(db, me.school_id, u, me)
     before = profile_snap(db, u)
     old_kids = _children_names(db, u) if kids is not None and u.role == Role.parent else None
     for k, v in data.items():
@@ -365,6 +368,9 @@ def remove_user(user_id: int, me: User = Depends(require_area("people", "edit"))
         _validate_role(db, me, u.role)
     u.active = False
     u.archived_at = utcnow()
+    if u.role == Role.teacher:
+        from .student_access import drop_grant
+        drop_grant(db, me.school_id, u, me)
     audit(db, me, "user.removed", f"{u.name} ({u.login_id})")
     db.commit()
     return user_out(db, u)

@@ -16,8 +16,9 @@ def _fresh_rate_limits():
 
 # ---------------------------------------------------------------- every API endpoint must be called by some test
 # The suite records each (method, path) that answered with success. At the end it lists the endpoints no test got a
-# success from (being refused alone does not count); with API_ROUTE_GATE=1
-# (set in CI) such an endpoint fails the run. Run one file and the list is simply printed, never enforced.
+# success from (being refused alone does not count). With API_ROUTE_GATE=1 (set in CI) such an endpoint fails a run of
+# the whole suite; a run of part of it (a file, -k, -m or --tc) only prints the list. A call counts for the endpoint
+# whose path shape it matches, so /classes/5 counts for /classes/{class_id}.
 import re  # noqa: E402
 
 _HITS: set[tuple[str, str]] = set()        # calls that succeeded (2xx): the endpoint was really exercised, not just refused
@@ -69,7 +70,10 @@ def pytest_sessionfinish(session, exitstatus):
         tr.write_line(f"\nAPI endpoints with a successful call in the tests: {len(hit)} of {len(eps)}")
         for m, p in missing:
             tr.write_line(f"  not tested: {m} {p}")
-    if missing and os.getenv("API_ROUTE_GATE") == "1":
+    opt = session.config.option
+    partial = bool(getattr(opt, "keyword", "") or getattr(opt, "markexpr", "") or getattr(opt, "tc", None)
+                   or any(a.endswith(".py") or "::" in a for a in session.config.args))
+    if missing and os.getenv("API_ROUTE_GATE") == "1" and not partial:
         session.exitstatus = 1
 
 

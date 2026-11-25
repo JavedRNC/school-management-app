@@ -106,7 +106,7 @@ def test_class_teacher_adds_a_student(phone):
 @pytest.mark.regression
 def test_class_teacher_adds_a_parent(phone):
     p, tok = token_for("principal"), token_for("T001")
-    mobile = "97" + dt.datetime.now().strftime("%H%M%S") + "12"
+    mobile = "9" + str(int(dt.datetime.now().timestamp() * 10))[-9:]        # different on every run
     call("PUT", "/student-access/policy", p, {"students": "edit", "parents": "add"})
     try:
         _, mine = call("GET", "/my-students", tok)

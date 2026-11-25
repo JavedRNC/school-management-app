@@ -16,16 +16,16 @@ DAYS = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sun
 def test_parent_must_agree_to_the_privacy_notice_first(phone):
     tok = token_for("9876500001")
     _, me = call("GET", "/auth/me", tok)
+    assert me["consent_at"] is None, "the demo parent has not agreed yet in a fresh test run"
     sign_in_demo(phone, "Parent", "Two children")
-    if me["consent_at"] is None:
-        # TC-A-017.1 — The notice opens before anything else and Agree is off until the box is ticked
-        expect(phone.get_by_text("Your privacy", exact=True)).to_be_visible()
-        agree = phone.get_by_role("button", name="Agree and continue")
-        expect(agree).to_be_disabled()
-        # TC-A-017.2 — Ticking the box and agreeing opens the parent's home and is saved
-        phone.get_by_role("checkbox", name="I am the parent/guardian and I agree").click()
-        expect(agree).to_be_enabled()
-        agree.click()
+    # TC-A-017.1 — The notice opens before anything else and Agree is off until the box is ticked
+    expect(phone.get_by_text("Your privacy", exact=True)).to_be_visible()
+    agree = phone.get_by_role("button", name="Agree and continue")
+    expect(agree).to_be_disabled()
+    # TC-A-017.2 — Ticking the box and agreeing opens the parent's home and is saved
+    phone.get_by_role("checkbox", name="I am the parent/guardian and I agree").click()
+    expect(agree).to_be_enabled()
+    agree.click()
     expect(phone.get_by_role("tab", name="Home", exact=True)).to_have_attribute("aria-selected", "true")
     _, me = call("GET", "/auth/me", tok)
     assert me["consent_at"], "the agreement is saved on the server"

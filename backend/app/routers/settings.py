@@ -85,7 +85,7 @@ def _utc_midnight(d: date) -> datetime:
 
 
 AUDIT_GROUPS = {
-    "people": ("user.", "users.", "password.", "login.", "student_access."),
+    "people": ("user.", "users.", "password.", "login.", "student_access.", "admin.user.", "admin.viewed_people"),
     "attendance": ("attendance.", "staff_attendance."),
     "marks": ("marks.", "exam."),
     "classes": ("class.", "subject.", "subject_teacher.", "timetable.", "bell."),
@@ -110,9 +110,10 @@ def school_audit(admin_only_: bool = False, group: str | None = None, q: str | N
             raise HTTPException(400, "Unknown kind of activity")
         sel = sel.where(or_(*[AuditLog.action.startswith(p) for p in AUDIT_GROUPS[group]]))
     if q and q.strip():
-        like = f"%{q.strip().lower()[:80]}%"
-        sel = sel.where(or_(func.lower(AuditLog.detail).like(like), func.lower(AuditLog.actor_name).like(like),
-                            func.lower(AuditLog.action).like(like)))
+        term = q.strip().lower()[:80].replace("\\", "\\\\").replace("%", "\\%").replace("_", "\\_")   # typed % and _ are plain text
+        like = f"%{term}%"
+        sel = sel.where(or_(func.lower(AuditLog.detail).like(like, escape="\\"), func.lower(AuditLog.actor_name).like(like, escape="\\"),
+                            func.lower(AuditLog.action).like(like, escape="\\")))
     if actor_id:
         sel = sel.where(AuditLog.actor_id == actor_id)
     if date_from:
