@@ -459,13 +459,13 @@ def test_activity_log_hides_contact_details_from_support(c):
     c.put("/school/settings", json={"share_contact_with_admin": False}, headers=p)
     kid = c.post("/users", json={"name": "Private Kid", "login_id": "PRIV01", "password": "Start#123", "role": "student",
                                  "class_id": c.get("/classes", headers=p).json()[0]["id"]}, headers=p).json()
-    c.put(f"/users/{kid['id']}", json={"email": "kid.private@mail.in", "address": "House 9, Secret Street", "dob": "2013-02-03",
+    c.put(f"/users/{kid['id']}", json={"email": "kid.private@mail.in", "address": "Flat 2; Block B, Secret Street", "dob": "2013-02-03",
                                        "phone": "9876512345", "name": "Private Kid R"}, headers=p)
     school_view = c.get("/school/audit", params={"q": "PRIV01"}, headers=p).json()[0]["detail"]
     assert "kid.private@mail.in" in school_view and "Secret Street" in school_view          # the school itself sees everything
     seen = next(x["detail"] for x in c.get("/admin/audit", params={"school_id": sid}, headers=a).json() if "PRIV01" in x["detail"])
-    for secret in ("kid.private@mail.in", "Secret Street", "2013-02-03", "9876512345"):
-        assert secret not in seen, secret
+    for secret in ("kid.private@mail.in", "Secret Street", "Block B", "2013-02-03", "9876512345"):
+        assert secret not in seen, secret                                                    # an address with "; " in it too
     assert "email changed (hidden)" in seen and "name: Private Kid → Private Kid R" in seen
     c.post("/school/support-access", params={"hours": 1}, headers=p)                        # with support access it is visible
     seen = next(x["detail"] for x in c.get("/admin/audit", params={"school_id": sid}, headers=a).json() if "PRIV01" in x["detail"])

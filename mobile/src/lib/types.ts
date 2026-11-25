@@ -607,7 +607,10 @@ export interface ImportReport {
 }
 
 /** F40 · a teacher's editable students (GET /my-students). */
-export interface EditableParent { id: number; login_id: string; name: string; phone: string; email: string; address: string; relation: string }
+/** editable false: the parent also has a child the teacher can't reach — name only, looked after by the principal. */
+export interface EditableParent {
+  id: number; name: string; relation: string; editable: boolean; login_id?: string; phone?: string; email?: string; address?: string;
+}
 export interface EditableStudent {
   id: number; login_id: string; name: string; phone: string; email: string; address: string; dob: string | null;
   blood_group: string; roll_no: number | null; class_id: number; class_name: string; parents: EditableParent[];

@@ -247,6 +247,9 @@ def admin_update_user(sid: int, uid: int, body: UserUpdate, me: User = Depends(a
             data.pop(k, None)
     if (data.get("login_id") or "").strip() and data["login_id"].strip().lower() != u.login_id.lower():
         login_free(db, sid, data["login_id"], exclude_id=u.id)
+    if data.get("active") is False and u.role == Role.teacher:
+        from .student_access import drop_grant
+        drop_grant(db, sid, u, me)
     pw = data.pop("password", None)
     if pw:
         check_password_rules(pw, data.get("login_id") or u.login_id)
@@ -356,12 +359,16 @@ def record_payment(sid: int, body: PaymentIn, me: User = Depends(admin_only), db
 # ---------------------------------------------------------------- audit
 _PHONE = re.compile(r"(?<!\d)\d{10,13}(?!\d)")
 # "email: a@b.in → c@d.in" / "address: … → …" / "date of birth: … → …" in the activity text (see auth.changes)
-_CONTACT = re.compile(r"\b(phone|mobile number|email|address|date of birth): [^;]*?(?=; |$)")
+_LABELS = r"(?:name|login ID|phone|mobile number|email|address|date of birth|blood group|class|roll no\.|active|children|share contact with support)"
+# a value runs to the next "; <label>:" (an address may itself contain "; "), or to the end
+_CONTACT = re.compile(r"\b(phone|mobile number|email|address|date of birth): .*?(?=; " + _LABELS + r":|; password reset|; permissions updated|$)")
+_IP = re.compile(r" · from [0-9a-fA-F.:]+")
 
 
 def hide_contact(text: str) -> str:
     """What platform support may see of an activity entry while the school hasn't opened its contact details."""
     text = _CONTACT.sub(lambda m: f"{m.group(1)} changed (hidden)", text)
+    text = _IP.sub("", text)
     return _PHONE.sub(lambda m: mask_phone(m.group(0)), text)
 
 

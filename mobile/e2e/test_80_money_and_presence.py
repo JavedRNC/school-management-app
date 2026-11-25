@@ -52,6 +52,8 @@ def test_teacher_payslips(phone):
 def test_teacher_checks_in_with_gps(browser):
     tok = token_for("T003")
     _, before = call("GET", "/staff-attendance/me", tok)
+    if not (before.get("today") or {}).get("is_school_day"):
+        pytest.skip("staff check-in is closed today (Sunday or a holiday in the demo calendar)")
     ctx = browser.new_context(viewport={"width": 390, "height": 844}, timezone_id="Asia/Kolkata", locale="en-IN",
                               geolocation=SCHOOL_GATE, permissions=["geolocation"])
     page = ctx.new_page()
@@ -67,14 +69,13 @@ def test_teacher_checks_in_with_gps(browser):
         page.get_by_role("button", name="Sign in", exact=True).click()
         page.wait_for_url(lambda u: "/teacher" in u, timeout=20000)
         dismiss_popups(page)
-        record = (before.get("today") or {}).get("record") or {}
-        if not record.get("check_in_at"):
-            # TC-A-029.1 — Standing at the gate, Check in records today's arrival
-            page.get_by_role("button", name="Check in").first.click()
-            expect(page.get_by_text("Checked in ✓ Have a great day!")).to_be_visible(timeout=20000)   # several readings take a few seconds
-            _, after = call("GET", "/staff-attendance/me", tok)
-            got = (after.get("today") or {}).get("record") or {}
-            assert got.get("check_in_at") and got.get("in_distance_m", 999) < 50, json.dumps(after)[:400]
+        assert not ((before.get("today") or {}).get("record") or {}).get("check_in_at"), "T003 must not be checked in yet (fresh test run)"
+        # TC-A-029.1 — Standing at the gate, Check in records today's arrival
+        page.get_by_role("button", name="Check in").first.click()
+        expect(page.get_by_text("Checked in ✓ Have a great day!")).to_be_visible(timeout=20000)   # several readings take a few seconds
+        _, after = call("GET", "/staff-attendance/me", tok)
+        got = (after.get("today") or {}).get("record") or {}
+        assert got.get("check_in_at") and got.get("in_distance_m", 999) < 50, json.dumps(after)[:400]
         # TC-A-029.2 — The card then offers Check out
         expect(page.get_by_role("button", name="Check out").first).to_be_visible()
     finally:
@@ -122,6 +123,8 @@ def test_a_fake_location_is_refused(browser):
     """A browser can't run a fake-GPS app, so the test marks the readings the way Android marks a mock app's readings."""
     tok = token_for("T004")
     _, before = call("GET", "/staff-attendance/me", tok)
+    if not (before.get("today") or {}).get("is_school_day"):
+        pytest.skip("staff check-in is closed today (Sunday or a holiday in the demo calendar)")
     assert not ((before.get("today") or {}).get("record") or {}).get("check_in_at"), "T004 must not be checked in yet"
     ctx = browser.new_context(viewport={"width": 390, "height": 844}, timezone_id="Asia/Kolkata", locale="en-IN",
                               geolocation=SCHOOL_GATE, permissions=["geolocation"])

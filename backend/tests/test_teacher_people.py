@@ -208,8 +208,8 @@ def test_parents_edit_and_add(c):
     second = c.post("/users", json={"name": "Sibling", "login_id": "NOPAR2", "password": "Start#123", "role": "student",
                                     "class_id": cls["id"]}, headers=p).json()
     wrong = c.post(f"/my-students/{second['id']}/parents", json={"name": "Somebody Else", "mobile": "9811100002", "relation": "Mother"}, headers=t1)
-    assert wrong.status_code == 409 and "another name" in wrong.json()["detail"]
-    again = c.post(f"/my-students/{second['id']}/parents", json={"name": "  meena   DEVI ", "mobile": "9811100002", "relation": "Mother"}, headers=t1).json()
+    assert wrong.status_code == 409 and "type the name exactly" in wrong.json()["detail"]
+    again = c.post(f"/my-students/{second['id']}/parents", json={"name": "Smt. meena   DEVI ji", "mobile": "9811100002", "relation": "Mother"}, headers=t1).json()
     assert again["linked_existing"] is True and again["credentials"] is None and again["parent"]["id"] == out["parent"]["id"]
     assert set(again["parent"]) == {"id", "name", "relation"}, "an existing parent's contact details are not shown"
     parent = next(u for u in c.get("/users", params={"role": "parent"}, headers=p).json() if u["login_id"] == "9811100002")
@@ -222,7 +222,8 @@ def test_parents_edit_and_add(c):
     for body, want in cases:
         assert c.post(f"/my-students/{sid}/parents", json=body, headers=t1).status_code == want, body
     c.post("/users", json={"name": "Mobile Teacher", "login_id": "9811100009", "password": "Start#123", "role": "teacher"}, headers=p)
-    assert c.post(f"/my-students/{sid}/parents", json={"name": "Mobile Teacher", "mobile": "9811100009"}, headers=t1).status_code == 409
+    staff = c.post(f"/my-students/{sid}/parents", json={"name": "Mobile Teacher", "mobile": "9811100009"}, headers=t1)
+    assert staff.status_code == 409 and staff.json()["detail"] == wrong.json()["detail"], "same answer: no hint who has an account"
     gone = c.post("/users", json={"name": "Gone Parent", "login_id": "9811100010", "password": "Start#123", "role": "parent"}, headers=p).json()
     c.delete(f"/users/{gone['id']}", headers=p)
     assert c.post(f"/my-students/{sid}/parents", json={"name": "Gone Parent", "mobile": "9811100010"}, headers=t1).status_code == 409   # removed account
@@ -241,6 +242,13 @@ def test_shared_parent_is_not_editable(c):
     parents = c.get("/users", params={"role": "parent"}, headers=p).json()
     shared = next(u for u in parents if set(u["children_ids"]) & in_class and set(u["children_ids"]) - in_class)   # demo: siblings in two classes
     assert c.put(f"/my-students/parents/{shared['id']}", json={"name": "Renamed"}, headers=t1).status_code == 403
+    listed = [par for st in mine["students"] for par in st["parents"] if par["id"] == shared["id"]]
+    assert listed and all(set(x) == {"id", "name", "relation", "editable"} and x["editable"] is False for x in listed), "name only"
+    own = [par for st in mine["students"] for par in st["parents"] if par["id"] != shared["id"]]
+    assert own and all(x["editable"] is True and "phone" in x for x in own)
+    other = c.post("/users", json={"name": "School Two Parent", "login_id": "9822200001", "password": "Start#123", "role": "parent"},
+                   headers=login(c, "principal", code="DEMO02")).json()
+    assert c.put(f"/my-students/parents/{other['id']}", json={"name": "X"}, headers=t1).status_code == 404     # a real parent of school 2
     other_school_parent = 999999
     assert c.put(f"/my-students/parents/{other_school_parent}", json={"name": "X"}, headers=t1).status_code == 404
     lonely_parent = c.post("/users", json={"name": "No Child", "login_id": "9811100011", "password": "Start#123", "role": "parent"}, headers=p).json()
@@ -360,3 +368,24 @@ def test_other_school_is_kept_out(c):
     mine = c.get("/my-students", headers=t2).json()
     assert mine["can_add_students"]
     assert c.post("/my-students", json=student_body(mine["classes"][0]["id"], "S2NEW1"), headers=t2).status_code == 200
+
+
+@pytest.mark.tc("TC-B-157", "A teacher switched off by platform support also loses their extra access")
+@pytest.mark.regression
+def test_grant_goes_when_support_switches_the_teacher_off(c):
+    p = login(c, "principal")
+    sid = c.get("/school/me", headers=p).json()["id"]
+    cls = c.get("/classes", headers=p).json()
+    t = c.post("/users", json={"name": "Support Off", "login_id": "SUPOFF1", "password": "Start#123", "role": "teacher"}, headers=p).json()
+    c.put(f"/student-access/teachers/{t['id']}", json={"classes": [cls[0]["id"]], "students": "add"}, headers=p)
+    r = c.post("/auth/login", json={"school_code": "ADMIN", "login_id": "admin", "password": "admin123"})
+    a = {"Authorization": f"Bearer {r.json()['token']}"}
+    if r.json()["user"]["must_change_password"]:
+        a = {"Authorization": f"Bearer {c.post('/auth/password', json={'old_password': 'admin123', 'new_password': 'Admin#2026'}, headers=a).json()['token']}"}
+    c.post("/school/support-access", params={"hours": 1}, headers=p)
+    try:
+        assert c.put(f"/admin/schools/{sid}/users/{t['id']}", json={"active": False}, headers=a).status_code == 200
+    finally:
+        c.delete("/school/support-access", headers=p)
+    c.put(f"/users/{t['id']}", json={"active": True}, headers=p)
+    assert all(g["teacher_id"] != t["id"] for g in c.get("/student-access", headers=p).json()["grants"])

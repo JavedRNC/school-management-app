@@ -71,7 +71,7 @@ function EditSheet({ student, parent, onDismiss, onSaved }: {
           <View style={{ flex: 1 }}>
             <Text variant="titleMedium" style={{ color: t.colors.onSurface }}>{who.name}</Text>
             <Text variant="bodySmall" style={{ color: t.colors.onSurfaceVariant }}>
-              Login ID {who.login_id}{parent ? ` · ${parent.relation}` : student ? ` · ${student.class_name}` : ''}
+              Login ID {who.login_id ?? ''}{parent ? ` · ${parent.relation}` : student ? ` · ${student.class_name}` : ''}
             </Text>
           </View>
         </View>
@@ -286,11 +286,15 @@ function MyStudentsScreen() {
                     {parents && open === s.id ? (
                       <View style={{ paddingBottom: space.sm, gap: 6, borderBottomWidth: i < list.length - 1 ? 1 : 0, borderBottomColor: t.colors.outlineVariant }}>
                         <Button mode="contained-tonal" icon="pencil-outline" onPress={() => setStudent(s)} style={{ alignSelf: 'flex-start' }}>Edit {s.name.split(' ')[0]}</Button>
-                        {s.parents.length ? s.parents.map((p) => (
+                        {s.parents.length ? s.parents.map((p) => (p.editable ? (
                           <Button key={p.id} mode="outlined" icon="account-tie-outline" onPress={() => setParent(p)} style={{ alignSelf: 'flex-start' }}>
                             {`${p.relation}: ${p.name}`}
                           </Button>
-                        )) : <Text variant="bodySmall" style={{ color: t.colors.onSurfaceVariant }}>No parent linked</Text>}
+                        ) : (
+                          <Text key={p.id} variant="bodySmall" style={{ color: t.colors.onSurfaceVariant }}>
+                            {`${p.relation}: ${p.name} — also a parent in another class, so the principal updates their details`}
+                          </Text>
+                        ))) : <Text variant="bodySmall" style={{ color: t.colors.onSurfaceVariant }}>No parent linked</Text>}
                         {lv.parents === 'add' ? (
                           <Button mode="text" icon="account-plus-outline" onPress={() => setParentFor(s)} style={{ alignSelf: 'flex-start' }}
                             accessibilityLabel={`Add parent for ${s.name}`}>Add parent</Button>

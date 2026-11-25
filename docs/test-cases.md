@@ -19,16 +19,16 @@ suites on every push to `dev`.
 
 | | Count |
 |---|---|
-| Automated test cases | 263 |
-| — API | 156 |
+| Automated test cases | 264 |
+| — API | 157 |
 | — Portal | 74 |
 | — Android app | 33 |
 | Automated sub-cases inside them | 348 |
 | Smoke | 33 |
 | Sanity | 117 |
-| Regression | 263 |
+| Regression | 264 |
 | Not automated yet | 7 |
-| **Total cases in this list** | **618** |
+| **Total cases in this list** | **619** |
 
 ## API (backend, pytest)
 
@@ -213,6 +213,7 @@ suites on every push to `dev`.
 | TC-B-154.4 | ↳ teacher | Regression | Automated (in TC-B-154) | ″ |
 | **TC-B-155** | **Platform support sees that contact details changed, not the details, until the school allows it** | Sanity, Regression | Automated | `backend/tests/test_endpoints.py::test_activity_log_hides_contact_details_from_support` |
 | **TC-B-156** | **Activity search treats % and _ as plain text** | Regression | Automated | `backend/tests/test_endpoints.py::test_activity_search_is_literal` |
+| **TC-B-157** | **A teacher switched off by platform support also loses their extra access** | Regression | Automated | `backend/tests/test_teacher_people.py::test_grant_goes_when_support_switches_the_teacher_off` |
 
 ## Portal (web, Admin + Principal — Playwright)
 

@@ -274,8 +274,18 @@ class ParentNew(BaseModel):
     email: str = Field(default="", max_length=200)
 
 
+# one message for "someone else's account" and "a parent under another name", so the answer doesn't reveal who has an account
+TAKEN = ("This mobile number already has an account in the school. If it is this student's parent, type the name exactly as "
+         "the school has it; otherwise ask the principal.")
+_HONORIFIC = re.compile(r"^(mr|mrs|ms|miss|shri|sri|smt|dr|mohd|md)\b\.?\s*")
+
+
 def _norm(name: str) -> str:
-    return " ".join(re.sub(r"^(mr|mrs|ms|shri|smt|dr)\.?\s+", "", name.strip().lower()).split())
+    """Names typed differently but meaning the same person: case, dots, spaces, a leading title, a trailing 'ji'."""
+    n = name.strip().lower().replace(".", " ")
+    n = _HONORIFIC.sub("", " ".join(n.split()))
+    n = re.sub(r"\s+ji$", "", n)
+    return "".join(n.split())
 
 
 def _flush_or_409(db: Session, msg: str, commit: bool = False) -> None:
@@ -302,11 +312,22 @@ def _person(u: User, fields) -> dict:
     return {"id": u.id, "login_id": u.login_id, **{f: getattr(u, f) for f in fields}}
 
 
-def _parents_of(db: Session, sids: list[int]) -> dict[int, list[dict]]:
+def _parents_of(db: Session, sids: list[int], acc: dict) -> dict[int, list[dict]]:
+    """Parents of these students. A parent who also has a child outside what this teacher may reach is listed by name
+    only (no contact details) and can't be edited here — the principal or that class's teacher looks after them."""
+    rows = list(db.execute(select(ParentLink, User).join(User, User.id == ParentLink.parent_id)
+                           .where(ParentLink.student_id.in_(sids or [0]), User.active.is_(True))))
+    pids = {p.id for _, p in rows}
+    kid_classes: dict[int, set] = {}
+    for parent_id, class_id in db.execute(select(ParentLink.parent_id, User.class_id).join(User, User.id == ParentLink.student_id)
+                                          .where(ParentLink.parent_id.in_(pids or {0}), User.active.is_(True))):
+        kid_classes.setdefault(parent_id, set()).add(class_id)
     out: dict[int, list[dict]] = {}
-    for link, p in db.execute(select(ParentLink, User).join(User, User.id == ParentLink.parent_id)
-                              .where(ParentLink.student_id.in_(sids or [0]), User.active.is_(True))):
-        out.setdefault(link.student_id, []).append({**_person(p, PARENT_FIELDS), "relation": link.relation})
+    for link, p in rows:
+        mine = all(c in acc and acc[c]["parents"] != "none" for c in kid_classes.get(p.id, set()))
+        shown = {**_person(p, PARENT_FIELDS), "relation": link.relation, "editable": True} if mine else \
+            {"id": p.id, "name": p.name, "relation": link.relation, "editable": False}
+        out.setdefault(link.student_id, []).append(shown)
     return out
 
 
@@ -329,7 +350,7 @@ def my_students(me: User = Depends(teacher_only), db: Session = Depends(get_db))
     order = sorted(acc, key=lambda c: classes[c].name)
     studs = [s for cid in order for s in class_students(db, cid)]
     with_parents = [s.id for s in studs if acc[s.class_id]["parents"] != "none"]
-    parents = _parents_of(db, with_parents)
+    parents = _parents_of(db, with_parents, acc)
     return {"can_add_students": any(a["students"] == "add" for a in acc.values()),
             "can_edit_parents": any(a["parents"] != "none" for a in acc.values()),
             "can_add_parents": any(a["parents"] == "add" for a in acc.values()),
@@ -392,12 +413,12 @@ def add_parent(sid: int, body: ParentNew, me: User = Depends(teacher_only), db: 
     pw = None
     if existing:
         if existing.role != Role.parent or not existing.active:
-            raise HTTPException(409, "This mobile number already belongs to another account in the school. Ask the principal.")
+            raise HTTPException(409, TAKEN)
         if db.scalar(select(ParentLink.id).where(ParentLink.parent_id == existing.id, ParentLink.student_id == s.id)):
             raise HTTPException(409, "This parent is already linked to this student")
         # linking gives the parent this child's data, so the teacher must already know who it is: the name must match
         if _norm(existing.name) != _norm(name):
-            raise HTTPException(409, "This mobile number already has a parent account under another name. Check the name, or ask the principal to link it.")
+            raise HTTPException(409, TAKEN)
         parent = existing
     else:
         login_free(db, me.school_id, mobile)
