@@ -15,6 +15,8 @@ from .routers import (academics, admin, appversion, auth, bell, comms, dashboard
 @asynccontextmanager
 async def lifespan(_app: FastAPI):
     migrate()
+    from .reset import reset_if_asked
+    reset_if_asked()               # DEV / TEST only, once per DATA_RESET id: a fresh start with new demo data
     from .auth import ensure_secret
     from .db import SessionLocal
     from .seed import ensure_platform, seed_demo_if_empty

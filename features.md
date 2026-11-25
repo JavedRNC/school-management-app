@@ -554,3 +554,7 @@ Javed: "jahan jahan possible hai wahan audit logs". Every change by staff is now
 ### F42 · Stress test for 1500 people, and the server no longer freezes in a rush ✅ — 25 Nov
 - `tools/stress` + workflow *Stress test (QA)* (push to branch `stress`): 1500-person school on TEST, first-day sign-ins, then a morning rush; results on the run page; the people are archived and the school suspended afterwards.
 - Fix found by it: a request gate in the API (a few requests worked on at once, the rest wait) so a rush can no longer lock the server up; bigger database pool. API tests TC-B-158…160.
+
+### F43 · Fresh data on DEV and TEST, with a full-size demo school ✅ — 25 Nov
+- On their next start DEV and TEST remove every school and all its data once (the platform admin, its password and the plans stay); production never does this. Change `DATA_RESET` in backend/app/reset.py to do it again.
+- DEMO01 on DEV and TEST is now full size: 526 people (260 students, 243 parents, 20 teachers, principal, vice principal, coordinator) with a month of attendance, two exams of marks, fees, transport, leaves and payroll. Password demo123. API tests TC-B-161, TC-B-162.

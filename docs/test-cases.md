@@ -19,16 +19,16 @@ suites on every push to `dev`.
 
 | | Count |
 |---|---|
-| Automated test cases | 267 |
-| — API | 160 |
+| Automated test cases | 269 |
+| — API | 162 |
 | — Portal | 74 |
 | — Android app | 33 |
-| Automated sub-cases inside them | 354 |
+| Automated sub-cases inside them | 358 |
 | Smoke | 34 |
 | Sanity | 118 |
-| Regression | 267 |
+| Regression | 269 |
 | Not automated yet | 7 |
-| **Total cases in this list** | **628** |
+| **Total cases in this list** | **634** |
 
 ## API (backend, pytest)
 
@@ -223,6 +223,12 @@ suites on every push to `dev`.
 | **TC-B-160** | **A burst of 150 requests at once is answered, and the server answers straight after** | Smoke, Regression | Automated | `backend/tests/test_load.py::test_burst_does_not_freeze_the_server` |
 | TC-B-160.1 | ↳ every request of the burst is answered (none waits for the 10 s pool timeout) | Smoke, Regression | Automated (in TC-B-160) | ″ |
 | TC-B-160.2 | ↳ straight after the burst the server answers at normal speed | Smoke, Regression | Automated (in TC-B-160) | ″ |
+| **TC-B-161** | **DEV and TEST start fresh once: every school goes, the admin and plans stay; production never resets** | Regression | Automated | `backend/tests/test_reset.py::test_fresh_start` |
+| TC-B-161.1 | ↳ on TEST: one wipe per DATA_RESET id; schools and people go, admin (with its password) and plans stay | Regression | Automated (in TC-B-161) | ″ |
+| TC-B-161.2 | ↳ production (and an unset APP_ENV) never resets | Regression | Automated (in TC-B-161) | ″ |
+| **TC-B-162** | **DEV and TEST get a full-size demo school of over 500 people; tests and local runs keep the small one** | Regression | Automated | `backend/tests/test_reset.py::test_large_demo` |
+| TC-B-162.1 | ↳ DEMO_SIZE=large: 526 people in DEMO01 | Regression | Automated (in TC-B-162) | ″ |
+| TC-B-162.2 | ↳ the default outside DEV/TEST is the small school | Regression | Automated (in TC-B-162) | ″ |
 
 ## Portal (web, Admin + Principal — Playwright)
 

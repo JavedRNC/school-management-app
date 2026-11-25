@@ -2,6 +2,8 @@
 
 Demo logins (password demo123, school code DEMO01):
   principal · vp · coord · T001..T005 (teachers) · 2026001.. (students) · 98765000xx (parents)
+  On DEV and TEST DEMO01 is full size: T001..T020, 2026001..2026260, parents 9876500001..9876500260 (a few numbers skipped:
+  siblings share a parent).
 Second school DEMO02 (Sun–Thu week). Super admin: school code ADMIN, login admin.
 """
 import logging
@@ -22,6 +24,20 @@ DEMO_PASSWORD = "demo123"
 SUBJECTS = ["English", "Hindi", "Mathematics", "Science", "Social Science"]
 TEACHERS = ["Anita Sharma", "Rakesh Verma", "Sunita Singh", "Imran Khan", "Priya Nair"]
 CLASSES = ["8-A", "8-B", "9-A"]
+# DEV and TEST get a full-size DEMO01 for testing (526 people: 260 students, 243 parents, 20 teachers, principal, vp,
+# coordinator). Tests and local runs keep the small one. DEMO_SIZE=large|small overrides.
+LARGE_TEACHERS = TEACHERS + ["Deepak Tiwari", "Shabnam Ara", "Manish Pandey", "Rekha Bhatt", "Gaurav Saxena", "Nazia Parveen",
+                             "Alok Srivastava", "Kiran Rawat", "Sanjay Dubey", "Farhan Qureshi", "Lata Kumari", "Vivek Ojha",
+                             "Rupa Mondal", "Tariq Hussain", "Meena Chauhan"]
+LARGE_CLASSES = ["8-A", "8-B", "9-A", "6-A", "6-B", "7-A", "7-B", "9-B", "10-A", "10-B"]
+LARGE_PER_CLASS = 26
+
+
+def large_demo() -> bool:
+    size = os.getenv("DEMO_SIZE")
+    return size == "large" if size else os.getenv("APP_ENV") in ("dev", "test")
+
+
 FIRST = ["Aarav", "Diya", "Vihaan", "Ananya", "Arjun", "Ishita", "Kabir", "Meera", "Rohan", "Saanvi", "Aditya", "Zoya",
          "Krishna", "Riya", "Yusuf", "Pooja", "Dev", "Nisha", "Sameer", "Tanvi", "Harsh", "Fatima", "Kunal", "Sneha"]
 LAST = ["Kumar", "Gupta", "Ansari", "Patel", "Das", "Yadav", "Mishra", "Reddy"]
@@ -99,12 +115,14 @@ def seed_demo(db) -> None:
                is_free=True, admin_notes="Demo school (sponsored).")
     db.add(s)
     db.flush()
+    large = large_demo()
+    class_names, teacher_names, per_class = (LARGE_CLASSES, LARGE_TEACHERS, LARGE_PER_CLASS) if large else (CLASSES, TEACHERS, 8)
     principal = _u(s, "principal", "Dr. Meenakshi Rao", Role.principal, pw, phone="9876543210")
     subjects = [Subject(school_id=s.id, name=n) for n in SUBJECTS]
-    teachers = [_u(s, f"T00{i + 1}", n, Role.teacher, pw, phone=f"98350000{i + 1:02d}") for i, n in enumerate(TEACHERS)]
+    teachers = [_u(s, f"T{i + 1:03d}", n, Role.teacher, pw, phone=f"98350{i + 1:05d}") for i, n in enumerate(teacher_names)]
     db.add_all([principal, *subjects, *teachers])
     db.flush()
-    classes = [SchoolClass(school_id=s.id, name=n, class_teacher_id=teachers[i].id) for i, n in enumerate(CLASSES)]
+    classes = [SchoolClass(school_id=s.id, name=n, class_teacher_id=teachers[i].id) for i, n in enumerate(class_names)]
     db.add_all(classes)
     db.flush()
     db.add_all([
@@ -116,37 +134,47 @@ def seed_demo(db) -> None:
     students: list[User] = []
     k = 0
     for c in classes:
-        for roll in range(1, 9):
-            first, last = FIRST[k], LAST[k % len(LAST)]
+        grade = int(c.name.split("-")[0])
+        for roll in range(1, per_class + 1):
+            first, last = FIRST[k % len(FIRST)], LAST[(k + k // len(FIRST)) % len(LAST)]
             students.append(_u(s, f"2026{k + 1:03d}", f"{first} {last}", Role.student, pw, class_id=c.id, roll_no=roll,
                                blood_group=rnd.choice(["A+", "B+", "O+", "AB+"]), address=f"{rnd.randint(1, 200)}, Lalpur, Ranchi",
-                               dob=date(2012 + (c.name.startswith("8") and 1 or 0), rnd.randint(1, 12), rnd.randint(1, 28))))
+                               dob=date(2021 - grade, rnd.randint(1, 12), rnd.randint(1, 28))))
             k += 1
     db.add_all(students)
     db.flush()
-    # parents: one per student, except the first parent has two children (siblings)
+    # parents: one per student; some share a parent with the student before them (siblings): #10 with #1, and in the
+    # large school every 15th student after the first 24
     parents = []
     for i, st in enumerate(students):
         if i == 9:
             continue  # student #10 shares parent #1
+        if i >= 24 and i % 15 == 0:
+            parents[-1][1].append(st)
+            continue
         last = st.name.split()[-1]
-        parents.append((_u(s, f"98765000{i + 1:02d}", f"Mr. {['Rajesh', 'Suresh', 'Anil', 'Vijay', 'Manoj'][i % 5]} {last}",
-                           Role.parent, pw, phone=f"98765000{i + 1:02d}"), [st]))
+        parents.append((_u(s, f"9876500{i + 1:03d}", f"Mr. {['Rajesh', 'Suresh', 'Anil', 'Vijay', 'Manoj'][i % 5]} {last}",
+                           Role.parent, pw, phone=f"9876500{i + 1:03d}"), [st]))
     parents[0][1].append(students[9])
-    for p, kids in parents:
+    for p, _kids in parents:
         db.add(p)
-        db.flush()
+    db.flush()
+    for p, kids in parents:
         for kid in kids:
             db.add(ParentLink(school_id=s.id, parent_id=p.id, student_id=kid.id, relation="Father"))
 
-    for c in classes:
-        for sub, t in zip(subjects, teachers):
-            db.add(Assignment(school_id=s.id, teacher_id=t.id, class_id=c.id, subject_id=sub.id))
+    # each block of 3 classes has its own 5 subject teachers, so no teacher is in two classes in the same period
+    def teacher_for(ci, j):
+        return teachers[(5 * (ci // 3) + j) % len(teachers)]
+
+    for ci, c in enumerate(classes):
+        for j, sub in enumerate(subjects):
+            db.add(Assignment(school_id=s.id, teacher_id=teacher_for(ci, j).id, class_id=c.id, subject_id=sub.id))
     for day in s.working_days:
         for p in range(1, PERIODS + 1):
             for i, c in enumerate(classes):
                 j = (p + i + day) % len(subjects)
-                db.add(TimetableEntry(school_id=s.id, class_id=c.id, day=day, period=p, subject_id=subjects[j].id, teacher_id=teachers[j].id))
+                db.add(TimetableEntry(school_id=s.id, class_id=c.id, day=day, period=p, subject_id=subjects[j].id, teacher_id=teacher_for(i, j).id))
 
     # calendar
     db.add_all([
@@ -159,7 +187,7 @@ def seed_demo(db) -> None:
     ])
     db.flush()
 
-    # attendance on real school days in the last ~30 days (today: only 2 of 3 classes marked)
+    # attendance on real school days in the last ~30 days (today: the last class is not marked yet)
     reliability = {st.id: rnd.choice([0.97, 0.95, 0.92, 0.9, 0.88, 0.85, 0.65, 0.6]) for st in students}
     days = school_days(db, s, t0 - timedelta(days=30), t0)
     for d in days:
@@ -174,9 +202,11 @@ def seed_demo(db) -> None:
     db.add_all(exams)
     db.flush()
     ability = {st.id: rnd.uniform(0.3, 0.95) for st in students}
+    ci_of = {c.id: ci for ci, c in enumerate(classes)}
     for e in exams:
         for st in students:
-            for sub, t in zip(subjects, teachers):
+            for j, sub in enumerate(subjects):
+                t = teacher_for(ci_of[st.class_id], j)
                 pct = min(1.0, max(0.05, rnd.gauss(ability[st.id], 0.1)))
                 db.add(Mark(school_id=s.id, exam_id=e.id, student_id=st.id, subject_id=sub.id, score=round(pct * e.max_marks), entered_by=t.id))
 
