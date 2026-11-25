@@ -19,16 +19,16 @@ suites on every push to `dev`.
 
 | | Count |
 |---|---|
-| Automated test cases | 264 |
-| — API | 157 |
+| Automated test cases | 267 |
+| — API | 160 |
 | — Portal | 74 |
 | — Android app | 33 |
-| Automated sub-cases inside them | 348 |
-| Smoke | 33 |
-| Sanity | 117 |
-| Regression | 264 |
+| Automated sub-cases inside them | 354 |
+| Smoke | 34 |
+| Sanity | 118 |
+| Regression | 267 |
 | Not automated yet | 7 |
-| **Total cases in this list** | **619** |
+| **Total cases in this list** | **628** |
 
 ## API (backend, pytest)
 
@@ -214,6 +214,15 @@ suites on every push to `dev`.
 | **TC-B-155** | **Platform support sees that contact details changed, not the details, until the school allows it** | Sanity, Regression | Automated | `backend/tests/test_endpoints.py::test_activity_log_hides_contact_details_from_support` |
 | **TC-B-156** | **Activity search treats % and _ as plain text** | Regression | Automated | `backend/tests/test_endpoints.py::test_activity_search_is_literal` |
 | **TC-B-157** | **A teacher switched off by platform support also loses their extra access** | Regression | Automated | `backend/tests/test_teacher_people.py::test_grant_goes_when_support_switches_the_teacher_off` |
+| **TC-B-158** | **Only a few requests are worked on at once; the rest wait, and are told 'busy' if they wait too long** | Sanity, Regression | Automated | `backend/tests/test_load.py::test_request_gate` |
+| TC-B-158.1 | ↳ at most MAX_ACTIVE at once, and everyone who waits a little is served | Sanity, Regression | Automated (in TC-B-158) | ″ |
+| TC-B-158.2 | ↳ whoever would wait longer than MAX_WAIT_S gets 503 'busy' instead of a reply nobody waits for | Sanity, Regression | Automated (in TC-B-158) | ″ |
+| TC-B-158.3 | ↳ a queue that is already long is told 'busy' at once | Sanity, Regression | Automated (in TC-B-158) | ″ |
+| TC-B-158.4 | ↳ the health check never waits in the queue | Sanity, Regression | Automated (in TC-B-158) | ″ |
+| **TC-B-159** | **The database pool is larger than the number of requests let in (so the deadlock can't come back)** | Regression | Automated | `backend/tests/test_load.py::test_pool_is_bigger_than_the_gate` |
+| **TC-B-160** | **A burst of 150 requests at once is answered, and the server answers straight after** | Smoke, Regression | Automated | `backend/tests/test_load.py::test_burst_does_not_freeze_the_server` |
+| TC-B-160.1 | ↳ every request of the burst is answered (none waits for the 10 s pool timeout) | Smoke, Regression | Automated (in TC-B-160) | ″ |
+| TC-B-160.2 | ↳ straight after the burst the server answers at normal speed | Smoke, Regression | Automated (in TC-B-160) | ″ |
 
 ## Portal (web, Admin + Principal — Playwright)
 

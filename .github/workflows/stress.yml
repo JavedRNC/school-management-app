@@ -1,0 +1,71 @@
+# Stress test: 1500 people (720 students, 720 parents, 59 teachers, the principal) on the TEST (QA) server.
+# Never runs against production. Starts when a commit is pushed to the branch `stress` (push the commit that is on `test`).
+#
+#   1. setup    — builds the school STRESS1 and signs everyone in for the first time ("first day")
+#   2. rush     — all 1500 open the app within about 8 minutes and keep using it (tools/stress/locustfile.py)
+#   3. cleanup  — archives the 1500 people and suspends STRESS1 again (always runs, even after a failure)
+# Results: the run's summary page, and the artifact stress-report (Locust's charts). Needs the secret QA_ADMIN_PASSWORD.
+name: Stress test (QA)
+
+on:
+  push:
+    branches: [stress]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: qa-e2e          # never at the same time as the QA browser tests: they share the TEST server
+  cancel-in-progress: false
+
+env:
+  STRESS_API_URL: https://prangan-api-test.onrender.com
+  STRESS_RUN: ${{ github.run_number }}
+
+jobs:
+  stress:
+    runs-on: ubuntu-latest
+    timeout-minutes: 240
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: pip install locust==2.37.10 openpyxl==3.1.5
+      - name: Wait until TEST serves this commit
+        run: python portal/e2e/wait_for_deploy.py "$GITHUB_SHA"
+        env:
+          E2E_API_URL: ${{ env.STRESS_API_URL }}
+          E2E_WEB_URL: https://prangan-portal-test.onrender.com
+      - name: Set up the school and the first day
+        working-directory: tools/stress
+        env:
+          STRESS_ADMIN_PASSWORD: ${{ secrets.QA_ADMIN_PASSWORD }}
+        run: python setup.py 10
+      - name: Morning rush — 1500 people
+        working-directory: tools/stress
+        run: |
+          ulimit -n 65536 || true
+          locust -f locustfile.py --headless -u 1500 -r 3 -t 13m --host "$STRESS_API_URL" \
+            --csv "$RUNNER_TEMP/rush" --csv-full-history --html "$RUNNER_TEMP/rush.html" --only-summary || true
+      - name: Results
+        if: always()
+        working-directory: tools/stress
+        run: python report.py "$RUNNER_TEMP/rush"
+      - name: Clean up the stress school
+        if: always()
+        working-directory: tools/stress
+        env:
+          STRESS_ADMIN_PASSWORD: ${{ secrets.QA_ADMIN_PASSWORD }}
+        run: python cleanup.py
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: stress-report
+          path: |
+            ${{ runner.temp }}/rush.html
+            ${{ runner.temp }}/rush_summary.md
+            ${{ runner.temp }}/rush_stats.csv
+            ${{ runner.temp }}/rush_failures.csv
+          if-no-files-found: ignore
+          retention-days: 30

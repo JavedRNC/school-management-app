@@ -75,13 +75,14 @@ def _deliver(user_ids: list[int], title: str, body: str, data: dict) -> None:
     if not acc or not user_ids:
         return
     try:
-        with SessionLocal() as db:
+        with SessionLocal() as db:            # the connection goes back before the (slow) sending starts
             tokens = list(db.scalars(select(PushToken.token).where(PushToken.user_id.in_(user_ids)).limit(500)))
-            if not tokens:
-                return
-            access = _access_token(acc)
-            gone = [t for t in tokens if _send_one(acc, access, t, title, body, data) == "gone"]
-            if gone:
+        if not tokens:
+            return
+        access = _access_token(acc)
+        gone = [t for t in tokens if _send_one(acc, access, t, title, body, data) == "gone"]
+        if gone:
+            with SessionLocal() as db:
                 db.execute(delete(PushToken).where(PushToken.token.in_(gone)))
                 db.commit()
     except Exception:  # noqa: BLE001 — a notification must never break the request that caused it

@@ -550,3 +550,7 @@ Javed: the principal must be able to let teachers add and edit students, and add
 Javed: "jahan jahan possible hai wahan audit logs". Every change by staff is now recorded with who, when and the old → new value: people edits, marks (per student), attendance changes (which students flipped), classes and class-teacher changes, subjects, subject teachers, timetable slots, exams, notices/homework, banners, calendar, leave cancel, transport edits and riders, student data access, plus wrong-password sign-ins to real accounts. Already recorded before: fees, payroll, data downloads/imports, settings, privacy, archive.
 - Principal: Activity (portal) and Me → Privacy & audit (app) now search, filter by kind and dates, and page back with "Show older".
 - Not recorded on purpose: daily staff check-in/out (own register), phone push sign-up, the public sign-up form.
+
+### F42 · Stress test for 1500 people, and the server no longer freezes in a rush ✅ — 25 Nov
+- `tools/stress` + workflow *Stress test (QA)* (push to branch `stress`): 1500-person school on TEST, first-day sign-ins, then a morning rush; results on the run page; the people are archived and the school suspended afterwards.
+- Fix found by it: a request gate in the API (a few requests worked on at once, the rest wait) so a rush can no longer lock the server up; bigger database pool. API tests TC-B-158…160.

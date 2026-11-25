@@ -11,3 +11,4 @@ dist/
 web-build/
 *.log
 .env
+tools/stress/stress-state.json

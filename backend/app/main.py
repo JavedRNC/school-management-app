@@ -101,6 +101,51 @@ class _TooLarge(Exception):
     pass
 
 
+MAX_ACTIVE = int(os.getenv("MAX_ACTIVE_REQUESTS", "8"))     # requests worked on at once; the rest wait their turn
+MAX_WAITING = int(os.getenv("MAX_WAITING_REQUESTS", "400"))  # beyond this the server says "busy" at once
+MAX_WAIT_S = float(os.getenv("MAX_WAIT_SECONDS", "20"))      # a phone gives up after about 30 s: don't do work nobody waits for
+
+
+class RequestGate:
+    """Lets only MAX_ACTIVE requests into the API at a time; the others wait here, holding nothing.
+
+    Without it a rush freezes the server: each request runs in steps (sign-in check, then the work, then the reply), every
+    step needs one of the 40 worker threads, and the request keeps its database connection between steps. With more
+    requests than connections, all 40 threads end up waiting for a connection while every connection belongs to a request
+    waiting for a thread — nothing moves until the 30-second pool timeout, again and again (found by the 1500-person stress
+    test). Here requests wait without a thread or a connection, so the ones inside always finish.
+    MAX_ACTIVE must stay below the database pool (db.py), which leaves room for a second connection per request."""
+
+    def __init__(self, inner):
+        self.inner = inner
+        self.sem = None
+        self.waiting = 0
+
+    async def __call__(self, scope, receive, send):
+        if scope["type"] != "http" or scope["path"] == "/" or scope["method"] == "OPTIONS":
+            return await self.inner(scope, receive, send)       # the health check never queues
+        import asyncio
+
+        if self.sem is None:
+            self.sem = asyncio.Semaphore(MAX_ACTIVE)
+        busy = JSONResponse({"detail": "The server is busy right now. Please try again in a moment."}, status_code=503,
+                            headers={"Retry-After": "5"})
+        if self.waiting >= MAX_WAITING:
+            return await busy(scope, receive, send)
+        self.waiting += 1
+        try:
+            await asyncio.wait_for(self.sem.acquire(), MAX_WAIT_S)
+        except TimeoutError:
+            return await busy(scope, receive, send)
+        finally:
+            self.waiting -= 1
+        try:
+            await self.inner(scope, receive, send)
+        finally:
+            self.sem.release()
+
+
+app.add_middleware(RequestGate)
 app.add_middleware(BodyLimit)
 app.add_middleware(CORSMiddleware, allow_origins=_origins, allow_origin_regex=_origin_re, allow_credentials=False,
                    allow_methods=["GET", "POST", "PUT", "DELETE"], allow_headers=["Authorization", "Content-Type"],
