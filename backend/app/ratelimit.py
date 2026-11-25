@@ -24,15 +24,19 @@ def _private(host: str) -> bool:
 
 
 def client_ip(request: Request) -> str:
-    """Caller's address. Forwarded headers are believed ONLY when the direct peer is our own proxy (a private address,
-    as on Render); a caller reaching the app directly can't invent an address to dodge a limit.
-    Behind the proxy, CF-Connecting-IP is set by the edge for every request and replaces anything the caller sent."""
+    """Caller's address, used for every rate limit. Forwarded headers are believed ONLY when the direct peer is our own
+    proxy (a private address, as on Render); a caller reaching the app directly can't invent an address to dodge a limit.
+
+    The address comes from X-Forwarded-For, whose LAST entry is the one our own proxy put there (Render appends the real
+    client to the right); entries further left were sent by the caller and can't be trusted. CF-Connecting-IP is read
+    only when the deploy really sits behind Cloudflare (TRUST_CF_HEADER=1) — Render by itself does not set that header,
+    so believing it would let anyone rotate it to a fresh value on every request and walk past the login limit."""
     peer = request.client.host if request.client else ""
     # On Render (it sets RENDER=true) every request arrives through its edge, never directly.
     behind_proxy = bool(os.getenv("RENDER")) or _private(peer)
     if behind_proxy and os.getenv("TRUST_PROXY_HEADERS", "1") == "1":
         h = request.headers
-        ip = (h.get("cf-connecting-ip") or "").strip()
+        ip = (h.get("cf-connecting-ip") or "").strip() if os.getenv("TRUST_CF_HEADER") == "1" else ""
         if not ip:
             xff = [p.strip() for p in (h.get("x-forwarded-for") or "").split(",") if p.strip()]
             ip = xff[-1] if xff else ""

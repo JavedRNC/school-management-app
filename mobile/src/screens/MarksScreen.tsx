@@ -131,7 +131,7 @@ function MarkSheet({ a, exam, pickers }: { a: Assignment; exam: Exam; pickers: R
 
   return (
     <>
-      <Screen header={header} footerSpace={110 + insets.bottom}>
+      <Screen header={header} footerSpace={110}>
         {error ? <ErrorState message={error} onRetry={reload} /> : null}
         {!data ? <LoadingCards count={5} /> : !data.length ? <EmptyState title="No students in this class" /> : (
           <Panel title={`Out of ${exam.max_marks}`} subtitle={canEdit ? 'Grade updates as you type' : 'View only'} icon="pencil-box-multiple-outline">
@@ -163,7 +163,7 @@ function MarkSheet({ a, exam, pickers }: { a: Assignment; exam: Exam; pickers: R
         )}
       </Screen>
       {data?.length && dirty && canEdit && !typing ? (
-        <View style={{ position: 'absolute', left: 0, right: 0, bottom: 0, paddingHorizontal: space.lg, paddingTop: space.md, paddingBottom: space.md + insets.bottom,
+        <View style={{ position: 'absolute', left: 0, right: 0, bottom: 0, paddingHorizontal: space.lg, paddingTop: space.md, paddingBottom: Math.max(space.md, insets.bottom),
           backgroundColor: t.colors.background, borderTopWidth: 1, borderTopColor: t.custom.cardBorder }}>
           <Button mode="contained" icon="content-save-outline" onPress={save} loading={busy} disabled={busy}
             style={{ borderRadius: 16 }} contentStyle={{ height: 54 }} labelStyle={{ fontSize: 17, lineHeight: 24, fontWeight: '700' }}>

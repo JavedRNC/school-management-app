@@ -150,7 +150,7 @@ function AttendanceSheet({ classId, day, header, classTeacherId }: {
 
   return (
     <>
-      <Screen header={header(summary)} onRefresh={refresh} refreshing={refreshing} footerSpace={canEdit && rows.length ? 110 + insets.bottom : 40}>
+      <Screen header={header(summary)} onRefresh={refresh} refreshing={refreshing} footerSpace={canEdit && rows.length ? 110 : 40}>
         {error ? <ErrorState message={error} onRetry={reload} /> : null}
         {sheet && offDay ? (
           <Panel tone="primary" icon="beach" title={`No school: ${sheet.reason || 'holiday'}`}
@@ -208,7 +208,7 @@ function AttendanceSheet({ classId, day, header, classTeacherId }: {
         )}
       </Screen>
       {rows.length && canEdit ? (
-        <View style={{ position: 'absolute', left: 0, right: 0, bottom: 0, paddingHorizontal: space.lg, paddingTop: space.md, paddingBottom: space.md + insets.bottom,
+        <View style={{ position: 'absolute', left: 0, right: 0, bottom: 0, paddingHorizontal: space.lg, paddingTop: space.md, paddingBottom: Math.max(space.md, insets.bottom),
           backgroundColor: t.colors.background, borderTopWidth: 1, borderTopColor: t.custom.cardBorder }}>
           <Button mode="contained" onPress={save} loading={busy} disabled={busy} icon={already ? 'content-save-edit-outline' : 'content-save-check-outline'}
             style={{ borderRadius: 16 }} contentStyle={{ height: 54 }} labelStyle={{ fontSize: 17, lineHeight: 24, fontWeight: '700' }}>

@@ -19,16 +19,16 @@ suites on every push to `dev`.
 
 | | Count |
 |---|---|
-| Automated test cases | 269 |
-| — API | 162 |
+| Automated test cases | 271 |
+| — API | 164 |
 | — Portal | 74 |
 | — Android app | 33 |
-| Automated sub-cases inside them | 358 |
+| Automated sub-cases inside them | 361 |
 | Smoke | 34 |
-| Sanity | 118 |
-| Regression | 269 |
+| Sanity | 119 |
+| Regression | 271 |
 | Not automated yet | 7 |
-| **Total cases in this list** | **634** |
+| **Total cases in this list** | **639** |
 
 ## API (backend, pytest)
 
@@ -229,6 +229,11 @@ suites on every push to `dev`.
 | **TC-B-162** | **DEV and TEST get a full-size demo school of over 500 people; tests and local runs keep the small one** | Regression | Automated | `backend/tests/test_reset.py::test_large_demo` |
 | TC-B-162.1 | ↳ DEMO_SIZE=large: 526 people in DEMO01 | Regression | Automated (in TC-B-162) | ″ |
 | TC-B-162.2 | ↳ the default outside DEV/TEST is the small school | Regression | Automated (in TC-B-162) | ″ |
+| **TC-B-163** | **A caller can't pick the address its rate limit is counted under** | Sanity, Regression | Automated | `backend/tests/test_ratelimit.py::test_client_ip_cannot_be_spoofed` |
+| TC-B-163.1 | ↳ X-Forwarded-For: only the LAST entry (added by our proxy) is used; anything the caller prepends is ignored | Sanity, Regression | Automated (in TC-B-163) | ″ |
+| TC-B-163.2 | ↳ CF-Connecting-IP is NOT believed unless the deploy opts in (Render alone doesn't set it) | Sanity, Regression | Automated (in TC-B-163) | ″ |
+| TC-B-163.3 | ↳ with Cloudflare actually in front (opt-in), its header is used | Sanity, Regression | Automated (in TC-B-163) | ″ |
+| **TC-B-164** | **Rotating a forwarded header can't walk past the per-address login limit** | Regression | Automated | `backend/tests/test_ratelimit.py::test_rotating_header_stays_limited` |
 
 ## Portal (web, Admin + Principal — Playwright)
 

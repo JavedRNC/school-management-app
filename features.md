@@ -558,3 +558,7 @@ Javed: "jahan jahan possible hai wahan audit logs". Every change by staff is now
 ### F43 · Fresh data on DEV and TEST, with a full-size demo school ✅ — 25 Nov
 - On their next start DEV and TEST remove every school and all its data once (the platform admin, its password and the plans stay); production never does this. Change `DATA_RESET` in backend/app/reset.py to do it again.
 - DEMO01 on DEV and TEST is now full size: 526 people (260 students, 243 parents, 20 teachers, principal, vice principal, coordinator) with a month of attendance, two exams of marks, fees, transport, leaves and payroll. Password demo123. API tests TC-B-161, TC-B-162.
+
+### F44 · Security pass on sign-in, and FAB/footer alignment ✅ — 25 Nov
+- Pentested authentication: JWT forging, login enumeration/timing, SQL injection, portal-role and password-change gates all hold. Fixed one real hole — the login rate limit could be bypassed by rotating a forwarded IP header (`cf-connecting-ip`); it's now ignored unless the deploy is actually behind Cloudflare, and the trusted client address comes from X-Forwarded-For's last entry. API tests TC-B-163, TC-B-164.
+- Floating "Add" buttons no longer overlap the phone's bottom navigation bar, and the "Update attendance" / "Save marks" bars sit flush at the bottom instead of a bit high. Fixed app-wide in the shared Fab and Screen components.

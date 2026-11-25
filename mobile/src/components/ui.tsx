@@ -75,7 +75,7 @@ export function Screen({ children, onRefresh, refreshing = false, header, padded
   return (
     <KeyboardAvoidingView style={{ flex: 1, backgroundColor: t.colors.background }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
       <ScrollView
-        contentContainerStyle={{ paddingBottom: footerSpace, paddingTop: header ? 0 : insets.top }}
+        contentContainerStyle={{ paddingBottom: footerSpace + insets.bottom, paddingTop: header ? 0 : insets.top }}
         keyboardShouldPersistTaps="handled"
         refreshControl={onRefresh ? (
           <RefreshControl refreshing={refreshing} onRefresh={onRefresh} colors={[t.colors.primary, t.custom.amber]}
@@ -304,8 +304,12 @@ export function Row({ title, subtitle, left, right, onPress, divider = true }: {
 /** Extended FAB in solid brand blue with a soft glow — the one primary action of a screen. */
 export function Fab({ style, ...rest }: ComponentProps<typeof AnimatedFAB>) {
   const t = useAppTheme();
+  const insets = useSafeAreaInsets();
+  // Lift the FAB above the phone's bottom navigation bar/gesture area, so it never sits on top of it.
+  const flat = StyleSheet.flatten(style) || {};
+  const lifted = typeof flat.bottom === 'number' ? { bottom: flat.bottom + insets.bottom } : null;
   return <AnimatedFAB color={t.colors.onPrimary} rippleColor="rgba(255,255,255,0.2)" {...rest}
-    style={[{ backgroundColor: t.colors.primary }, t.dark ? null : glow(t.colors.primary), style]} />;
+    style={[{ backgroundColor: t.colors.primary }, t.dark ? null : glow(t.colors.primary), style, lifted]} />;
 }
 
 // ---------------------------------------------------------------- states
